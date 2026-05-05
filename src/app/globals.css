@@ -2,26 +2,239 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@layer utilities {
+  /** Reliable full-viewport stacks on mobile (address bar). Falls back from dvh → vh. */
+  .min-h-app-screen {
+    min-height: 100vh;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /**
+   * Elevation — light/dark paired shadows for clearer hierarchy without heavy chrome.
+   * Use html.dark descendant so stacks work everywhere (Sidebar, radix portals, etc.).
+   */
+  .shadow-elevate-xs {
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.045),
+      0 6px 16px rgb(15 23 42 / 0.05),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.75);
+  }
+  html.dark .shadow-elevate-xs {
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.35),
+      0 8px 20px rgb(0 0 0 / 0.28),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.04);
+  }
+
+  .shadow-elevate-sm {
+    box-shadow:
+      0 2px 4px rgb(15 23 42 / 0.04),
+      0 10px 30px rgb(15 23 42 / 0.07),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+  }
+  html.dark .shadow-elevate-sm {
+    box-shadow:
+      0 2px 6px rgb(0 0 0 / 0.32),
+      0 14px 36px rgb(0 0 0 / 0.38),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+  }
+
+  .shadow-elevate-md {
+    box-shadow:
+      0 2px 6px rgb(15 23 42 / 0.05),
+      0 16px 44px rgb(15 23 42 / 0.09),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.95);
+  }
+  html.dark .shadow-elevate-md {
+    box-shadow:
+      0 2px 8px rgb(0 0 0 / 0.42),
+      0 22px 50px rgb(0 0 0 / 0.45),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+  }
+
+  /* No y=1px “second hairline” here — it sat offset from `border-b` and broke the + junction with the sidebar. */
+  .shadow-chrome-under {
+    box-shadow: 0 12px 32px rgb(15 23 42 / 0.05);
+  }
+  html.dark .shadow-chrome-under {
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.22);
+  }
+
+  /* Sidebar: depth without a second “outline” beside `border-r`. */
+  .shadow-sidebar-panel {
+    box-shadow: 6px 0 36px rgb(15 23 42 / 0.045);
+  }
+  html.dark .shadow-sidebar-panel {
+    box-shadow: 8px 0 36px rgb(0 0 0 / 0.28);
+  }
+
+  /** Primary content cards — softer than elevate-xs, Zoho-like */
+  .shadow-layer-card {
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 8px 24px rgb(15 23 42 / 0.06),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.85);
+  }
+  html.dark .shadow-layer-card {
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.35),
+      0 14px 32px rgb(0 0 0 / 0.28),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+  }
+
+  /** Sticky footer / bottom actions respecting iPhone safe area */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
+  }
+
+  .pt-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /**
+   * Native `<button>` / `[role="button"]` pressed-state polish (shared with `Button` timing).
+   * Opt-in via className so Radix controls stay predictable.
+   */
+  .interaction-press {
+    transition-property: transform, background-color, border-color, color, box-shadow, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .interaction-press {
+      transition-duration: 0ms;
+    }
+    .interaction-press:active {
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .interaction-press:active:not(:disabled) {
+      transform: scale(0.985);
+    }
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
+@layer base {
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+  }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* ─── Light: gray canvas (#f8fafc), white lifted cards/sidebar ─── */
+  :root {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #111111;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --destructive: #dc2626;
+    /** Silver-toned boundaries (cards, inputs, dashed zones, chrome) */
+    --border: #94a3b8;
+    --input: #94a3b8;
+    --ring: #2563eb;
+    --radius: 0.5rem;
+
+    --chart-1: #2563eb;
+    --chart-2: #64748b;
+    --chart-3: #0ea5e9;
+    --chart-4: #22c55e;
+    --chart-5: #f59e0b;
+
+    /** Sidebar — cool enterprise rail (Zoho-style layering vs.canvas) */
+    --sidebar: #f2f5f9;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #2463dc;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: rgba(15, 23, 42, 0.06);
+    --sidebar-accent-foreground: #0f172a;
+    --sidebar-border: rgba(100, 116, 139, 0.35);
+    --sidebar-ring: #2563eb;
+    /** Active nav row top edge (readable on light + dark rails) */
+    --sidebar-inset-highlight: rgba(15, 23, 42, 0.06);
+
+    /** Label PDF: inner sheet inside white card (sub-layer) */
+    --label-sheet: #f1f5f9;
+    --label-grid-border: rgba(100, 116, 139, 0.5);
+    --label-grid-header: #eef2f6;
+  }
+
+  .dark {
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --card: #1e293b;
+    --card-foreground: #f1f5f9;
+    --popover: #1e293b;
+    --popover-foreground: #f1f5f9;
+    --primary: #3b82f6;
+    --primary-foreground: #0f172a;
+    --secondary: #334155;
+    --secondary-foreground: #f8fafc;
+    --muted: #334155;
+    --muted-foreground: #94a3b8;
+    --accent: #334155;
+    --accent-foreground: #f8fafc;
+    --destructive: #f87171;
+    /** Dark-mode boundaries: readable slate (not black) */
+    --border: #64748b;
+    --input: #94a3b8;
+    --ring: #3b82f6;
+
+    --chart-1: #60a5fa;
+    --chart-2: #94a3b8;
+    --chart-3: #38bdf8;
+    --chart-4: #4ade80;
+    --chart-5: #fbbf24;
+
+    --sidebar: #0c1424;
+    --sidebar-foreground: #e8edf4;
+    --sidebar-primary: #5b9cf7;
+    --sidebar-primary-foreground: #0b1220;
+    --sidebar-accent: rgba(255, 255, 255, 0.06);
+    --sidebar-accent-foreground: #f1f5f9;
+    --sidebar-border: rgba(148, 163, 184, 0.22);
+    --sidebar-ring: #60a5fa;
+    --sidebar-inset-highlight: rgba(255, 255, 255, 0.06);
+
+    --label-sheet: #1e293b;
+    --label-grid-border: rgba(148, 163, 184, 0.38);
+    --label-grid-header: #334155;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
   }
 }
