@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/lib/supabase/auth-context";
@@ -12,7 +13,8 @@ import {
   trackPageView,
 } from "@/lib/analytics/posthog-client";
 
-export function AnalyticsTracker() {
+/** `useSearchParams` must live under Suspense for `output: "export"` / static prerender. */
+function AnalyticsTrackerInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, authReady } = useAuth();
@@ -39,4 +41,12 @@ export function AnalyticsTracker() {
   }, [authReady, user?.id, user?.email]);
 
   return null;
+}
+
+export function AnalyticsTracker() {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsTrackerInner />
+    </Suspense>
+  );
 }
