@@ -335,21 +335,19 @@ export function SettingsPageClient() {
         </Card>
       </WorkspaceSurfaceCard>
 
-      <WorkspaceSurfaceCard padding="p-6 sm:p-8" className="w-full max-w-xl">
-        <Card className="border-0 shadow-none ring-0">
-          <CardHeader className="space-y-3 border-b border-border/90 pb-5">
-            <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-              Account &amp; security
-            </CardTitle>
-            <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-              Change your sign-in email, update password, and manage account safety controls.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8 pt-8 pb-8">
-            {!user ? (
-              <p className="text-sm text-muted-foreground">Sign in to manage account security.</p>
-            ) : (
-              <>
+      {user ? (
+        <>
+          <WorkspaceSurfaceCard padding="p-6 sm:p-8" className="w-full max-w-xl">
+            <Card className="border-0 shadow-none ring-0">
+              <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+                <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
+                  Account &amp; security
+                </CardTitle>
+                <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
+                  Change your sign-in email, update password, and manage account safety controls.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8 pt-8 pb-8">
                 <section className="space-y-3">
                   <p className="text-sm font-semibold text-foreground">Change email</p>
                   <div className="grid gap-2">
@@ -417,73 +415,75 @@ export function SettingsPageClient() {
                     {passwordBusy ? "Updating…" : "Update password"}
                   </Button>
                 </section>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </WorkspaceSurfaceCard>
+              </CardContent>
+            </Card>
+          </WorkspaceSurfaceCard>
 
-      <WorkspaceSurfaceCard padding="p-6 sm:p-8" className="w-full max-w-xl">
-        <Card className="border-0 shadow-none ring-0">
-          <CardHeader className="space-y-3 border-b border-border/90 pb-5">
-            <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-              Data controls
-            </CardTitle>
-            <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-              Clear uploaded data, remove cloud mappings, or request account deletion.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-8 pb-8">
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
-              <p className="text-sm font-semibold text-foreground">Clear this device data</p>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                Removes cached uploads, local drafts, and quick-history data from this browser.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3"
-                onClick={clearThisDeviceData}
-              >
-                Clear local data
-              </Button>
-            </div>
+          <WorkspaceSurfaceCard padding="p-6 sm:p-8" className="w-full max-w-xl">
+            <Card className="border-0 shadow-none ring-0">
+              <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+                <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
+                  Data controls
+                </CardTitle>
+                <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
+                  Clear uploaded data, remove cloud mappings, or request account deletion.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-8 pb-8">
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold text-foreground">Clear this device data</p>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    Removes cached uploads, local drafts, and quick-history data from this browser.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3"
+                    onClick={clearThisDeviceData}
+                  >
+                    Clear local data
+                  </Button>
+                </div>
 
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
-              <p className="text-sm font-semibold text-foreground">Delete cloud upload data</p>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                Permanently removes your SKU mapping rows and master SKU groups from cloud storage.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3"
-                disabled={!user || dangerBusy}
-                onClick={() => void deleteCloudData()}
-              >
-                {dangerBusy ? "Deleting…" : "Delete cloud data"}
-              </Button>
-            </div>
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold text-foreground">Delete cloud upload data</p>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    Permanently removes your SKU mapping rows and master SKU groups from cloud storage.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3"
+                    disabled={dangerBusy}
+                    onClick={() => void deleteCloudData()}
+                  >
+                    {dangerBusy ? "Deleting…" : "Delete cloud data"}
+                  </Button>
+                </div>
 
-            <div className="rounded-lg border border-red-300/60 bg-red-50/70 p-4 dark:border-red-900/70 dark:bg-red-950/30">
-              <p className="text-sm font-semibold text-red-900 dark:text-red-100">Delete account</p>
-              <p className="mt-1 text-[13px] text-red-800/90 dark:text-red-200/90">
-                This signs you out and removes mapping data immediately. Full identity deletion can be
-                finalized by support request.
-              </p>
-              <Button
-                type="button"
-                variant="destructive"
-                className="mt-3"
-                disabled={!user || dangerBusy}
-                onClick={() => void requestAccountDeletion()}
-              >
-                {dangerBusy ? "Processing…" : "Delete account"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </WorkspaceSurfaceCard>
+                <div className="rounded-lg border border-red-300/60 bg-red-50/70 p-4 dark:border-red-900/70 dark:bg-red-950/30">
+                  <p className="text-sm font-semibold text-red-900 dark:text-red-100">
+                    Delete account
+                  </p>
+                  <p className="mt-1 text-[13px] text-red-800/90 dark:text-red-200/90">
+                    This signs you out and removes mapping data immediately. Full identity deletion can be
+                    finalized by support request.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="mt-3"
+                    disabled={dangerBusy}
+                    onClick={() => void requestAccountDeletion()}
+                  >
+                    {dangerBusy ? "Processing…" : "Delete account"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </WorkspaceSurfaceCard>
+        </>
+      ) : null}
 
       <WorkspaceSurfaceCard padding="p-6 sm:p-8" className="w-full max-w-xl">
         <Card className="border-0 shadow-none ring-0">
