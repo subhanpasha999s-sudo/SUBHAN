@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Loader2 } from "lucide-react";
 import { toast as notify } from "sonner";
@@ -57,6 +58,7 @@ export function ValueFirstOtpModal(props: {
   onVerifiedContinue: () => void | Promise<void>;
 }) {
   const { open, onOpenChange, intent, onVerifiedContinue } = props;
+  const router = useRouter();
   const sb = React.useMemo(() => getSupabaseBrowser(), []);
 
   const [email, setEmail] = React.useState("");
@@ -162,6 +164,14 @@ export function ValueFirstOtpModal(props: {
     }
   }
 
+  function openFullAuth(target: "/login?signin=1" | "/login?signin=1&mode=signup") {
+    onOpenChange(false);
+    // Let dialog close first so auth page does not appear behind the modal.
+    window.setTimeout(() => {
+      router.push(target);
+    }, 30);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -182,25 +192,27 @@ export function ValueFirstOtpModal(props: {
         {!sb ? (
           <div className="space-y-4 px-6 py-5">
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              Secure sign-in is preparing in this environment. You can still continue your work and
-              open the full auth page anytime.
+              Secure sign-in is temporarily unavailable in this environment. Open the full auth page
+              to continue.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Link
-                href="/login?signin=1"
+              <button
+                type="button"
+                onClick={() => openFullAuth("/login?signin=1")}
                 className={cn(buttonVariants(), "min-h-10 flex-1 font-semibold")}
               >
                 Open login
-              </Link>
-              <Link
-                href="/login?signin=1&mode=signup"
+              </button>
+              <button
+                type="button"
+                onClick={() => openFullAuth("/login?signin=1&mode=signup")}
                 className={cn(
                   buttonVariants({ variant: "outline" }),
                   "min-h-10 flex-1 font-semibold"
                 )}
               >
                 Create account
-              </Link>
+              </button>
             </div>
           </div>
         ) : step === 1 ? (
@@ -249,15 +261,20 @@ export function ValueFirstOtpModal(props: {
               )}
             </Button>
             <div className="flex items-center justify-between gap-3 pt-1 text-[12px] text-muted-foreground">
-              <Link href="/login?signin=1" className="font-medium underline-offset-2 hover:underline">
+              <button
+                type="button"
+                onClick={() => openFullAuth("/login?signin=1")}
+                className="font-medium underline-offset-2 hover:underline"
+              >
                 Login with password
-              </Link>
-              <Link
-                href="/login?signin=1&mode=signup"
+              </button>
+              <button
+                type="button"
+                onClick={() => openFullAuth("/login?signin=1&mode=signup")}
                 className="font-medium underline-offset-2 hover:underline"
               >
                 Create account
-              </Link>
+              </button>
             </div>
           </form>
         ) : (

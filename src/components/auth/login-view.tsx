@@ -225,20 +225,9 @@ export function LoginView() {
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-1 size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-300/90" aria-hidden />
-                  <span>Secure sync when you want it—local workflows still work instantly.</span>
+                  <span>Secure cloud access keeps your workspace available from any browser.</span>
                 </li>
               </ul>
-            </div>
-
-            <div className="relative mt-10 text-[11px] leading-relaxed text-slate-500 dark:text-white/55">
-              Tip: You can always{" "}
-              <Link
-                href={nextPath}
-                className="font-semibold text-slate-900 underline-offset-4 hover:underline dark:text-white"
-              >
-                continue locally
-              </Link>{" "}
-              and sign in later when you want sync.
             </div>
           </div>
 
@@ -291,16 +280,6 @@ export function LoginView() {
               </Tabs>
 
               <div className="pt-2">
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
-                  Prefer to stay offline for now?{" "}
-                  <Link
-                    href={nextPath}
-                    className="font-semibold text-foreground underline-offset-4 hover:underline"
-                  >
-                    Continue locally
-                  </Link>
-                  .
-                </p>
                 <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
                   Secure login protected with enterprise-grade encryption.
                 </p>
