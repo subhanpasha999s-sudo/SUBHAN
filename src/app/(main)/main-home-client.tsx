@@ -14,23 +14,22 @@ export function MainHomeClient() {
   return (
     <main className="mx-auto max-w-lg px-6 py-10 text-center">
       <h1 className="text-balance text-lg font-semibold tracking-tight text-foreground">
-        Label — Meesho label PDF tools & SKU mapping
+        Label - Premium dispatch workspace for Meesho teams
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        Parse Meesho shipping label PDFs in the browser, filter by mapped SKU, quantity,
-        and courier (Delhivery, Shadowfax, and others on the sheet), map listing SKUs to
-        warehouse-style group SKUs, and export grouped or selected pages. Built for sellers
-        and fulfilment workflows—no installers.
+        Import once, filter with confidence, and export exactly what your operations team needs.
+        Label helps reduce manual burden, save packing time, and keep SKU decisions consistent
+        across every dispatch run.
       </p>
       <p className="mt-6 text-sm text-muted-foreground" aria-live="polite">
-        Opening the Label PDF workspace…
+        Opening your high-speed label workspace...
       </p>
       <p className="mt-4">
         <Link
           href="/export-labels"
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
-          Open Label PDF workspace
+          Launch Label workspace
         </Link>
       </p>
     </main>

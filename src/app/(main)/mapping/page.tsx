@@ -5,9 +5,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { MappingBody } from "./mapping-body";
 
 export const metadata: Metadata = {
-  title: "Meesho listing SKU ↔ master SKU mapping",
+  title: "SKU mapping that keeps every dispatch aligned",
   description:
-    "Maintain your Meesho listing SKU → warehouse / group SKU maps with sync-friendly workflows so labels and exports resolve to the mapped SKUs sellers expect.",
+    "Map listing SKUs to master SKUs once and let every export stay consistent. Cut repeated corrections, reduce mapping errors, and keep operations smooth across your team.",
   alternates: { canonical: `${getSiteUrl()}/mapping` },
   keywords: ["Meesho SKU map", "listing to master SKU", "inventory group SKU"],
 };

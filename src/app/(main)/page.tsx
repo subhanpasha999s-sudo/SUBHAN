@@ -5,9 +5,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { MainHomeClient } from "./main-home-client";
 
 export const metadata: Metadata = {
-  title: "Meesho label PDF & courier-friendly export",
+  title: "Premium label operations for faster fulfillment",
   description:
-    "Open Label directly on the homepage: workspace for Meesho label PDF extraction, SKU mapping–aware filters (Delhivery, Shadowfax, other partners on the PDF), grouped export, and selected-page downloads.",
+    "Run your daily label workflow in minutes: import once, filter by mapped SKU and courier, and export clean bundles that help your team pack faster with fewer mistakes.",
   alternates: { canonical: `${getSiteUrl()}/` },
 };
 

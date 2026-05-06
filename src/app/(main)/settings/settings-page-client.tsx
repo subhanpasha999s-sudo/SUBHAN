@@ -53,7 +53,7 @@ export function SettingsPageClient() {
           { label: "Settings" },
         ]}
         title="Settings"
-        description="Workspace preferences and Supabase credentials. Sign in anytime from the header—or when you save mappings or export."
+        description="Fine-tune your workspace for speed, consistency, and secure sync across your team."
         badges={
           <Badge
             variant="outline"
@@ -71,7 +71,7 @@ export function SettingsPageClient() {
               Appearance
             </CardTitle>
             <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-              Light, dark, or system default—stored on this device only.
+              Keep your workspace comfortable for long operations with theme preferences saved on this device.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-8 pb-8">
@@ -87,7 +87,7 @@ export function SettingsPageClient() {
               Cloud backend
             </CardTitle>
             <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-              Uses{" "}
+              Connect your secure backend using{" "}
               <code className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
                 NEXT_PUBLIC_SUPABASE_URL
               </code>{" "}
@@ -95,7 +95,7 @@ export function SettingsPageClient() {
               <code className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
                 NEXT_PUBLIC_SUPABASE_ANON_KEY
               </code>
-              . Restart the dev server after edits.
+              . Restart the dev server after edits so new credentials apply cleanly.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-8">
@@ -124,7 +124,7 @@ export function SettingsPageClient() {
                       : "text-foreground"
                   )}
                 >
-                  {connected ? "Backend ready" : "Not configured"}
+                  {connected ? "Backend connected" : "Backend not configured"}
                 </p>
                 <p
                   className={cn(
@@ -135,8 +135,8 @@ export function SettingsPageClient() {
                   )}
                 >
                   {connected
-                    ? "Sign in to persist SKU maps to your workspace."
-                    : "Add credentials to `.env.local`, save, reload this page."}
+                    ? "Sign in to keep SKU mappings protected, synced, and available across devices."
+                    : "Add credentials to `.env.local`, save, then reload this page."}
                 </p>
               </div>
             </div>
@@ -172,8 +172,8 @@ export function SettingsPageClient() {
             ) : connected && !user ? (
               <div className="space-y-3 rounded-lg border border-border bg-muted/35 p-4">
                 <p className="text-sm text-foreground">
-                  You&apos;re not signed in. Everything still works on this device—sign in when
-                  you want SKU maps synced to your workspace.
+                  You&apos;re not signed in yet. Local work still runs smoothly, and you can sign in
+                  anytime to sync mappings and reduce repeat setup work.
                 </p>
                 <Button
                   type="button"
@@ -197,7 +197,7 @@ export function SettingsPageClient() {
                   rerun();
                 }}
               >
-                Refresh backend status
+                Check backend again
               </Button>
             </div>
           </CardContent>

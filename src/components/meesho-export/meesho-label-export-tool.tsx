@@ -579,8 +579,8 @@ function LabelPdfFilterFields({
     return (
       <div className="space-y-4">
         <p className="text-[12px] leading-relaxed text-muted-foreground">
-          Filters only change which labels you see—the PDF file is untouched until you export.
-          Use{" "}
+          Filters only control your working view. Your source PDF stays unchanged until export, so
+          teams can refine confidently and move faster without risk. Use{" "}
           <span className="font-semibold text-foreground/85">Mapped SKU</span> for the SKU you
           set in SKU Mapping.
         </p>
@@ -617,7 +617,7 @@ function LabelPdfFilterFields({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="max-w-xl text-[12px] leading-relaxed text-muted-foreground lg:text-[13px]">
-          Narrow the grid before export.{" "}
+          Refine the grid before export.{" "}
           <span className="text-foreground/80">Mapped SKU</span> uses your SKU Mapping; leave
           everything on All to see the full PDF.
         </p>
@@ -649,7 +649,7 @@ function LabelPdfFilterFields({
       </div>
       {activeFilterCount > 0 ? null : (
         <p className="text-[11px] text-muted-foreground/90 lg:text-[12px]">
-          Tip: long-press or hover filters for short explanations.
+          Tip: long-press or hover filters for quick guidance.
         </p>
       )}
     </div>
@@ -1600,7 +1600,7 @@ export function MeeshoLabelExportTool() {
                     Import your Meesho label PDF
                   </p>
                   <p className="mx-auto max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                    PDF only · one label per page—drag in or browse.
+                    Upload once and start filtering instantly. One label per page, PDF format.
                   </p>
                 </div>
                 <Button
@@ -1610,7 +1610,7 @@ export function MeeshoLabelExportTool() {
                   disabled={parsing}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Choose PDF
+                  Upload PDF
                 </Button>
               </>
             )}
@@ -1639,7 +1639,7 @@ export function MeeshoLabelExportTool() {
                     id="labels-grid-heading"
                     className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
                   >
-                    Labels in this PDF
+                    Label workspace
                   </h2>
                   <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
                     ·
@@ -1650,8 +1650,8 @@ export function MeeshoLabelExportTool() {
                   </span>
                 </div>
                 <p className="mt-2 hidden max-w-2xl text-[12px] leading-relaxed text-muted-foreground md:block lg:text-[13px]">
-                  Search and refine the list below, then export the pages you selected or a grouped PDF
-                  ordered by SKU, carrier, quantity, then listing SKU.
+                  Quickly isolate the right labels, then export selected pages or a grouped bundle.
+                  This helps reduce manual sorting and keeps dispatch smoother at scale.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2 md:hidden">
                   <span className="inline-flex items-center rounded-md bg-background/95 px-2 py-0.5 text-[11px] font-medium tabular-nums text-foreground ring-1 ring-border/55">
@@ -1668,11 +1668,11 @@ export function MeeshoLabelExportTool() {
                   <span className="font-semibold text-foreground">
                     {enrichedRows.length.toLocaleString()}
                   </span>{" "}
-                  labels in file
+                  labels ready
                 </div>
                 <div>
                   {mappedRows.length.toLocaleString()} mapped ·{" "}
-                  {(enrichedRows.length - mappedRows.length).toLocaleString()} need attention
+                  {(enrichedRows.length - mappedRows.length).toLocaleString()} pending mapping
                 </div>
               </div>
             </div>
@@ -1715,7 +1715,7 @@ export function MeeshoLabelExportTool() {
                       )}
                     </div>
                     <p className="mt-1 max-w-[52ch] text-[12px] leading-snug text-muted-foreground">
-                      Refine which labels appear—you can clear everything in one tap inside.
+                      Choose exactly what appears in your export view, then clear in one tap.
                     </p>
                   </div>
                   <ChevronDown
@@ -1802,7 +1802,7 @@ export function MeeshoLabelExportTool() {
                   onClick={() => void requestGroupedDownload()}
                 >
                   <Layers2 className="size-3.5 shrink-0" aria-hidden />
-                  Export filtered · grouped
+                  Export grouped workflow
                 </Button>
                 <Button
                   type="button"
@@ -1813,7 +1813,7 @@ export function MeeshoLabelExportTool() {
                   onClick={() => void requestDownload()}
                 >
                   <Download className="size-3.5" aria-hidden />
-                  Export PDF
+                  Export selected PDF
                 </Button>
               </div>
             </div>

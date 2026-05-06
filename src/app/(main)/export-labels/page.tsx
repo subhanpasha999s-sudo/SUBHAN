@@ -6,9 +6,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Meesho label PDF import, filters & grouped export",
+  title: "Faster dispatch with smart Meesho label workflows",
   description:
-    "Upload a Meesho label PDF page-by-page, filter by mapped SKU (single or multi-select), quantity, courier, listing SKU search, preview the grid, and export grouped or selected PDFs for dispatch teams.",
+    "Turn one Meesho label PDF into a clean dispatch workflow: filter by mapped SKU, quantity, and courier, then export exactly what your team needs to reduce manual sorting and save packing time.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "Meesho PDF labels",
@@ -25,7 +25,7 @@ export default function ExportLabelsPage() {
       <ModulePageHeader
         breadcrumb={[{ label: "Label PDF" }]}
         title="Label PDF"
-        description="Parse your Meesho label PDF once. Filters use your SKU map (cloud or device). Export only the pages you select."
+        description="Upload once, filter instantly, and export only what dispatch needs. Reduce repetitive sorting and move from PDF to packed orders faster."
       />
       <ExportLabelsBody />
     </>

@@ -30,6 +30,9 @@ import {
   safeInternalNextPath,
 } from "@/lib/auth/constants";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
+import { AuthShell } from "@/components/auth/premium/auth-shell";
+import { FadeIn } from "@/components/auth/premium/motion";
+import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -173,59 +176,128 @@ export function LoginView() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[420px] flex-col px-4 py-14 sm:py-20">
-      <Card className="overflow-hidden border-border shadow-lg shadow-black/[0.04] dark:shadow-black/25">
-        <CardHeader className="space-y-1 border-b border-border bg-card px-6 pb-5 pt-8 text-center">
-          <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-primary/10 text-base font-bold text-primary">
-            L
+    <AuthShell>
+      <FadeIn className="w-full">
+      <Card className="overflow-hidden border-border/70 bg-card/70 shadow-elevate-md ring-1 ring-border/35 backdrop-blur-xl dark:border-border dark:bg-card/55">
+        <div className="grid min-h-[560px] grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
+          {/* Zoho-style brand panel */}
+          <div className="relative hidden flex-col justify-between border-b border-border/70 bg-gradient-to-br from-white via-slate-50 to-sky-50 px-10 py-10 text-slate-950 lg:flex lg:border-b-0 lg:border-r dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white">
+            <div className="absolute inset-0 opacity-70 [background:radial-gradient(900px_circle_at_18%_14%,rgba(56,189,248,0.18),transparent_48%),radial-gradient(700px_circle_at_78%_32%,rgba(99,102,241,0.12),transparent_48%)] dark:opacity-60 dark:[background:radial-gradient(900px_circle_at_18%_14%,rgba(56,189,248,0.20),transparent_48%),radial-gradient(700px_circle_at_78%_32%,rgba(99,102,241,0.16),transparent_48%)]" />
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-slate-950 text-base font-bold tracking-tight text-white shadow-sm ring-1 ring-black/10 dark:bg-white dark:text-slate-950 dark:ring-white/15">
+                  L
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold tracking-tight">Label Workspace</p>
+                  <p className="mt-0.5 text-[12px] text-slate-600 dark:text-white/70">
+                    Dispatch clarity for high-volume teams.
+                  </p>
+                </div>
+              </div>
+
+              <h1 className="mt-10 text-balance text-3xl font-semibold tracking-tight">
+                Sign in once. Keep every export consistent.
+              </h1>
+              <p className="mt-4 max-w-[48ch] text-[13px] leading-relaxed text-slate-600 dark:text-white/70">
+                Save time on every run with a synced SKU map and a clean label workflow your team can
+                rely on—across devices.
+              </p>
+
+              <ul className="mt-8 space-y-3 text-[13px] text-slate-700 dark:text-white/80">
+                <li className="flex gap-3">
+                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-sky-500/80 dark:bg-sky-300/90" aria-hidden />
+                  <span>Reduce repetitive sorting with mapped SKU filters.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-indigo-500/70 dark:bg-indigo-300/90" aria-hidden />
+                  <span>Keep packing smooth with grouped exports built for dispatch teams.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1 size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-300/90" aria-hidden />
+                  <span>Secure sync when you want it—local workflows still work instantly.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="relative mt-10 text-[11px] leading-relaxed text-slate-500 dark:text-white/55">
+              Tip: You can always{" "}
+              <Link
+                href={nextPath}
+                className="font-semibold text-slate-900 underline-offset-4 hover:underline dark:text-white"
+              >
+                continue locally
+              </Link>{" "}
+              and sign in later when you want sync.
+            </div>
           </div>
-          <CardTitle className="text-xl font-semibold tracking-tight">
-            Sign in to Label
-          </CardTitle>
-          <CardDescription className="text-[13px] leading-relaxed">
-            Label PDFs and SKU Mapping—runs locally until you sync.
-          </CardDescription>
-        </CardHeader>
 
-        <CardContent className="space-y-5 px-6 pb-8 pt-6">
-          <Tabs
-            value={tab}
-            onValueChange={handleTabChange}
-            className="gap-5"
-          >
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-0 rounded-lg p-1">
-              <TabsTrigger value="otp" className="min-h-11 text-[13px]">
-                Email code
-              </TabsTrigger>
-              <TabsTrigger value="password" className="min-h-11 text-[13px]">
-                Password
-              </TabsTrigger>
-            </TabsList>
+          {/* Form panel */}
+          <div className="flex flex-col px-5 py-8 sm:px-10 sm:py-10">
+            <CardHeader className="space-y-2 border-b border-border/70 px-0 pb-6 pt-0 text-left">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl font-semibold tracking-tight">Sign in</CardTitle>
+                  <CardDescription className="mt-1 text-[13px] leading-relaxed">
+                    Access your workspace securely. Choose email code or password.
+                  </CardDescription>
+                </div>
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/10 lg:hidden">
+                  L
+                </div>
+              </div>
+            </CardHeader>
 
-            <TabsContent value="otp" className="mt-0 flex flex-col gap-0">
-              <OtpLoginPanel redirectTo={nextPath} />
-            </TabsContent>
+            <CardContent className="space-y-5 px-0 pb-0 pt-6">
+              <SocialAuthButtons redirectTo={`${typeof window !== "undefined" ? window.location.origin : ""}${nextPath}`} />
+              <div className="relative py-1">
+                <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/70" />
+                <div className="relative flex justify-center">
+                  <span className="rounded-full bg-card/80 px-3 text-[11px] font-semibold tracking-wide text-muted-foreground ring-1 ring-border/30 backdrop-blur">
+                    or continue with
+                  </span>
+                </div>
+              </div>
+              <Tabs value={tab} onValueChange={handleTabChange} className="gap-5">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-0 rounded-lg bg-muted/40 p-1">
+                  <TabsTrigger value="otp" className="min-h-11 text-[13px]">
+                    Email code
+                  </TabsTrigger>
+                  <TabsTrigger value="password" className="min-h-11 text-[13px]">
+                    Password
+                  </TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="password" className="mt-0 flex flex-col gap-0">
-              <PasswordLoginPanel redirectTo={nextPath} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
+                <TabsContent value="otp" className="mt-0 flex flex-col gap-0">
+                  <OtpLoginPanel redirectTo={nextPath} />
+                </TabsContent>
+
+                <TabsContent value="password" className="mt-0 flex flex-col gap-0">
+                  <PasswordLoginPanel redirectTo={nextPath} />
+                </TabsContent>
+              </Tabs>
+
+              <div className="pt-2">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Prefer to stay offline for now?{" "}
+                  <Link
+                    href={nextPath}
+                    className="font-semibold text-foreground underline-offset-4 hover:underline"
+                  >
+                    Continue locally
+                  </Link>
+                  .
+                </p>
+                <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                  Secure login protected with enterprise-grade encryption.
+                </p>
+              </div>
+            </CardContent>
+          </div>
+        </div>
       </Card>
-
-      <p className="mt-7 text-center text-[13px] leading-relaxed text-muted-foreground">
-        <Link
-          href={nextPath}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          Skip sign-in for now
-        </Link>
-        <span aria-hidden className="mx-2 opacity-40">
-          ·
-        </span>
-        <span>Opens the workspace locally until you export or sync.</span>
-      </p>
-    </div>
+      </FadeIn>
+    </AuthShell>
   );
 }
 
@@ -334,11 +406,11 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
     <div className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">
-          {step === 1 ? "Email code sign-in" : "Enter your code"}
+          {step === 1 ? "Passwordless sign-in" : "Enter secure access code"}
         </p>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           {step === 1
-            ? "We email you a six-digit code—no password."
+            ? "Get a six-digit code by email and access your workspace in seconds."
             : `Code sent to ${email.trim()}`}
         </p>
         {step === 2 && redirectOrigin ? (
@@ -381,7 +453,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
                 Sending…
               </>
             ) : (
-              "Email code"
+              "Send secure code"
             )}
           </Button>
         </form>
@@ -399,7 +471,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
                 Verifying…
               </>
             ) : (
-              "Verify & continue"
+              "Verify and open workspace"
             )}
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -411,7 +483,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
                 setOtp("");
               }}
             >
-              Use a different email
+              Use another email
             </button>
             <Button
               type="button"
@@ -497,12 +569,12 @@ function PasswordLoginPanel({ redirectTo }: { redirectTo: string }) {
     <div className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">
-          {mode === "signin" ? "Password sign-in" : "Create an account"}
+          {mode === "signin" ? "Sign in with password" : "Create secure account"}
         </p>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           {mode === "signin"
-            ? "Use the email tied to your workspace."
-            : "Pick email and password—we may ask you to confirm via email."}
+            ? "Use your workspace email to continue with your saved setup."
+            : "Create your account once to protect and sync your operations workspace."}
         </p>
       </div>
       <form className="space-y-4" onSubmit={onSubmit}>
@@ -540,7 +612,7 @@ function PasswordLoginPanel({ redirectTo }: { redirectTo: string }) {
           ) : mode === "signin" ? (
             "Sign in"
           ) : (
-            "Create account"
+            "Create workspace account"
           )}
         </Button>
         <button

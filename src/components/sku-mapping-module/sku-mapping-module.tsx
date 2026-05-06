@@ -589,7 +589,7 @@ export function SkuMappingModule() {
           { label: "SKU Mapping" },
         ]}
         title="SKU Mapping"
-        description="Set SKUs, attach listings, save once—Label PDF picks it up automatically."
+        description="Map once and let every future export stay aligned. Reduce repetitive edits and keep daily dispatch workflows smooth."
         badges={headerBadges}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -604,7 +604,7 @@ export function SkuMappingModule() {
                 {pushDraftBusy ? (
                   <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
                 ) : null}
-                Push local drafts ({pendingLocalOnlyCount})
+                Sync local drafts ({pendingLocalOnlyCount})
               </Button>
             ) : null}
             {cloudConfigured && userId ? (
@@ -620,7 +620,7 @@ export function SkuMappingModule() {
                 ) : (
                   <RefreshCw className="mr-2 size-4" aria-hidden />
                 )}
-                Pull latest
+                Refresh workspace
               </Button>
             ) : null}
           </div>
@@ -733,13 +733,13 @@ export function SkuMappingModule() {
         <WorkspaceSurfaceCard padding="px-8 py-14 sm:py-16">
           <div className="rounded-[14px] border border-dashed border-border bg-muted/25 px-6 py-10 text-center dark:bg-muted/10">
           <p className="text-[15px] font-medium text-foreground">
-            Import a listing SKU sheet to continue
+            Import listing SKUs to unlock faster mapping
           </p>
           <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-            Meesho-style layout:{" "}
+            Recommended Meesho sheet format:{" "}
             <span className="font-semibold text-foreground">column F</span>, values from{" "}
             <span className="font-semibold text-foreground">row 3</span> (rows 1–2 skipped).
-            CSV or Excel—then the mapping grid opens.
+            Upload CSV or Excel and start mapping immediately.
           </p>
           </div>
         </WorkspaceSurfaceCard>
@@ -763,7 +763,7 @@ export function SkuMappingModule() {
 
       {uploadedSkus.length > 0 && !cloudConfigured ? (
         <div className="rounded-lg border border-border border-l-[3px] border-l-muted-foreground/55 bg-muted/35 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Backend not configured—maps stay{" "}
+          Cloud backend is not configured yet, so mappings stay{" "}
           <span className="font-semibold text-foreground">on this device</span>. Add
           keys in{" "}
           <Link
@@ -772,7 +772,7 @@ export function SkuMappingModule() {
           >
             Settings
           </Link>{" "}
-          to enable sync and full Label PDF features.
+          to unlock secure sync and full workspace continuity.
         </div>
       ) : null}
 
@@ -781,8 +781,8 @@ export function SkuMappingModule() {
       !userId &&
       counts.mapped > 0 ? (
         <div className="rounded-lg border border-border border-l-[3px] border-l-primary bg-muted/35 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground">You&apos;ve mapped SKUs.</span>{" "}
-          Optional workspace backup — {" "}
+          <span className="font-medium text-foreground">You&apos;ve already mapped valuable SKU data.</span>{" "}
+          Optional secure backup - {" "}
           <button
             type="button"
             onClick={openOptionalSignIn}
@@ -790,8 +790,8 @@ export function SkuMappingModule() {
           >
             Sign in or create an account
           </button>{" "}
-          to save this map securely in our cloud workspace for the long haul—accessible from any
-          browser whenever you&apos;re ready. Downloads and local work remain unrestricted.
+          to store this map securely in your cloud workspace so your team can continue from any
+          browser. Local work and exports stay fully available.
         </div>
       ) : null}
 
