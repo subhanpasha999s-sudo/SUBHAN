@@ -139,19 +139,8 @@ export function LoginView() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl">Sign-in unavailable</CardTitle>
             <CardDescription>
-              Add{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                NEXT_PUBLIC_SUPABASE_URL
-              </code>{" "}
-              and{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                NEXT_PUBLIC_SUPABASE_ANON_KEY
-              </code>{" "}
-              to{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                .env.local
-              </code>
-              , then restart the dev server.
+              Sign-in is temporarily unavailable right now. Please try again shortly, or contact
+              support if this continues.
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -407,11 +396,8 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
         </p>
         {step === 2 && redirectOrigin ? (
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Enter the six-digit code here. If only a link works in mail, Supabase must list{" "}
-            <code className="rounded bg-muted px-1 py-px font-mono text-[10px]">
-              {redirectOrigin}
-            </code>{" "}
-            under Authentication → Redirect URLs.
+            Enter the six-digit code from your email. If the email link opens but does not sign you
+            in, use this code instead.
           </p>
         ) : null}
       </div>

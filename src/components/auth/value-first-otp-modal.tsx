@@ -108,8 +108,8 @@ export function ValueFirstOtpModal(props: {
       return;
     }
     if (!sb) {
-      notify.error("Supabase is not configured.", {
-        description: "Add NEXT_PUBLIC_SUPABASE_* keys in Settings.",
+      notify.error("Sign-in is temporarily unavailable.", {
+        description: "Please try again in a moment.",
       });
       return;
     }
@@ -286,12 +286,9 @@ export function ValueFirstOtpModal(props: {
               </p>
               {redirectOrigin ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
-                  Use the <span className="font-medium text-foreground">six-digit code</span> here.
-                  If the email has a link that won’t open, add{" "}
-                  <code className="rounded bg-muted px-1 py-px font-mono text-[10px]">
-                    {redirectOrigin}
-                  </code>{" "}
-                  to Supabase → Authentication → Redirect URLs (and match Site URL when possible).
+                  Use the <span className="font-medium text-foreground">six-digit code</span> from
+                  your email. If the link in email does not complete sign-in, this code works
+                  reliably.
                 </p>
               ) : null}
             </div>
