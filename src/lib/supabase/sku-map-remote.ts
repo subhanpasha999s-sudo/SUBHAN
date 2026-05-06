@@ -82,8 +82,30 @@ export async function fetchSkuMapSnapshot(): Promise<{
     .select("id,listing_sku,master_sku_id,category,created_at,user_id")
     .order("listing_sku", { ascending: true });
 
-  let masters = mastersRaw;
-  let skuMap = skuMapRaw;
+  let masters:
+    | Array<{ id: string; name: string; created_at: string; user_id?: string }>
+    | null = (mastersRaw ?? null) as
+    | Array<{ id: string; name: string; created_at: string; user_id?: string }>
+    | null;
+  let skuMap:
+    | Array<{
+        id: string;
+        listing_sku: string;
+        master_sku_id: string | null;
+        category: string;
+        created_at: string;
+        user_id?: string;
+      }>
+    | null = (skuMapRaw ?? null) as
+    | Array<{
+        id: string;
+        listing_sku: string;
+        master_sku_id: string | null;
+        category: string;
+        created_at: string;
+        user_id?: string;
+      }>
+    | null;
   if (e1 && isMissingUserIdColumnError(e1.message)) {
     const { data, error } = await sb
       .from("master_skus")
@@ -123,12 +145,16 @@ async function fetchMasterByName(
   userId: string,
   exactName: string
 ): Promise<{ ok: boolean; message: string; master?: MasterSkuRecord }> {
-  let { data, error } = await sb
+  const primary = await sb
     .from("master_skus")
     .select("id,name,created_at,user_id")
     .eq("user_id", userId)
     .eq("name", exactName)
     .maybeSingle();
+  let data = primary.data as
+    | { id: string; name: string; created_at: string; user_id?: string }
+    | null;
+  let error = primary.error;
 
   if (error && isMissingUserIdColumnError(error.message)) {
     const legacy = await sb
@@ -136,7 +162,7 @@ async function fetchMasterByName(
       .select("id,name,created_at")
       .eq("name", exactName)
       .maybeSingle();
-    data = legacy.data;
+    data = legacy.data as { id: string; name: string; created_at: string } | null;
     error = legacy.error;
   }
 
@@ -164,17 +190,23 @@ export async function insertMasterSku(
   if (!auth.ok) return { ok: false, message: auth.message };
   const { sb, userId } = auth;
 
-  let { data, error } = await sb
+  const primary = await sb
     .from("master_skus")
     .insert({ name: trimmed, user_id: userId })
     .select("id,name,created_at,user_id");
+  let data = primary.data as
+    | Array<{ id: string; name: string; created_at: string; user_id?: string }>
+    | null;
+  let error = primary.error;
 
   if (error && isMissingUserIdColumnError(error.message)) {
     const legacy = await sb
       .from("master_skus")
       .insert({ name: trimmed })
       .select("id,name,created_at");
-    data = legacy.data;
+    data = legacy.data as
+      | Array<{ id: string; name: string; created_at: string }>
+      | null;
     error = legacy.error;
   }
 
