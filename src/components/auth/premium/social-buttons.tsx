@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Apple, Chrome, Windows } from "lucide-react";
+import { Apple, Building2, Globe } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -12,9 +12,9 @@ type Provider = "google" | "azure" | "apple";
 function providerMeta(p: Provider) {
   switch (p) {
     case "google":
-      return { label: "Continue with Google", Icon: Chrome };
+      return { label: "Continue with Google", Icon: Globe };
     case "azure":
-      return { label: "Continue with Microsoft", Icon: Windows };
+      return { label: "Continue with Microsoft", Icon: Building2 };
     case "apple":
       return { label: "Continue with Apple", Icon: Apple };
   }
