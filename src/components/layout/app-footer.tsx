@@ -37,8 +37,8 @@ export function AppFooter() {
           Label · PDF &amp; SKU tools
         </p>
       </div>
-      <p className="pb-4 pt-3 text-center text-[11px] font-medium tracking-wide text-muted-foreground/85">
-        Subhan
+      <p className="mx-auto max-w-md pb-4 pt-3 text-center text-[11px] font-medium leading-snug tracking-wide text-muted-foreground/85">
+        Subhan S/O Zulfiqar Husain &amp; Tabssum
       </p>
     </footer>
   );
