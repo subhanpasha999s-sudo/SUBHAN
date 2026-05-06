@@ -140,6 +140,14 @@ export default function RootLayout({
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_JSON_LD) }}
         />
+        {process.env.VERCEL_GIT_COMMIT_SHA ? (
+          <span
+            aria-hidden
+            className="hidden"
+            data-vercel-deployment-sha={process.env.VERCEL_GIT_COMMIT_SHA}
+            suppressHydrationWarning
+          />
+        ) : null}
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
