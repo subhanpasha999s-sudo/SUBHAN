@@ -1,24 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Apple, Building2, Globe } from "lucide-react";
+import { Globe } from "lucide-react";
+import { toast as notify } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { cn } from "@/lib/utils";
 
-type Provider = "google" | "azure" | "apple";
-
-function providerMeta(p: Provider) {
-  switch (p) {
-    case "google":
-      return { label: "Continue with Google", Icon: Globe };
-    case "azure":
-      return { label: "Continue with Microsoft", Icon: Building2 };
-    case "apple":
-      return { label: "Continue with Apple", Icon: Apple };
-  }
-}
+type Provider = "google";
 
 export function SocialAuthButtons({
   redirectTo,
@@ -34,15 +24,21 @@ export function SocialAuthButtons({
     if (!sb) return;
     setBusy(p);
     try {
-      const provider = p === "azure" ? ("azure" as const) : p;
-      const { error } = await sb.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo },
+      const { data, error } = await sb.auth.signInWithOAuth({
+        provider: p,
+        options: { redirectTo, skipBrowserRedirect: true },
       });
       if (error) {
-        // keep UX quiet; callers can toast if desired
-        console.error(error);
+        notify.error("Could not start sign-in", {
+          description: error.message,
+        });
+        return;
       }
+      if (!data?.url) {
+        notify.error("Sign-in link was not generated. Please try again.");
+        return;
+      }
+      window.location.assign(data.url);
     } finally {
       setBusy(null);
     }
@@ -53,8 +49,7 @@ export function SocialAuthButtons({
 
   return (
     <div className={cn("grid gap-2", className)}>
-      {(["google", "azure", "apple"] as const).map((p) => {
-        const { label, Icon } = providerMeta(p);
+      {(["google"] as const).map((p) => {
         const isBusy = busy === p;
         return (
           <Button
@@ -65,8 +60,8 @@ export function SocialAuthButtons({
             disabled={!sb || Boolean(busy)}
             onClick={() => void startOAuth(p)}
           >
-            <Icon className="mr-3 size-4 opacity-80" aria-hidden />
-            <span className="flex-1 text-left">{label}</span>
+            <Globe className="mr-3 size-4 opacity-80" aria-hidden />
+            <span className="flex-1 text-left">Continue with Google</span>
             {isBusy ? (
               <span className="text-xs text-muted-foreground">Opening…</span>
             ) : null}
