@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { CloudOff, Cloud, Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 
 import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
 import { ThemePreferenceControl } from "@/components/layout/theme-switcher";
@@ -18,12 +18,10 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
-import { cn } from "@/lib/utils";
 import { toast as notify } from "sonner";
 
 export function SettingsPageClient() {
-  const { user, authReady } = useAuth();
-  const connected = !!getSupabaseBrowser();
+  const { user } = useAuth();
   const [signOutBusy, setSignOutBusy] = React.useState(false);
 
   async function signOut() {
@@ -78,92 +76,27 @@ export function SettingsPageClient() {
         <Card className="border-0 shadow-none ring-0">
           <CardHeader className="space-y-3 border-b border-border/90 pb-5">
             <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-              Cloud backend
+              Account
             </CardTitle>
             <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-              Connect your secure backend using{" "}
-              <code className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-                NEXT_PUBLIC_SUPABASE_URL
-              </code>{" "}
-              and{" "}
-              <code className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-                NEXT_PUBLIC_SUPABASE_ANON_KEY
-              </code>
-              . Restart the dev server after edits so new credentials apply cleanly.
+              Manage your session.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-8">
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-lg border px-4 py-3",
-                connected
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/70 dark:bg-emerald-950/45 dark:text-emerald-50"
-                  : "border-border bg-muted/40 text-muted-foreground"
-              )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={signOutBusy || !user}
+              onClick={() => void signOut()}
             >
-              {connected ? (
-                <Cloud
-                  className="size-6 shrink-0 text-emerald-700 dark:text-emerald-300"
-                  aria-hidden
-                />
+              {signOutBusy ? (
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
               ) : (
-                <CloudOff className="size-6 shrink-0 opacity-80" aria-hidden />
+                <LogOut className="mr-2 size-4" aria-hidden />
               )}
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "text-sm font-semibold",
-                    connected
-                      ? "text-emerald-950 dark:text-emerald-50"
-                      : "text-foreground"
-                  )}
-                >
-                  {connected ? "Backend connected" : "Backend not configured"}
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-[13px]",
-                    connected
-                      ? "text-emerald-900/85 dark:text-emerald-100/90"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {connected
-                    ? "Sign in to keep SKU mappings protected, synced, and available across devices."
-                    : "Add credentials to `.env.local`, save, then reload this page."}
-                </p>
-              </div>
-            </div>
-
-            {!authReady ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Checking session…
-              </p>
-            ) : connected && user ? (
-              <div className="space-y-3 rounded-lg border border-border bg-muted/35 p-4">
-                <p className="text-sm font-medium text-foreground">
-                  Signed in as{" "}
-                  <span className="font-mono text-[13px] text-muted-foreground">
-                    {user.email ?? user.id}
-                  </span>
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={signOutBusy}
-                  onClick={() => void signOut()}
-                >
-                  {signOutBusy ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <LogOut className="mr-2 size-4" aria-hidden />
-                  )}
-                  Sign out
-                </Button>
-              </div>
-            ) : null}
+              Sign out
+            </Button>
           </CardContent>
         </Card>
       </WorkspaceSurfaceCard>
