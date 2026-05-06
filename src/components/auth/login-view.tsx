@@ -100,10 +100,20 @@ export function LoginView() {
   const sb = React.useMemo(() => getSupabaseBrowser(), []);
 
   const [tab, setTab] = React.useState<AuthMethod>("otp");
+  const preferredPasswordMode = React.useMemo(
+    () => (searchParams.get("mode") === "signup" ? "signup" : "signin"),
+    [searchParams]
+  );
 
   React.useEffect(() => {
     setTab(readLastMethod());
   }, []);
+
+  React.useEffect(() => {
+    if (preferredPasswordMode === "signup") {
+      setTab("password");
+    }
+  }, [preferredPasswordMode]);
 
   React.useEffect(() => {
     if (!authReady || !user) return;
@@ -273,7 +283,10 @@ export function LoginView() {
                 </TabsContent>
 
                 <TabsContent value="password" className="mt-0 flex flex-col gap-0">
-                  <PasswordLoginPanel redirectTo={nextPath} />
+                  <PasswordLoginPanel
+                    redirectTo={nextPath}
+                    initialMode={preferredPasswordMode}
+                  />
                 </TabsContent>
               </Tabs>
 
@@ -501,13 +514,23 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
   );
 }
 
-function PasswordLoginPanel({ redirectTo }: { redirectTo: string }) {
+function PasswordLoginPanel({
+  redirectTo,
+  initialMode,
+}: {
+  redirectTo: string;
+  initialMode: "signin" | "signup";
+}) {
   const router = useRouter();
   const sb = getSupabaseBrowser()!;
-  const [mode, setMode] = React.useState<"signin" | "signup">("signin");
+  const [mode, setMode] = React.useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

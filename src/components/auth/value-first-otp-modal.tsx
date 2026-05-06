@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 import { Loader2 } from "lucide-react";
 import { toast as notify } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +17,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
+import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
 import { getOtpEmailRedirectUrl } from "@/lib/auth/constants";
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { cn } from "@/lib/utils";
 
 const COPY: Record<
   ValueFirstGateIntent,
@@ -69,6 +72,10 @@ export function ValueFirstOtpModal(props: {
 
   const copyIntent: ValueFirstGateIntent = intent ?? "optional-signin";
   const copy = COPY[copyIntent];
+  const authRedirectTo = React.useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/export-labels`;
+  }, []);
 
   React.useEffect(() => {
     if (!open) {
@@ -173,8 +180,28 @@ export function ValueFirstOtpModal(props: {
         </div>
 
         {!sb ? (
-          <div className="px-6 py-5 text-[13px] text-muted-foreground">
-            Sign-in needs Supabase keys in the environment—add them, then reload.
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Secure sign-in is preparing in this environment. You can still continue your work and
+              open the full auth page anytime.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/login?signin=1"
+                className={cn(buttonVariants(), "min-h-10 flex-1 font-semibold")}
+              >
+                Open login
+              </Link>
+              <Link
+                href="/login?signin=1&mode=signup"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "min-h-10 flex-1 font-semibold"
+                )}
+              >
+                Create account
+              </Link>
+            </div>
           </div>
         ) : step === 1 ? (
           <form
@@ -184,6 +211,15 @@ export function ValueFirstOtpModal(props: {
               void sendOtp(false);
             }}
           >
+            <SocialAuthButtons redirectTo={authRedirectTo} />
+            <div className="relative py-1">
+              <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/70" />
+              <div className="relative flex justify-center">
+                <span className="rounded-full bg-card px-2.5 text-[10px] font-semibold tracking-wide text-muted-foreground">
+                  or use email code
+                </span>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="value-first-email">Email</Label>
               <Input
@@ -212,6 +248,17 @@ export function ValueFirstOtpModal(props: {
                 "Email code"
               )}
             </Button>
+            <div className="flex items-center justify-between gap-3 pt-1 text-[12px] text-muted-foreground">
+              <Link href="/login?signin=1" className="font-medium underline-offset-2 hover:underline">
+                Login with password
+              </Link>
+              <Link
+                href="/login?signin=1&mode=signup"
+                className="font-medium underline-offset-2 hover:underline"
+              >
+                Create account
+              </Link>
+            </div>
           </form>
         ) : (
           <form className="space-y-5 px-6 py-5" onSubmit={(ev) => void verifyContinue(ev)}>
