@@ -1,17 +1,16 @@
-"use client";
+import type { Metadata } from "next";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { getSiteUrl } from "@/lib/seo/site-url";
 
-/** Static export cannot use server `redirect()`; `/` swaps to Label PDF locally. */
+import { MainHomeClient } from "./main-home-client";
+
+export const metadata: Metadata = {
+  title: "Meesho label PDF & courier-friendly export",
+  description:
+    "Open Label directly on the homepage: workspace for Meesho label PDF extraction, SKU mapping–aware filters (Delhivery, Shadowfax, other partners on the PDF), grouped export, and selected-page downloads.",
+  alternates: { canonical: `${getSiteUrl()}/` },
+};
+
 export default function HomePage() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace("/export-labels");
-  }, [router]);
-  return (
-    <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-      Opening workspace…
-    </p>
-  );
+  return <MainHomeClient />;
 }

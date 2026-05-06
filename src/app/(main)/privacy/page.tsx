@@ -3,12 +3,14 @@ import Link from "next/link";
 
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
+import { getSiteUrl } from "@/lib/seo/site-url";
 
 const SUPPORT = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
 
 export const metadata: Metadata = {
   title: "Privacy",
   description: "How Label handles your PDF and SKU data.",
+  alternates: { canonical: `${getSiteUrl()}/privacy` },
 };
 
 export default function PrivacyPage() {

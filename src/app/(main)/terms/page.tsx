@@ -3,12 +3,14 @@ import Link from "next/link";
 
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
+import { getSiteUrl } from "@/lib/seo/site-url";
 
 const SUPPORT = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
 
 export const metadata: Metadata = {
   title: "Terms",
   description: "Terms of use for Label.",
+  alternates: { canonical: `${getSiteUrl()}/terms` },
 };
 
 export default function TermsPage() {

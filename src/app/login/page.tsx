@@ -3,9 +3,12 @@ import type { Metadata } from "next";
 import { Loader2 } from "lucide-react";
 
 import { LoginView } from "@/components/auth/login-view";
+import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Sign in · Label",
+  description: "Sign in to sync Meesho SKU mappings and use Label across devices.",
+  alternates: { canonical: `${getSiteUrl()}/login` },
 };
 
 function LoginSuspenseFallback() {

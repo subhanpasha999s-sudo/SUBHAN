@@ -37,6 +37,9 @@ export function AppFooter() {
           Label · PDF &amp; SKU tools
         </p>
       </div>
+      <p className="pb-4 pt-3 text-center text-[11px] font-medium tracking-wide text-muted-foreground/85">
+        Subhan
+      </p>
     </footer>
   );
 }
