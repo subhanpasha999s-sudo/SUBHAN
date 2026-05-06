@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
+import { WorkspaceFlowerBg } from "@/components/layout/workspace-flower-bg";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileNavDrawerPortal } from "@/components/layout/mobile-nav-drawer-portal";
 import {
@@ -272,10 +273,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={cn(
-          "flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
+          "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
           mainOffset
         )}
       >
+        <WorkspaceFlowerBg />
         <AppTopbar
           mobileNavOpen={drawerOpen}
           onMobileMenuToggle={() =>
