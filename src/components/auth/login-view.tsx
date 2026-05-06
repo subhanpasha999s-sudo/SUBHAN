@@ -134,35 +134,36 @@ export function LoginView() {
 
   if (!sb) {
     return (
-      <AuthShell>
-        <FadeIn className="mx-auto w-full max-w-md">
-          <Card className="border-border/70 bg-card/75 shadow-elevate-md backdrop-blur-xl">
-            <CardHeader className="space-y-2">
-              <CardTitle className="text-2xl tracking-tight">Sign-in is temporarily unavailable</CardTitle>
-              <CardDescription className="text-[14px] leading-relaxed">
-                We are preparing secure access. Please refresh once and try again.
-              </CardDescription>
-            </CardHeader>
-            <CardFooter className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                className="w-full sm:flex-1"
-                onClick={() => {
-                  window.location.reload();
-                }}
-              >
-                Refresh and retry
-              </Button>
-              <Link
-                href={AUTH_DASHBOARD_PATH}
-                className={cn(buttonVariants({ variant: "outline" }), "w-full sm:flex-1")}
-              >
-                Back to workspace
-              </Link>
-            </CardFooter>
-          </Card>
-        </FadeIn>
-      </AuthShell>
+      <div className="mx-auto flex w-full max-w-md flex-col px-4 py-16">
+        <Card className="border-border shadow-lg">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Sign-in unavailable</CardTitle>
+            <CardDescription>
+              Add{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                NEXT_PUBLIC_SUPABASE_URL
+              </code>{" "}
+              and{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                NEXT_PUBLIC_SUPABASE_ANON_KEY
+              </code>{" "}
+              to{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                .env.local
+              </code>
+              , then restart the dev server.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Link
+              href={AUTH_DASHBOARD_PATH}
+              className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+            >
+              Continue to workspace
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
     );
   }
 
