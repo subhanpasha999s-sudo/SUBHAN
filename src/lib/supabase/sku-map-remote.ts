@@ -14,6 +14,14 @@ import { writeSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache"
 
 export type { MasterSkuRecord, SkuMapRecord };
 
+function isMissingUserIdColumnError(message: string | undefined): boolean {
+  if (!message) return false;
+  return (
+    message.includes("Could not find the 'user_id' column") ||
+    message.includes('column "user_id" does not exist')
+  );
+}
+
 type AuthOk = {
   ok: true;
   sb: NonNullable<ReturnType<typeof getSupabaseBrowser>>;
@@ -64,18 +72,39 @@ export async function fetchSkuMapSnapshot(): Promise<{
 
   const { sb, userId } = auth;
 
-  const { data: masters, error: e1 } = await sb
+  const { data: mastersRaw, error: e1 } = await sb
     .from("master_skus")
     .select("id,name,created_at,user_id")
     .order("name", { ascending: true });
 
-  const { data: skuMap, error: e2 } = await sb
+  const { data: skuMapRaw, error: e2 } = await sb
     .from("sku_map")
     .select("id,listing_sku,master_sku_id,category,created_at,user_id")
     .order("listing_sku", { ascending: true });
 
-  if (e1) return { ok: false, message: e1.message };
-  if (e2) return { ok: false, message: e2.message };
+  let masters = mastersRaw;
+  let skuMap = skuMapRaw;
+  if (e1 && isMissingUserIdColumnError(e1.message)) {
+    const { data, error } = await sb
+      .from("master_skus")
+      .select("id,name,created_at")
+      .order("name", { ascending: true });
+    if (error) return { ok: false, message: error.message };
+    masters = data;
+  } else if (e1) {
+    return { ok: false, message: e1.message };
+  }
+
+  if (e2 && isMissingUserIdColumnError(e2.message)) {
+    const { data, error } = await sb
+      .from("sku_map")
+      .select("id,listing_sku,master_sku_id,category,created_at")
+      .order("listing_sku", { ascending: true });
+    if (error) return { ok: false, message: error.message };
+    skuMap = data;
+  } else if (e2) {
+    return { ok: false, message: e2.message };
+  }
 
   const m = (masters ?? []) as MasterSkuRecord[];
   const sm = (skuMap ?? []) as SkuMapRecord[];
@@ -94,12 +123,22 @@ async function fetchMasterByName(
   userId: string,
   exactName: string
 ): Promise<{ ok: boolean; message: string; master?: MasterSkuRecord }> {
-  const { data, error } = await sb
+  let { data, error } = await sb
     .from("master_skus")
     .select("id,name,created_at,user_id")
     .eq("user_id", userId)
     .eq("name", exactName)
     .maybeSingle();
+
+  if (error && isMissingUserIdColumnError(error.message)) {
+    const legacy = await sb
+      .from("master_skus")
+      .select("id,name,created_at")
+      .eq("name", exactName)
+      .maybeSingle();
+    data = legacy.data;
+    error = legacy.error;
+  }
 
   if (error) return { ok: false, message: error.message };
   if (!data)
@@ -125,10 +164,19 @@ export async function insertMasterSku(
   if (!auth.ok) return { ok: false, message: auth.message };
   const { sb, userId } = auth;
 
-  const { data, error } = await sb
+  let { data, error } = await sb
     .from("master_skus")
     .insert({ name: trimmed, user_id: userId })
     .select("id,name,created_at,user_id");
+
+  if (error && isMissingUserIdColumnError(error.message)) {
+    const legacy = await sb
+      .from("master_skus")
+      .insert({ name: trimmed })
+      .select("id,name,created_at");
+    data = legacy.data;
+    error = legacy.error;
+  }
 
   if (error) {
     if (error.code === "23505") {
@@ -220,10 +268,22 @@ export async function upsertListingsUnderMasterRemote(
     user_id: userId,
   }));
 
-  const { error } = await sb.from("sku_map").upsert(payload, {
+  let { error } = await sb.from("sku_map").upsert(payload, {
     onConflict: "user_id,listing_sku",
     ignoreDuplicates: false,
   });
+  if (error && isMissingUserIdColumnError(error.message)) {
+    const legacyPayload = listingSkus.map((listing_sku) => ({
+      listing_sku,
+      master_sku_id: masterId,
+      category: "",
+    }));
+    const legacy = await sb.from("sku_map").upsert(legacyPayload, {
+      onConflict: "listing_sku",
+      ignoreDuplicates: false,
+    });
+    error = legacy.error;
+  }
 
   if (error) return { ok: false, message: error.message };
   return {
@@ -290,10 +350,22 @@ export async function batchApplyMasterMappingsRemote(
 
   for (let i = 0; i < payloads.length; i += SKU_MAP_UPSERT_CHUNK) {
     const chunk = payloads.slice(i, i + SKU_MAP_UPSERT_CHUNK);
-    const { error } = await sb.from("sku_map").upsert(chunk, {
+    let { error } = await sb.from("sku_map").upsert(chunk, {
       onConflict: "user_id,listing_sku",
       ignoreDuplicates: false,
     });
+    if (error && isMissingUserIdColumnError(error.message)) {
+      const legacyChunk = chunk.map((r) => ({
+        listing_sku: r.listing_sku,
+        master_sku_id: r.master_sku_id,
+        category: r.category,
+      }));
+      const legacy = await sb.from("sku_map").upsert(legacyChunk, {
+        onConflict: "listing_sku",
+        ignoreDuplicates: false,
+      });
+      error = legacy.error;
+    }
     if (error) return { ok: false, message: error.message };
   }
 

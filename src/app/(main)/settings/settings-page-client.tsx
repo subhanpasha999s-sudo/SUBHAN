@@ -28,6 +28,14 @@ import { toast as notify } from "sonner";
 import { LAST_AUTH_METHOD_KEY, SIGNIN_NUDGE_DISMISS_KEY } from "@/lib/auth/constants";
 import { THEME_STORAGE_KEY } from "@/lib/theme/constants";
 
+function isMissingUserIdColumnError(message: string | undefined): boolean {
+  if (!message) return false;
+  return (
+    message.includes("Could not find the 'user_id' column") ||
+    message.includes('column "user_id" does not exist')
+  );
+}
+
 export function SettingsPageClient() {
   const [, rerun] = React.useReducer((x) => x + 1, 0);
   const { user, authReady } = useAuth();
@@ -171,10 +179,21 @@ export function SettingsPageClient() {
     if (!sb || !user) return;
     setDangerBusy(true);
     try {
-      const [{ error: mapErr }, { error: masterErr }] = await Promise.all([
+      let [{ error: mapErr }, { error: masterErr }] = await Promise.all([
         sb.from("sku_map").delete().eq("user_id", user.id),
         sb.from("master_skus").delete().eq("user_id", user.id),
       ]);
+      if (
+        isMissingUserIdColumnError(mapErr?.message) ||
+        isMissingUserIdColumnError(masterErr?.message)
+      ) {
+        const legacy = await Promise.all([
+          sb.from("sku_map").delete().neq("id", ""),
+          sb.from("master_skus").delete().neq("id", ""),
+        ]);
+        mapErr = legacy[0].error;
+        masterErr = legacy[1].error;
+      }
       if (mapErr || masterErr) {
         notify.error(mapErr?.message ?? masterErr?.message ?? "Could not delete cloud data.");
         return;
@@ -194,7 +213,7 @@ export function SettingsPageClient() {
     if (!ok) return;
     setDangerBusy(true);
     try {
-      await Promise.all([
+      const del = await Promise.all([
         sb.from("sku_map").delete().eq("user_id", user.id),
         sb.from("master_skus").delete().eq("user_id", user.id),
         sb.auth.updateUser({
@@ -204,6 +223,15 @@ export function SettingsPageClient() {
           },
         }),
       ]);
+      if (
+        isMissingUserIdColumnError(del[0].error?.message) ||
+        isMissingUserIdColumnError(del[1].error?.message)
+      ) {
+        await Promise.all([
+          sb.from("sku_map").delete().neq("id", ""),
+          sb.from("master_skus").delete().neq("id", ""),
+        ]);
+      }
       clearThisDeviceData();
       await signOut();
       notify.success("Account deletion requested", {
