@@ -29,7 +29,7 @@ export function ModulePageHeader({
     <header className="overflow-hidden rounded-xl border border-border bg-card shadow-layer-card ring-1 ring-border/20 sm:rounded-2xl">
       <div className="px-4 py-5 sm:px-7 sm:py-7 md:px-8 md:py-8">
         <nav
-          className="mb-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground sm:mb-4 sm:text-[13px]"
+          className="mb-3 flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap text-xs text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mb-4 sm:text-[13px]"
           aria-label="Breadcrumb"
         >
           {breadcrumb.map((crumb, i) => (
@@ -43,7 +43,7 @@ export function ModulePageHeader({
               {crumb.href ? (
                 <Link
                   href={crumb.href}
-                  className="min-h-11 touch-manipulation rounded-md font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-h-0"
+                  className="rounded-md font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {crumb.label}
                 </Link>
