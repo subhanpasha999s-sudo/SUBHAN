@@ -18,7 +18,7 @@ export default function TermsPage() {
     <>
       <ModulePageHeader
         breadcrumb={[
-          { label: "Label PDF", href: "/export-labels" },
+          { label: "Labels", href: "/export-labels" },
           { label: "Terms" },
         ]}
         title="Terms of service"

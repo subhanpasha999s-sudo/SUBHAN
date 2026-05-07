@@ -307,7 +307,7 @@ export function SkuMasterFirstPanel({
               variant="outline"
               className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/45 dark:text-emerald-50"
             >
-              Mapped
+              Mapped SKU
             </Badge>
           ) : status === "partial" ? (
             <Badge
@@ -374,7 +374,7 @@ export function SkuMasterFirstPanel({
             }
             onClick={() => void onFlushSaveNow()}
           >
-            {flushSaveBusy ? "Saving…" : "Save now"}
+            {flushSaveBusy ? "Syncing Tulmin workspace…" : "Save now"}
           </Button>
         </div>
       </div>
@@ -404,7 +404,7 @@ export function SkuMasterFirstPanel({
         <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-elevate-sm">
           <div className="border-b border-border bg-muted/30 px-4 py-3 text-[13px]">
             <p className="font-semibold text-foreground">
-              Unmapped listings (
+              SKU Missing (
               <span className="tabular-nums">
                 {unmappedSkusFiltered.length.toLocaleString()}
               </span>

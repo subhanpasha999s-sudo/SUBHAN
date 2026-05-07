@@ -67,9 +67,9 @@ export function SkuMappingWorkspaceToolbar({
 
   const statusLabel =
     autosaveState === "syncing"
-      ? "Syncing…"
+      ? "Syncing Tulmin workspace…"
       : autosaveState === "saved"
-        ? "All changes saved"
+        ? "Changes synced"
         : autosaveState === "offline"
           ? "Working offline · using local cache"
           : autosaveState === "error"
@@ -92,7 +92,7 @@ export function SkuMappingWorkspaceToolbar({
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Mapped
+                Matched
               </p>
               <p className="font-semibold text-emerald-700 dark:text-emerald-400">
                 {mapped.toLocaleString()}
@@ -176,8 +176,8 @@ export function SkuMappingWorkspaceToolbar({
           {(
             [
               ["all", "All"] as const,
-              ["mapped", "Mapped"] as const,
-              ["unmapped", "Unmapped"] as const,
+              ["mapped", "Matched"] as const,
+              ["unmapped", "SKU Missing"] as const,
             ] satisfies readonly [MappingStatusFilter, string][]
           ).map(([key, label]) => (
             <button

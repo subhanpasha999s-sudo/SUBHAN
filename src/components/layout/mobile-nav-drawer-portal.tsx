@@ -3,6 +3,8 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { cn } from "@/lib/utils";
+
 /**
  * Renders overlay + drawer at `document.body` so stacking/hit-testing is never intercepted
  * by parent layout (fixes mobile menu “dead” taps from z-index / transform quirks).
@@ -14,9 +16,10 @@ export function MobileNavDrawerPortal({
 }: {
   open: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  children: React.ReactElement;
 }) {
   const [mounted, setMounted] = React.useState(false);
+  const touchStartX = React.useRef<number | null>(null);
 
   React.useLayoutEffect(() => {
     setMounted(true);
@@ -47,7 +50,6 @@ export function MobileNavDrawerPortal({
     const prevRootOverflow = root.style.overflow;
     const prevBodyOverflow = body.style.overflow;
     const prevRootTouch = root.style.touchAction;
-    /** Scroll bleed on iOS / Android when full-screen backdrop is shown */
     root.style.overflow = "hidden";
     body.style.overflow = "hidden";
     root.style.touchAction = "none";
@@ -59,19 +61,58 @@ export function MobileNavDrawerPortal({
     };
   }, [open, mounted]);
 
+  const augmentDrawer = React.useMemo(() => {
+    if (!React.isValidElement(children)) return children;
+    type WithTouch = React.ReactElement<{
+      onTouchStart?: React.TouchEventHandler<HTMLElement>;
+      onTouchEnd?: React.TouchEventHandler<HTMLElement>;
+    }>;
+    const prevOnTouchStart = (children.props as WithTouch["props"]).onTouchStart;
+    const prevOnTouchEnd = (children.props as WithTouch["props"]).onTouchEnd;
+
+    return React.cloneElement(children as WithTouch, {
+      onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
+        prevOnTouchStart?.(e);
+        if (e.touches.length !== 1) {
+          touchStartX.current = null;
+          return;
+        }
+        touchStartX.current = e.touches[0]?.clientX ?? null;
+      },
+      onTouchEnd: (e: React.TouchEvent<HTMLElement>) => {
+        prevOnTouchEnd?.(e);
+        if (touchStartX.current == null) return;
+        const end = e.changedTouches[0]?.clientX ?? touchStartX.current;
+        const delta = end - touchStartX.current;
+        touchStartX.current = null;
+        if (delta < -72) onClose();
+      },
+    });
+  }, [children, onClose]);
+
   if (!mounted || typeof document === "undefined" || !open) return null;
 
   return createPortal(
-    <>
+    <div className="fixed inset-0 z-[45] lg:hidden">
       <button
         type="button"
-        className="fixed inset-0 z-40 animate-in fade-in-0 bg-black/50 duration-200 motion-reduce:animate-none lg:hidden touch-manipulation"
+        className={cnBackdrop()}
         aria-label="Close navigation"
         tabIndex={-1}
         onClick={onClose}
       />
-      {children}
-    </>,
+      <div className="fixed inset-y-0 left-0 z-50 flex h-full max-w-[min(19rem,calc(100vw-16px))] min-w-0">
+        {augmentDrawer}
+      </div>
+    </div>,
     document.body
+  );
+}
+
+function cnBackdrop() {
+  return cn(
+    "absolute inset-0 touch-manipulation",
+    "animate-in fade-in duration-200 motion-reduce:animate-none",
+    "bg-slate-950/45 backdrop-blur-md supports-[backdrop-filter]:bg-slate-950/35 dark:bg-black/55 dark:supports-[backdrop-filter]:bg-black/42"
   );
 }

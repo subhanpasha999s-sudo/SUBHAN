@@ -1,211 +1,459 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
-  ChevronLeft,
+  ChevronsLeft,
+  CircleUserRound,
+  Download,
   FileDown,
+  Filter,
+  Hash,
+  Layers2,
+  LayoutGrid,
   Link2,
-  Menu,
+  Package,
   Settings2,
+  Truck,
+  X,
 } from "lucide-react";
 
+import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
 import { WorkspaceFlowerBg } from "@/components/layout/workspace-flower-bg";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileNavDrawerPortal } from "@/components/layout/mobile-nav-drawer-portal";
 import {
-  APP_CHROME_UNDERLINE,
-  APP_SIDEBAR_BRAND_ROW,
-  SIDEBAR_EXPANDED_GUTTER_X,
-  SIDEBAR_EXPANDED_ROW,
+  SIDEBAR_PAD_X,
   WORKSPACE_GUTTERS,
   WORKSPACE_MAX_W,
 } from "@/components/layout/workspace-layout";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/supabase/auth-context";
 import { useMeeshoStore } from "@/store/use-meesho-store";
 
-const nav = [
-  { href: "/export-labels", label: "Label PDF", icon: FileDown },
-  { href: "/mapping", label: "SKU Mapping", icon: Link2 },
-  { href: "/settings", label: "Settings", icon: Settings2 },
-];
-
-const sidebarInteraction =
-  "transition-[background-color,border-color,color,transform] duration-200 ease-smooth active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100";
-
-type SidebarNavLinksProps = {
-  pathname: string;
-  collapsed: boolean;
-  /** Phone drawer: 44px+ touch rows, Zoho-style list rhythm */
-  comfortTouch?: boolean;
-  onNavigate?: () => void;
+type NavDef = {
+  href?: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+  soon?: boolean;
+  /** Same-path shortcuts (e.g. Filters) — never show active rail */
+  quickLink?: boolean;
 };
 
-/** Isolated from shell body so route content re-renders don’t rebuild nav nodes. */
-const SidebarNavLinks = React.memo(function SidebarNavLinks({
+type NavGroup = { id: string; label: string; items: NavDef[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "workspace",
+    label: "Workspace",
+    items: [
+      { href: "/export-labels", label: "Labels", icon: FileDown },
+      { href: "/mapping", label: "SKU Mapping", icon: Link2 },
+      { href: "/export-labels?focus=export", label: "Export Center", icon: Download },
+    ],
+  },
+  {
+    id: "filters",
+    label: "Filters",
+    items: [
+      { href: "/export-labels", label: "SKU Filters", icon: Filter, quickLink: true },
+      {
+        href: "/export-labels",
+        label: "Courier Filters",
+        icon: Truck,
+        quickLink: true,
+      },
+      { href: "/export-labels", label: "Quantity Filters", icon: Hash, quickLink: true },
+    ],
+  },
+  {
+    id: "tools",
+    label: "Tools",
+    items: [
+      { label: "Batch Export", icon: Package, soon: true },
+      { label: "Dispatch View", icon: LayoutGrid, soon: true },
+    ],
+  },
+  {
+    id: "system",
+    label: "System",
+    items: [{ href: "/settings", label: "Workspace Settings", icon: Settings2 }],
+  },
+];
+
+type URLSearchParamsLike = { get: (key: string) => string | null };
+
+const EMPTY_SEARCH_PARAMS: URLSearchParamsLike = new URLSearchParams();
+
+const railEase = "cubic-bezier(0.32, 0.72, 0, 1)";
+const navInteraction =
+  "transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100";
+
+function navItemActive(pathname: string, sp: URLSearchParamsLike, item: NavDef): boolean {
+  if (!item.href || item.soon || item.quickLink) return false;
+  const [rawPath, rawQuery = ""] = item.href.split("?");
+  const path = rawPath || "/";
+  const pathMatches =
+    path === "/"
+      ? pathname === "/" || pathname === ""
+      : pathname === path || pathname.startsWith(`${path}/`);
+  if (!pathMatches) return false;
+  const want = new URLSearchParams(rawQuery);
+  if ([...want.keys()].length === 0) {
+    if (path === "/export-labels" && sp.get("focus") === "export") return false;
+    return true;
+  }
+  for (const [k, v] of want.entries()) {
+    if (sp.get(k) !== v) return false;
+  }
+  return true;
+}
+
+function SidebarNavButton({
+  item,
   pathname,
+  searchParams,
   collapsed,
-  comfortTouch = false,
+  comfortTouch,
   onNavigate,
-}: SidebarNavLinksProps) {
-  return (
+}: {
+  item: NavDef;
+  pathname: string;
+  searchParams: URLSearchParamsLike;
+  collapsed: boolean;
+  comfortTouch?: boolean;
+  onNavigate?: () => void;
+}) {
+  const active = item.href ? navItemActive(pathname, searchParams, item) : false;
+  const Icon = item.icon;
+
+  const content = (
     <>
-      {nav.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            prefetch={false}
-            onClick={onNavigate}
-            title={collapsed ? item.label : undefined}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "w-full touch-manipulation rounded-md text-[13px] font-medium leading-snug outline-none select-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]",
-              sidebarInteraction,
-              collapsed
-                ? "flex min-h-10 justify-center gap-0 border-l-0 px-0 py-2"
-                : cn(
-                    SIDEBAR_EXPANDED_ROW,
-                    comfortTouch
-                      ? "min-h-12 rounded-[10px] py-3 pl-3 pr-2.5"
-                      : "min-h-9"
-                  ),
-              active
-                ? collapsed
-                  ? "bg-sidebar-primary/12 text-sidebar-primary"
-                  : "border-l-sidebar-primary bg-sidebar-primary/[0.09] font-medium text-sidebar-foreground [&_svg]:text-sidebar-primary dark:bg-sidebar-primary/[0.14]"
-                : collapsed
-                  ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            )}
-          >
-            <Icon
-              className={cn(
-                "size-[17px] shrink-0 transition-transform duration-200 ease-smooth motion-reduce:transition-none",
-                active && "scale-[1.04] motion-reduce:scale-100"
-              )}
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            {!collapsed && (
-              <span className="min-w-0 truncate">{item.label}</span>
-            )}
-          </Link>
-        );
-      })}
+      <Icon
+        className={cn(
+          "size-[18px] shrink-0 transition-[color,transform] duration-200 ease-smooth",
+          active && "scale-[1.03] text-sidebar-primary motion-reduce:scale-100",
+          !active && "text-sidebar-foreground/55 group-hover:text-sidebar-foreground/88"
+        )}
+        strokeWidth={1.65}
+        aria-hidden
+      />
+      {!collapsed && (
+        <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium leading-snug">
+          {item.label}
+        </span>
+      )}
+      {!collapsed && item.badge ? (
+        <span className="shrink-0 rounded-md bg-sidebar-primary/18 px-1.5 py-px text-[10px] font-semibold tabular-nums text-sidebar-primary">
+          {item.badge}
+        </span>
+      ) : null}
+      {!collapsed && item.soon ? (
+        <span className="shrink-0 rounded-full bg-sidebar-foreground/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 ring-1 ring-sidebar-foreground/10">
+          Soon
+        </span>
+      ) : null}
     </>
   );
-});
 
-/** Shared chrome for desktop sidebar + portal mobile drawer (two instances; stateless JSX). */
-function SidebarRailPanels({
+  const itemClass = cn(
+    "group relative flex w-full touch-manipulation items-center outline-none select-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]",
+    navInteraction,
+    collapsed
+      ? "justify-center rounded-xl px-0 py-2.5"
+      : cn(
+          "gap-3 rounded-xl py-2.5 pl-3 pr-2.5",
+          comfortTouch && "min-h-12 py-3"
+        ),
+    item.soon && "cursor-not-allowed opacity-55",
+    active &&
+      !item.soon &&
+      cn(
+        "bg-sidebar-primary/[0.14] text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(91_156_247/0.18),0_10px_28px_-16px_rgb(59_130_246/0.45)]",
+        "before:pointer-events-none before:absolute before:left-0 before:top-1/2 before:h-[58%] before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary before:content-['']",
+        "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),0_0_0_1px_rgb(96_165_250/0.16),0_12px_36px_-18px_rgb(59_130_246/0.35)]"
+      ),
+    !active &&
+      !item.soon &&
+      "text-sidebar-foreground/72 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.04)]"
+  );
+
+  if (item.soon || !item.href) {
+    return (
+      <span
+        role="link"
+        aria-disabled="true"
+        title={collapsed ? item.label : undefined}
+        className={itemClass}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      prefetch={false}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? item.label : undefined}
+      className={itemClass}
+    >
+      {content}
+    </Link>
+  );
+}
+
+function SidebarNavHydrated({
+  pathname,
+  collapsed,
+  comfortTouch,
+  onNavigate,
+}: {
+  pathname: string;
+  collapsed: boolean;
+  comfortTouch?: boolean;
+  onNavigate?: () => void;
+}) {
+  const searchParams = useSearchParams();
+  return (
+    <SidebarNavBody
+      pathname={pathname}
+      searchParams={searchParams}
+      collapsed={collapsed}
+      comfortTouch={comfortTouch}
+      onNavigate={onNavigate}
+    />
+  );
+}
+
+function SidebarNavBody({
+  pathname,
+  searchParams,
+  collapsed,
+  comfortTouch,
+  onNavigate,
+}: {
+  pathname: string;
+  searchParams: URLSearchParamsLike;
+  collapsed: boolean;
+  comfortTouch?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      {NAV_GROUPS.map((group, gi) => (
+        <div key={group.id} className={cn(gi > 0 && "mt-6")}>
+          {!collapsed && (
+            <p
+              className={cn(
+                "mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/38",
+                SIDEBAR_PAD_X
+              )}
+            >
+              {group.label}
+            </p>
+          )}
+          <div
+            className={cn(
+              "flex flex-col gap-1",
+              collapsed ? "px-2" : SIDEBAR_PAD_X
+            )}
+          >
+            {group.items.map((item) => (
+              <SidebarNavButton
+                key={`${group.id}-${item.label}`}
+                item={item}
+                pathname={pathname}
+                searchParams={searchParams}
+                collapsed={collapsed}
+                comfortTouch={comfortTouch}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function SidebarChrome({
   variant,
   collapsed,
   pathname,
   onCollapseClick,
   onNavNavigate,
+  onMobileClose,
 }: {
   variant: "desktop" | "mobile";
   collapsed: boolean;
   pathname: string;
   onCollapseClick: () => void;
   onNavNavigate?: () => void;
+  onMobileClose?: () => void;
 }) {
-  /** Mobile drawer always expands labels/icons for touch UX (ignore persisted collapsed). */
-  const navCollapsed =
-    variant === "mobile" ? false : collapsed;
-  const brandCollapsed =
-    variant === "mobile" ? false : collapsed;
+  const navCollapsed = variant === "mobile" ? false : collapsed;
+  const { user, authReady } = useAuth();
+  const { openOptionalSignIn } = useValueFirstAuth();
+  const guestSignedOut = authReady && !user;
 
   return (
     <>
-      <div
+      {/* Header */}
+      <header
         className={cn(
-          "box-border flex items-center",
-          variant === "mobile" && "pt-safe-top",
-          brandCollapsed ? "justify-center px-2" : SIDEBAR_EXPANDED_GUTTER_X,
-          APP_SIDEBAR_BRAND_ROW,
-          APP_CHROME_UNDERLINE
+          "flex shrink-0 flex-col gap-3 border-b border-sidebar-border/25 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]",
+          SIDEBAR_PAD_X,
+          variant === "desktop" && "lg:pt-5",
+          variant === "mobile" && "relative pr-14"
         )}
       >
-        {!brandCollapsed ? (
-          <div
-            className={cn(
-              SIDEBAR_EXPANDED_ROW,
-              "items-center border-l-transparent"
-            )}
-          >
-            <span className="block size-[17px] shrink-0" aria-hidden />
-            <div className="flex min-w-0 flex-col justify-center gap-0.5 leading-none">
-              <span className="text-[0.9375rem] font-semibold tracking-tight text-sidebar-foreground">
-                Label
-              </span>
-              <span className="text-[11px] font-normal leading-snug tracking-wide text-sidebar-foreground/48">
-                Label PDF · SKU Mapping
-              </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div
+              className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary/90 to-[#4178c9] shadow-[0_8px_24px_-14px_rgb(59_130_246/0.55)] ring-1 ring-white/15"
+              aria-hidden
+            >
+              <Layers2 className="size-[20px] text-sidebar-primary-foreground" strokeWidth={1.85} />
             </div>
+            {!navCollapsed && (
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                  Tulmin
+                </p>
+                <div className="mt-1.5 inline-flex items-center rounded-full bg-emerald-500/14 px-2 py-px text-[9px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-500/35 dark:text-emerald-200 dark:ring-emerald-400/28">
+                  Tulmin Ready
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/90">
-            L
+          {variant === "desktop" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onCollapseClick}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className={cn(
+                "-mr-1 size-9 shrink-0 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                collapsed && "mx-auto"
+              )}
+            >
+              <ChevronsLeft
+                className={cn(
+                  "size-[18px] transition-transform duration-300 ease-panel",
+                  collapsed && "rotate-180"
+                )}
+                strokeWidth={1.65}
+              />
+              <span className="sr-only">
+                {collapsed ? "Expand navigation" : "Collapse navigation"}
+              </span>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onMobileClose}
+              className={cn(
+                "absolute right-3 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-[1]",
+                "-mr-1 size-11 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              )}
+            >
+              <X className="size-[22px]" strokeWidth={1.6} />
+              <span className="sr-only">Close menu</span>
+            </Button>
+          )}
+        </div>
+        {navCollapsed && variant === "desktop" ? (
+          <span
+            className="mx-auto block w-full text-center"
+            title="Tulmin · Tulmin Ready"
+          >
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-foreground/50">
+              LW
+            </span>
           </span>
-        )}
-      </div>
+        ) : null}
+      </header>
+
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
         <nav
-          className={cn(
-            "flex flex-col gap-0.5 pb-28 pt-2",
-            navCollapsed ? "px-2" : SIDEBAR_EXPANDED_GUTTER_X
-          )}
-          aria-labelledby={variant === "mobile" ? "mobile-nav-heading" : undefined}
+          className="flex flex-col pb-36 pt-2"
+          aria-label={variant === "mobile" ? "Main navigation" : undefined}
         >
-          {variant === "mobile" ? (
-            <div className="px-3 pb-2 pt-0.5" id="mobile-nav-heading">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sidebar-foreground/38">
-                Navigate
-              </p>
-            </div>
-          ) : null}
-          <SidebarNavLinks
-            pathname={pathname}
-            collapsed={navCollapsed}
-            comfortTouch={variant === "mobile"}
-            onNavigate={onNavNavigate}
-          />
+          <Suspense
+            fallback={
+              <SidebarNavBody
+                pathname={pathname}
+                searchParams={EMPTY_SEARCH_PARAMS}
+                collapsed={navCollapsed}
+                comfortTouch={variant === "mobile"}
+                onNavigate={onNavNavigate}
+              />
+            }
+          >
+            <SidebarNavHydrated
+              pathname={pathname}
+              collapsed={navCollapsed}
+              comfortTouch={variant === "mobile"}
+              onNavigate={onNavNavigate}
+            />
+          </Suspense>
         </nav>
       </div>
-      <div
-        className={cn(
-          "absolute bottom-3 flex flex-col gap-2",
-          navCollapsed ? "left-2 right-2" : "left-3 right-3"
-        )}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
+
+      {variant === "mobile" ? (
+        <footer
           className={cn(
-            "hidden h-9 w-full border border-transparent bg-transparent text-[12px] font-medium text-sidebar-foreground/75 shadow-none transition-[background-color,border-color,color,transform] duration-200 ease-smooth hover:border-sidebar-border/50 hover:bg-sidebar-accent hover:text-sidebar-foreground active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 lg:inline-flex",
-            collapsed && "justify-center px-2"
+            "mt-auto shrink-0 space-y-1 border-t border-sidebar-border/30 bg-sidebar/50 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm",
+            SIDEBAR_PAD_X
           )}
-          onClick={onCollapseClick}
         >
-          {collapsed ? (
-            <Menu className="size-4" strokeWidth={1.5} />
-          ) : (
-            <>
-              <ChevronLeft className="size-4" strokeWidth={1.5} /> Collapse
-            </>
-          )}
-        </Button>
-      </div>
+          <Link
+            href="/settings"
+            prefetch={false}
+            onClick={onNavNavigate}
+            className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <Settings2 className="size-[18px] text-sidebar-foreground/50" strokeWidth={1.6} />
+            Workspace Settings
+          </Link>
+          {guestSignedOut ? (
+            <button
+              type="button"
+              onClick={() => {
+                openOptionalSignIn();
+                onNavNavigate?.();
+              }}
+              className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] font-semibold text-sidebar-primary transition-colors hover:bg-sidebar-primary/12"
+            >
+              <CircleUserRound className="size-[18px]" strokeWidth={1.6} />
+              Sign in to sync
+            </button>
+          ) : authReady && user ? (
+            <Link
+              href="/settings"
+              prefetch={false}
+              onClick={onNavNavigate}
+              className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"
+            >
+              <CircleUserRound className="size-[18px] text-sidebar-foreground/50" strokeWidth={1.6} />
+              Account
+            </Link>
+          ) : null}
+        </footer>
+      ) : null}
     </>
   );
 }
@@ -217,7 +465,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setCollapsed = useMeeshoStore((s) => s.setSidebarCollapsed);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
-  /** Until Zustand rehydrates from storage, render expanded desktop rail (stable SSR ↔ first paint). */
   const collapsedDesktop = hydrated ? persistedCollapsed : false;
 
   const closeMobileNav = React.useCallback(() => setMobileNavOpen(false), []);
@@ -226,23 +473,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMobileNavOpen(false);
   }, [pathname]);
 
-  const desktopSidebarW = collapsedDesktop ? "lg:w-[4.25rem]" : "lg:w-[15rem]";
-  const mainOffset = collapsedDesktop ? "lg:pl-[4.25rem]" : "lg:pl-[15rem]";
-
   const drawerOpen = mobileNavOpen;
 
   return (
-    <div className="relative min-h-app-screen w-full bg-[#eef1f6] font-sans text-foreground antialiased dark:bg-background">
-      {/* Desktop: fixed rail only (`hidden` removes it from layout on small screens). */}
+    <div className="relative min-h-app-screen w-full bg-background font-sans text-foreground antialiased dark:bg-background">
       <aside
         aria-label="Main navigation"
+        style={{ transitionTimingFunction: railEase } as React.CSSProperties}
         className={cn(
           "hidden lg:flex lg:translate-x-0",
-          "fixed inset-y-0 left-0 z-[38] w-[min(17.5rem,88vw)] max-w-[18rem] flex-col bg-sidebar text-sidebar-foreground shadow-sidebar-panel transition-[width] duration-300 ease-panel lg:border-r lg:border-border lg:backdrop-blur-none",
-          desktopSidebarW
+          "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
+          "bg-sidebar-rail backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/88",
+          "shadow-sidebar-panel transition-[width] duration-[320ms] ease-panel motion-reduce:transition-none",
+          collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[16.25rem]"
         )}
       >
-        <SidebarRailPanels
+        <SidebarChrome
           variant="desktop"
           collapsed={collapsedDesktop}
           pathname={pathname}
@@ -255,18 +501,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           id="main-nav-drawer"
           role="dialog"
           aria-modal="true"
-          aria-label="Main navigation"
+          aria-label="Navigation menu"
           tabIndex={-1}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[min(17.5rem,88vw)] max-w-[18rem] flex-col border-r border-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground shadow-sidebar-panel outline-none animate-in slide-in-from-left duration-300 ease-panel motion-reduce:animate-none motion-reduce:duration-0 lg:hidden"
+            "relative flex h-full min-h-0 w-full flex-col rounded-r-[22px] border-r border-white/[0.06] bg-sidebar-rail",
+            "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_64px_-24px_rgb(0_0_0/0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sidebar/92",
+            "outline-none animate-in slide-in-from-left duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none motion-reduce:duration-0"
           )}
         >
-          <SidebarRailPanels
+          <SidebarChrome
             variant="mobile"
-            collapsed={persistedCollapsed}
+            collapsed={false}
             pathname={pathname}
             onCollapseClick={() => setCollapsed(!persistedCollapsed)}
             onNavNavigate={closeMobileNav}
+            onMobileClose={closeMobileNav}
           />
         </aside>
       </MobileNavDrawerPortal>
@@ -274,22 +523,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
-          mainOffset
+          "transition-[padding] duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[16.25rem]"
         )}
       >
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_85%_55%_at_50%_-12%,rgb(59_130_246/0.07),transparent_52%)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-8%,rgb(96_165_250/0.09),transparent_50%)]" />
         <WorkspaceFlowerBg />
         <AppTopbar
           mobileNavOpen={drawerOpen}
-          onMobileMenuToggle={() =>
-            setMobileNavOpen((o) => !o)
-          }
+          onMobileMenuToggle={() => setMobileNavOpen((o) => !o)}
         />
         <main
           className={cn(
-            "mx-auto flex w-full flex-1 flex-col min-h-0",
+            "mx-auto flex w-full min-h-0 flex-1 flex-col",
             WORKSPACE_MAX_W,
             WORKSPACE_GUTTERS,
-            "pb-6 pt-5 sm:pb-8 sm:pt-8 lg:pb-10"
+            "pb-8 pt-6 sm:pb-10 sm:pt-8 lg:pb-12 lg:pt-9"
           )}
         >
           {children}

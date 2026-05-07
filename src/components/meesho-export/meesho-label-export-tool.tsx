@@ -263,7 +263,7 @@ function mappedMasterFilterTriggerText(
 ): string {
   if (f.mode === "all") return `All (${stats.total.toLocaleString()})`;
   if (f.mode === "unmapped")
-    return `Unmapped (${stats.unmapped.toLocaleString()})`;
+    return `SKU Missing (${stats.unmapped.toLocaleString()})`;
   const names = f.names;
   if (names.length === 0) return `All (${stats.total.toLocaleString()})`;
   if (names.length === 1) {
@@ -405,13 +405,13 @@ function LabelPdfFilterFields({
   const masterBlock = (
     <div className="min-w-0">
       <Label htmlFor="label-filter-master-trigger" className={lbl}>
-        Mapped SKU
+        Matched SKU
       </Label>
       <DropdownMenu>
         <DropdownMenuTrigger
           type="button"
           id="label-filter-master-trigger"
-          title="From SKU Mapping—the group SKU linked to each listing. Counts are labels in this PDF. Pick one or more mapped SKUs; All shows every row."
+          title="Uses your SKU Mapping. Counts are labels in this file. Pick masters to narrow the list—or show SKU Missing only."
           className={cn(ctl, selectTriggerExtras, "flex w-full min-w-0 cursor-default items-center gap-2")}
         >
           <span className="min-w-0 flex-1 truncate text-left font-semibold tracking-tight">
@@ -440,7 +440,7 @@ function LabelPdfFilterFields({
               </span>
               <span className="min-w-0 flex-1">
                 <FilterMenuCountRow
-                  primary={<span className="font-semibold text-foreground">All mapped SKUs</span>}
+                  primary={<span className="font-semibold text-foreground">All labels</span>}
                   count={mappedSkuLabelStats.total}
                 />
               </span>
@@ -458,7 +458,7 @@ function LabelPdfFilterFields({
               </span>
               <span className="min-w-0 flex-1">
                 <FilterMenuCountRow
-                  primary={<span className="font-semibold">Unmapped only</span>}
+                  primary={<span className="font-semibold">SKU Missing only</span>}
                   count={mappedSkuLabelStats.unmapped}
                 />
               </span>
@@ -640,11 +640,12 @@ function LabelPdfFilterFields({
     return (
       <div className="space-y-5">
         <p className="text-[12px] leading-relaxed text-muted-foreground">
-          Refine what appears in the list. Your PDF file is unchanged until you export.
+          Tulmin filters your working view only. Your original files stay untouched until export.
+          Process bulk labels without manual sorting.
         </p>
 
         <div>
-          <span className={lbl}>Mapped status</span>
+          <span className={lbl}>Match status</span>
           <div className={cn("mt-2", chipScroller)}>
             <MobileFilterChip active={mappedMasterFilter.mode === "all"} onClick={onMasterFilterAll}>
               All
@@ -653,7 +654,7 @@ function LabelPdfFilterFields({
               active={mappedMasterFilter.mode === "unmapped"}
               onClick={onMasterFilterUnmapped}
             >
-              Unmapped
+              SKU Missing
             </MobileFilterChip>
           </div>
           <div className="mt-3">{masterBlock}</div>
@@ -710,9 +711,9 @@ function LabelPdfFilterFields({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="max-w-xl text-[12px] leading-relaxed text-muted-foreground lg:text-[13px]">
-          Refine the grid before export.{" "}
-          <span className="text-foreground/80">Mapped SKU</span> uses your SKU Mapping; leave
-          everything on All to see the full PDF.
+          <span className="font-medium text-foreground/85">Smart filters</span> — find exactly the
+          labels you need in seconds. Tulmin filters your working view only; your original PDF stays
+          unchanged until export. Built for faster Meesho dispatch.
         </p>
         {activeFilterCount > 0 ? (
           <div className="shrink-0 sm:pt-px">{clearBtn}</div>
@@ -727,8 +728,8 @@ function LabelPdfFilterFields({
             id="label-filter-listing-sku-desk"
             value={listingSkuSearch}
             onChange={(e) => onListingSkuSearch(e.target.value)}
-            placeholder="Search listing SKUs…"
-            title="Find labels by marketplace listing SKU (partial match)."
+            placeholder="Search SKU, courier, quantity, or label…"
+            title="Filter by listing SKU, matched master, courier, or quantity (partial match)."
             aria-describedby="label-filter-listing-hint-desk"
             className={cn(ctl, "h-10 py-2")}
           />
@@ -858,13 +859,13 @@ function LabelsVirtualGrid({
         <div
           className="flex min-h-11 min-w-0 shrink-0 items-center justify-center px-1 py-0.5 sm:min-h-0"
           role="columnheader"
-          aria-label="Select all rows in view"
+          aria-label="Select all loaded labels"
         >
           <Checkbox
             checked={allInViewSelected}
             disabled={globalBusy || rows.length === 0}
             onCheckedChange={(c) => onSelectAllInView(Boolean(c))}
-            aria-label="Select all in view"
+            aria-label="Select all loaded labels"
           />
         </div>
         <div
@@ -886,11 +887,11 @@ function LabelsVirtualGrid({
         >
           <button
             type="button"
-            title="Mapped SKU from SKU Mapping. A small ✓ on rows means that mapped SKU (or unmapped bucket) was already included in a PDF export for this file."
+            title="Matched SKU from Tulmin mapping. ✓ means this bucket was already included in a filtered export for this file—you can download again anytime."
             className="interaction-press flex min-h-11 w-full min-w-0 touch-manipulation items-center gap-0.5 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-[11px] font-semibold uppercase tracking-wide text-foreground hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/40 sm:min-h-0"
             onClick={() => headerClick("master_sku")}
           >
-            <span className="truncate">Mapped SKU</span>
+            <span className="truncate">Matched SKU</span>
             {sortIcon(sortKey === "master_sku", sortDir)}
           </button>
         </div>
@@ -944,7 +945,7 @@ function LabelsVirtualGrid({
       >
         {rows.length === 0 ? (
           <p className="py-12 text-center text-xs text-muted-foreground">
-            No rows match these filters.
+            No labels match these filters.
           </p>
         ) : (
           <div
@@ -1027,18 +1028,18 @@ function LabelMappingStatusPill({ mapped }: { mapped: boolean }) {
     return (
       <span
         className="inline-flex items-center rounded-full bg-emerald-500/[0.13] px-2 py-0.5 text-[11px] font-semibold leading-none tracking-tight text-emerald-200 ring-1 ring-emerald-400/25 shadow-[0_0_14px_-4px_rgb(52_211_153/0.55)] dark:text-emerald-100"
-        title="This listing SKU is mapped in SKU Mapping."
+        title="This listing has a matched master SKU from Tulmin SKU Mapping."
       >
-        Mapped
+        Mapped SKU
       </span>
     );
   }
   return (
     <span
       className="inline-flex items-center rounded-full bg-amber-500/[0.12] px-2 py-0.5 text-[11px] font-semibold leading-none tracking-tight text-amber-100 ring-1 ring-amber-400/30 shadow-[0_0_12px_-4px_rgb(251_191_36/0.35)]"
-      title="Not linked to a master SKU yet."
+      title="No master SKU linked yet — add it in SKU Mapping."
     >
-      Pending
+      SKU Missing
     </span>
   );
 }
@@ -1109,14 +1110,14 @@ function LabelsMobileCards({
           checked={allInViewSelected}
           disabled={globalBusy || rows.length === 0}
           onCheckedChange={(c) => onSelectAllInView(Boolean(c))}
-          aria-label="Select all in view"
+          aria-label="Select all loaded labels"
           className="size-[22px] rounded-md"
         />
         <span className="text-[12px] font-medium text-muted-foreground">
-          Select all in view
+          Select all
         </span>
         <span className="ml-auto text-[12px] tabular-nums text-muted-foreground">
-          {rows.length.toLocaleString()} shown
+          {rows.length.toLocaleString()} labels loaded
         </span>
       </div>
       <div
@@ -1184,7 +1185,7 @@ function LabelsMobileCards({
                             <LabelMappingStatusPill mapped />
                           </div>
                           <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/90">
-                            Mapped to
+                            Matched to
                           </p>
                           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
                             <p className="min-w-0 flex-1 break-all font-mono text-[13px] font-medium leading-snug text-emerald-100/95">
@@ -1607,7 +1608,9 @@ export function MeeshoLabelExportTool() {
     setRows(res.rows);
     setPdfBytes(res.pdfBytes);
     setSourceName(file.name.replace(/\.pdf$/i, ""));
-    notify.success(`${res.rows.length.toLocaleString()} labels extracted`);
+    notify.success("Labels imported successfully", {
+      description: `${res.rows.length.toLocaleString()} labels loaded into Tulmin.`,
+    });
 
     if (userId && getSupabaseBrowser()) await refreshMapSnapshot();
   }
@@ -1652,7 +1655,7 @@ export function MeeshoLabelExportTool() {
 
   async function downloadFilteredPdf() {
     if (!pdfBytes || selectedTotal === 0) {
-      notify.info("Select at least one row to export.");
+      notify.info("Select at least one label to download.");
       return;
     }
     const idSet = new Set(Object.keys(selected));
@@ -1671,9 +1674,8 @@ export function MeeshoLabelExportTool() {
       const out = await exportPdfPages(pdfBytes, pagesToExport);
       triggerPdfDownload(out, buildSelectedExportFilename(exportedEnriched));
       mergeExportedMastersFromRows(exportedEnriched);
-      notify.success(`Exported ${pagesToExport.length.toLocaleString()} page(s)`, {
-        description:
-          "A ✓ by Mapped SKU marks buckets already exported for this file—you can export again anytime.",
+      notify.success("Ready to download", {
+        description: `${pagesToExport.length.toLocaleString()} label page(s) exported. ✓ marks buckets already downloaded—you can export again anytime.`,
       });
     } catch (e) {
       notify.error("Couldn’t export that PDF yet", {
@@ -1695,10 +1697,10 @@ export function MeeshoLabelExportTool() {
       triggerPdfDownload(out, `${base}-labels-filtered-grouped.pdf`);
       mergeExportedMastersFromRows(grouped);
       notify.success(
-        `Exported ${grouped.length.toLocaleString()} page(s) in grouped order`,
+        `Export filtered labels — ${grouped.length.toLocaleString()} page(s)`,
         {
           description:
-            "✓ marks each mapped SKU (and unmapped) included in this grouped export so repeat downloads are easy to spot.",
+            "✓ marks each matched SKU (and SKU Missing bucket) included in this grouped export. Export only what dispatch needs.",
         }
       );
     } catch (e) {
@@ -1764,10 +1766,15 @@ export function MeeshoLabelExportTool() {
                 </div>
                 <div className="space-y-1.5">
                   <p className="text-[17px] font-semibold tracking-tight text-foreground">
-                    Import your Meesho label PDF
+                    Import Label File
                   </p>
                   <p className="mx-auto max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                    Upload once and start filtering instantly. One label per page, PDF format.
+                    Upload your Meesho label PDF and start filtering instantly—by SKU, courier, or quantity.
+                    From an hour of manual work to under three minutes.
+                  </p>
+                  <p className="mx-auto max-w-md text-[12px] font-medium leading-relaxed text-muted-foreground/90">
+                    Your Tulmin workspace is ready. Import a label file to export only what you need—no messy
+                    PDF prep.
                   </p>
                 </div>
                 <Button
@@ -1777,7 +1784,7 @@ export function MeeshoLabelExportTool() {
                   disabled={parsing}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Upload PDF
+                  Import PDF
                 </Button>
               </>
             )}
@@ -1820,11 +1827,11 @@ export function MeeshoLabelExportTool() {
                       id="labels-grid-heading"
                       className="text-[15px] font-semibold tracking-tight text-foreground"
                     >
-                      Label workspace
+                      Meesho labels
                     </h2>
                     <span className="shrink-0 text-[12px] font-medium tabular-nums text-muted-foreground">
                       {filteredLabels.length.toLocaleString()}
-                      <span className="font-normal"> in view</span>
+                      <span className="font-normal"> labels loaded</span>
                     </span>
                   </div>
                 ) : (
@@ -1834,19 +1841,20 @@ export function MeeshoLabelExportTool() {
                         id="labels-grid-heading"
                         className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
                       >
-                        Label workspace
+                        Meesho labels
                       </h2>
                       <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
                         ·
                       </span>
                       <span className="text-[13px] font-medium tabular-nums text-muted-foreground sm:inline">
                         {filteredLabels.length.toLocaleString()}
-                        <span className="font-normal text-muted-foreground"> in view</span>
+                        <span className="font-normal text-muted-foreground"> labels loaded</span>
                       </span>
                     </div>
                     <p className="mt-2 hidden max-w-2xl text-[12px] leading-relaxed text-muted-foreground md:block lg:text-[13px]">
-                      Quickly isolate the right labels, then export selected pages or a grouped bundle.
-                      This helps reduce manual sorting and keeps dispatch smoother at scale.
+                      Built for faster dispatch workflows. Filter by matched SKU, courier, and quantity—then{" "}
+                      <span className="font-medium text-foreground/85">download only the shipments you need.</span>{" "}
+                      Designed for high-volume Meesho operations.
                     </p>
                   </>
                 )}
@@ -1860,8 +1868,8 @@ export function MeeshoLabelExportTool() {
                     {enrichedRows.length.toLocaleString()} total
                   </span>
                   <span className="inline-flex items-center rounded-md bg-background/60 px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground ring-1 ring-border/40">
-                    {mappedRows.length.toLocaleString()} mapped ·{" "}
-                    {(enrichedRows.length - mappedRows.length).toLocaleString()} open
+                    {mappedRows.length.toLocaleString()} matched ·{" "}
+                    {(enrichedRows.length - mappedRows.length).toLocaleString()} remaining
                   </span>
                 </div>
               </div>
@@ -1870,11 +1878,11 @@ export function MeeshoLabelExportTool() {
                   <span className="font-semibold text-foreground">
                     {enrichedRows.length.toLocaleString()}
                   </span>{" "}
-                  labels ready
+                  labels in file
                 </div>
                 <div>
-                  {mappedRows.length.toLocaleString()} mapped ·{" "}
-                  {(enrichedRows.length - mappedRows.length).toLocaleString()} pending mapping
+                  {mappedRows.length.toLocaleString()} labels ready ·{" "}
+                  {(enrichedRows.length - mappedRows.length).toLocaleString()} need review
                 </div>
               </div>
             </div>
@@ -1890,10 +1898,9 @@ export function MeeshoLabelExportTool() {
                     "rounded-2xl border-white/[0.06] border-l-primary bg-muted/25 shadow-inner ring-1 ring-white/[0.04]"
                 )}
               >
-                <span className="font-medium text-foreground">Optional workspace backup:</span>{" "}
-                your SKU mappings are enriching this PDF on-device. Sign in once if you&apos;d like
-                the same SKU map persisted in our cloud workspace long term—it&apos;s free, and exports
-                stay in sync everywhere you use Label.&nbsp;
+                <span className="font-medium text-foreground">Sync Tulmin across devices:</span>{" "}
+                your SKU mappings enrich this PDF on-device. Sign in once to persist your map in the
+                cloud—it&apos;s free, and Tulmin stays in sync everywhere.&nbsp;
                 <button
                   type="button"
                   onClick={openOptionalSignIn}
@@ -1913,11 +1920,11 @@ export function MeeshoLabelExportTool() {
                       value={enrichedRows.length.toLocaleString()}
                     />
                     <MobileStatPill
-                      label="Mapped"
+                      label="Matched"
                       value={mappedRows.length.toLocaleString()}
                     />
                     <MobileStatPill
-                      label="Open"
+                      label="Remaining"
                       value={(enrichedRows.length - mappedRows.length).toLocaleString()}
                     />
                     <MobileStatPill
@@ -1926,7 +1933,7 @@ export function MeeshoLabelExportTool() {
                       active={selectedTotal > 0}
                     />
                     <MobileStatPill
-                      label="Export"
+                      label="Ready to download"
                       value={selectedTotal.toLocaleString()}
                       active={selectedTotal > 0}
                     />
@@ -1941,9 +1948,9 @@ export function MeeshoLabelExportTool() {
                         id="label-workspace-mobile-search"
                         value={listingSkuSearch}
                         onChange={(e) => setListingSkuSearch(e.target.value)}
-                        placeholder="Search SKU or mapped code…"
-                        title="Filter by listing SKU or mapped master SKU (partial match)."
-                        aria-label="Search SKU or mapped code"
+                        placeholder="Search SKU, courier, quantity, or label…"
+                        title="Search listing SKU, matched master SKU, courier, or quantity."
+                        aria-label="Search SKU, courier, quantity, or label"
                         className="h-11 rounded-2xl border-0 bg-muted/40 py-2 pl-10 pr-3 text-[14px] font-medium shadow-[inset_0_1px_2px_rgb(0_0_0/0.12)] ring-1 ring-white/[0.06] placeholder:text-muted-foreground/55 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)]"
                       />
                     </div>
@@ -1951,11 +1958,11 @@ export function MeeshoLabelExportTool() {
                       type="button"
                       variant="outline"
                       onClick={() => setMobileFilterOpen(true)}
-                      title="Open filters"
+                      title="Open smart filters"
                       className="relative h-11 shrink-0 touch-manipulation rounded-2xl px-3.5 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
                     >
                       <SlidersHorizontal className="mr-2 size-[18px]" aria-hidden />
-                      Filters
+                      Smart Filters
                       {labelFilterActiveCount > 0 ? (
                         <span className="ml-1 inline-flex min-w-[1.125rem] justify-center rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
                           {labelFilterActiveCount}
@@ -1966,13 +1973,13 @@ export function MeeshoLabelExportTool() {
                       type="button"
                       variant="secondary"
                       size="icon"
-                      title="Export grouped workflow — all rows in view, grouped."
+                      title="Export filtered labels — all visible rows, grouped by SKU, courier, and quantity."
                       disabled={filteredLabels.length === 0}
                       onClick={() => void requestGroupedDownload()}
                       className="h-11 w-11 shrink-0 touch-manipulation rounded-2xl bg-muted/55 ring-1 ring-white/[0.06]"
                     >
                       <Layers2 className="size-[18px]" aria-hidden />
-                      <span className="sr-only">Export grouped workflow</span>
+                      <span className="sr-only">Export filtered labels grouped</span>
                     </Button>
                   </div>
                 </div>
@@ -1984,7 +1991,7 @@ export function MeeshoLabelExportTool() {
                   >
                     <DialogHeader className="border-b border-white/[0.06] px-5 pb-3 pt-4">
                       <DialogTitle className="font-heading text-[17px] font-semibold tracking-tight">
-                        Filters
+                        Smart Filters
                       </DialogTitle>
                       <DialogDescription className="text-[13px] leading-snug">
                         {labelFilterActiveCount > 0 ? (
@@ -1995,7 +2002,8 @@ export function MeeshoLabelExportTool() {
                           </>
                         ) : (
                           <>
-                            Optional refinement — your PDF stays unchanged until you export.
+                            Find exactly the labels you need in seconds. Tulmin only changes your
+                            working view—original files stay untouched until you download.
                           </>
                         )}
                       </DialogDescription>
@@ -2045,7 +2053,7 @@ export function MeeshoLabelExportTool() {
             ) : (
               <div
                 role="toolbar"
-                aria-label="Filter labels"
+                aria-label="Tulmin smart filters"
                 className={cn(PREMIUM_FILTER_TOOLBAR_CLASS)}
               >
                 <div className={cn(PREMIUM_FILTER_INNER_CLASS, "sm:p-5")}>
@@ -2076,7 +2084,7 @@ export function MeeshoLabelExportTool() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {selectedTotal.toLocaleString()} selected ·{" "}
-                  {filteredLabels.length.toLocaleString()} in view
+                  {filteredLabels.length.toLocaleString()} labels loaded
                 </span>
                 <Button
                   type="button"
@@ -2085,7 +2093,7 @@ export function MeeshoLabelExportTool() {
                   className="min-h-11 text-xs sm:h-8 sm:min-h-0"
                   onClick={clearSelection}
                 >
-                  Reset selection
+                  Clear selection
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -2093,24 +2101,24 @@ export function MeeshoLabelExportTool() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  title="Export every row in view, grouped by SKU, carrier, quantity, then listing—not only checked rows."
+                  title="Download every visible label page, grouped by SKU, courier, and quantity—not only checked rows."
                   className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
                   disabled={filteredLabels.length === 0}
                   onClick={() => void requestGroupedDownload()}
                 >
                   <Layers2 className="size-3.5 shrink-0" aria-hidden />
-                  Export grouped workflow
+                  Export filtered labels
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  title="Pages in original PDF order for the checked rows."
+                  title="Pages in PDF order for the labels you checked."
                   className="min-h-11 gap-1 bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
                   disabled={selectedTotal === 0}
                   onClick={() => void requestDownload()}
                 >
                   <Download className="size-3.5" aria-hidden />
-                  Export selected PDF
+                  Download selected labels
                 </Button>
               </div>
             </div>
@@ -2121,8 +2129,8 @@ export function MeeshoLabelExportTool() {
                   <ExportedSkuHint />
                 </span>
                 <span>
-                  Marks a mapped SKU (or the unmapped bucket) already included in a successful PDF export
-                  for this file. You can export again anytime.
+                  ✓ marks a matched SKU (or SKU Missing bucket) included in a successful Tulmin export.
+                  You can download again anytime.
                 </span>
               </p>
             ) : null}
@@ -2169,10 +2177,10 @@ export function MeeshoLabelExportTool() {
                 <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Selection
+                      Ready to download
                     </p>
                     <p className="truncate text-[15px] font-semibold tabular-nums text-foreground">
-                      {selectedTotal.toLocaleString()} labels
+                      {selectedTotal.toLocaleString()} labels selected
                     </p>
                   </div>
                   <Button
@@ -2181,7 +2189,7 @@ export function MeeshoLabelExportTool() {
                     className="h-11 shrink-0 touch-manipulation rounded-xl px-3 text-[13px] font-semibold text-muted-foreground"
                     onClick={clearSelection}
                   >
-                    Clear
+                    Clear selection
                   </Button>
                   <Button
                     type="button"
@@ -2189,7 +2197,7 @@ export function MeeshoLabelExportTool() {
                     onClick={() => void requestDownload()}
                   >
                     <Download className="size-[18px] shrink-0" aria-hidden />
-                    Export
+                    Download labels
                   </Button>
                 </div>
               </div>

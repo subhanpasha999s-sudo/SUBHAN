@@ -60,7 +60,7 @@ export function UnmappedSkuPicker({
     <div className="space-y-2 rounded border border-neutral-200 bg-[#fafbfc]">
       <div className="flex flex-col gap-2 border-b border-neutral-200 bg-white px-2 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-neutral-800">Unmapped</span>
+          <span className="text-xs font-medium text-neutral-800">SKU Missing</span>
           <Badge
             variant="secondary"
             className="h-5 border-0 bg-neutral-100 px-1.5 text-[10px] font-normal tabular-nums text-neutral-600"

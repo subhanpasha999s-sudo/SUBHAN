@@ -5,9 +5,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { MainHomeClient } from "./main-home-client";
 
 export const metadata: Metadata = {
-  title: "Premium label operations for faster fulfillment",
+  title: "Tulmin · Meesho labels in minutes, not hours",
   description:
-    "Run your daily label workflow in minutes: import once, filter by mapped SKU and courier, and export clean bundles that help your team pack faster with fewer mistakes.",
+    "Tulmin is the premium Meesho label workspace: filter by SKU, courier, and quantity, export only what you dispatch—built for sellers who live on packing speed.",
   alternates: { canonical: `${getSiteUrl()}/` },
 };
 

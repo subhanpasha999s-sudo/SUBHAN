@@ -20,7 +20,7 @@ function StatusBadge({ status }: { status: SkuSpreadsheetRowModel["status"] }) {
         variant="outline"
         className="border-emerald-300 bg-emerald-50 text-[10px] font-semibold uppercase tracking-wide text-emerald-900"
       >
-        Mapped
+        Mapped SKU
       </Badge>
     );
   }
@@ -29,7 +29,7 @@ function StatusBadge({ status }: { status: SkuSpreadsheetRowModel["status"] }) {
       variant="outline"
       className="border-amber-300 bg-amber-50 text-[10px] font-semibold uppercase tracking-wide text-amber-900"
     >
-      Unmapped
+      SKU Missing
     </Badge>
   );
 }

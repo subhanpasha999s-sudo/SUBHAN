@@ -6,9 +6,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Faster dispatch with smart Meesho label workflows",
+  title: "Meesho labels — filter & export in minutes",
   description:
-    "Turn one Meesho label PDF into a clean dispatch workflow: filter by mapped SKU, quantity, and courier, then export exactly what your team needs to reduce manual sorting and save packing time.",
+    "Tulmin parses your Meesho label PDF so you filter by SKU, courier, and quantity, then download only what dispatch ships. Built for sellers who need fast operations—not another warehouse ERP.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "Meesho PDF labels",
@@ -23,9 +23,9 @@ export default function ExportLabelsPage() {
   return (
     <>
       <ModulePageHeader
-        breadcrumb={[{ label: "Label PDF" }]}
-        title="Label PDF"
-        description="Upload once, filter instantly, and export only what dispatch needs. Reduce repetitive sorting and move from PDF to packed orders faster."
+        breadcrumb={[{ label: "Labels" }]}
+        title="Labels"
+        description="Filter, organize, and export Meesho labels in minutes. Turn hours of manual PDF work into a 3‑minute Tulmin run—built for high‑volume dispatch teams."
       />
       <ExportLabelsBody />
     </>

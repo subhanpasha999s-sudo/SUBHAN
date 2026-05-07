@@ -10,7 +10,7 @@ interface AppShellLayoutState {
   setSidebarCollapsed: (v: boolean) => void;
 }
 
-/** Shell UI persistence only (label workspace module removed). */
+/** Shell UI persistence (Tulmin sidebar collapse). */
 export const useMeeshoStore = create<AppShellLayoutState>()(
   persist(
     (set) => ({

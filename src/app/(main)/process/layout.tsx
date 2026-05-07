@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
-  title: "Label PDF workflow",
+  title: "Tulmin dispatch workflow",
   description:
-    "Alias route into the Meesho label PDF workspace—process shipping labels, apply SKU mapping, and export.",
+    "Alias into Tulmin—filter Meesho label PDFs, match SKUs, and download only what you ship.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
 };
 

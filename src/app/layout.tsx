@@ -40,26 +40,26 @@ const SEO_KEYWORDS = [
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Label · Meesho labels, courier PDF export & SKU mapping",
-    template: "%s · Label",
+    default: "Tulmin · Smart Meesho label filtering & export",
+    template: "%s · Tulmin",
   },
   description:
-    "Tools for Indian e‑commerce sellers: parse Meesho label PDFs, filter by mapped SKU, qty and courier, map listing SKUs to group SKUs, and export grouped or selected pages—all in your browser.",
+    "Tulmin helps Meesho sellers filter shipment labels by SKU, courier, and quantity, then export only what dispatch needs—from an hour of manual PDF work to a few minutes.",
   keywords: SEO_KEYWORDS,
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: siteUrl,
-    siteName: "Label",
-    title: "Label · Meesho label PDF & SKU mapping",
+    siteName: "Tulmin",
+    title: "Tulmin · Meesho label filtering & SKU mapping",
     description:
-      "Parse Meesho shipping label PDFs, filter exports, SKU mapping for sellers and fulfilment workflows.",
+      "Filter, organize, and export Meesho labels in minutes. Built for faster dispatch—not another ERP.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Label · Meesho label PDF & SKU mapping",
+    title: "Tulmin · Meesho label filtering & export",
     description:
-      "Meesho label PDF tools—mapped SKU filters, courier columns, grouped export, secure sync.",
+      "Turn hours of label work into a 3‑minute Tulmin workflow. Filter by SKU, courier, quantity—download only what you ship.",
   },
   robots: {
     index: true,

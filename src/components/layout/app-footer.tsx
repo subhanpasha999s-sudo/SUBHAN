@@ -1,13 +1,18 @@
 import Link from "next/link";
 
-import { WORKSPACE_MAX_W } from "@/components/layout/workspace-layout";
+import { WORKSPACE_MAX_W, WORKSPACE_GUTTERS } from "@/components/layout/workspace-layout";
+import { cn } from "@/lib/utils";
 
 const contact = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
 
 export function AppFooter() {
   return (
     <footer
-      className={`mx-auto w-full ${WORKSPACE_MAX_W} px-4 pb-[env(safe-area-inset-bottom)] pt-2 sm:px-6 lg:px-8`}
+      className={cn(
+        "mx-auto w-full pb-[env(safe-area-inset-bottom)] pt-2",
+        WORKSPACE_MAX_W,
+        WORKSPACE_GUTTERS
+      )}
       aria-label="Site information"
     >
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border/60 py-4 text-center text-[11px] text-muted-foreground sm:justify-between sm:text-left sm:text-xs">
@@ -34,7 +39,7 @@ export function AppFooter() {
           ) : null}
         </nav>
         <p className="tabular-nums text-muted-foreground/90">
-          Label · PDF &amp; SKU tools
+          Tulmin · Meesho label filtering &amp; SKU tools
         </p>
       </div>
       <p className="mx-auto max-w-md pb-4 pt-3 text-center text-[11px] font-medium leading-snug tracking-wide text-muted-foreground/85">

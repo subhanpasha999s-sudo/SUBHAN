@@ -286,7 +286,7 @@ export function SettingsPageClient() {
     <>
       <ModulePageHeader
         breadcrumb={[
-          { label: "Label PDF", href: "/export-labels" },
+          { label: "Labels", href: "/export-labels" },
           { label: "Settings" },
         ]}
         title="Settings"

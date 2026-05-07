@@ -2,7 +2,7 @@
 
 /**
  * Builds a PDF containing only the given 1-based page numbers (order preserved, duplicates removed).
- * `pdf-lib` is loaded only when exporting so the Label PDF shell stays lean on first paint.
+ * `pdf-lib` is loaded only when exporting so Tulmin stays lean on first paint.
  */
 export async function exportPdfPages(
   sourcePdfBytes: Uint8Array,

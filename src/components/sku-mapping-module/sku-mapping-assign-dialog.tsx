@@ -171,7 +171,7 @@ export function SkuMappingAssignDialog({
             {busy ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                Saving…
+                Syncing Tulmin workspace…
               </>
             ) : (
               "Save mapping"

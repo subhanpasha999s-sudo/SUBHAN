@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleUserRound, MenuIcon } from "lucide-react";
+import { Bell, CircleUserRound, Cloud, MenuIcon } from "lucide-react";
 
 import {
   WORKSPACE_GUTTERS,
@@ -13,14 +13,27 @@ import { cn } from "@/lib/utils";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { useAuth } from "@/lib/supabase/auth-context";
 
-function mobileBreadcrumb(pathname: string): string {
-  if (pathname === "/" || pathname === "") return "Home";
-  if (pathname.startsWith("/export-labels")) return "PDFs / SKU mapping";
-  if (pathname.startsWith("/mapping")) return "SKU mapping";
-  if (pathname.startsWith("/settings")) return "Settings";
-  if (pathname.startsWith("/privacy")) return "Privacy";
-  if (pathname.startsWith("/terms")) return "Terms";
-  return "Workspace";
+function pageChrome(pathname: string) {
+  const p = pathname || "";
+  if (p === "/" || p === "") {
+    return { title: "Tulmin", subtitle: "Smart label filtering for Meesho sellers" };
+  }
+  if (p.startsWith("/export-labels")) {
+    return { title: "Labels", subtitle: "Filter · organize · export" };
+  }
+  if (p.startsWith("/mapping")) {
+    return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };
+  }
+  if (p.startsWith("/settings")) {
+    return { title: "Workspace Settings", subtitle: "Account · Tulmin workspace" };
+  }
+  if (p.startsWith("/privacy")) {
+    return { title: "Privacy", subtitle: "Policy" };
+  }
+  if (p.startsWith("/terms")) {
+    return { title: "Terms", subtitle: "Legal" };
+  }
+  return { title: "Tulmin", subtitle: "Meesho dispatch · labels" };
 }
 
 export function AppTopbar({
@@ -35,70 +48,121 @@ export function AppTopbar({
   const { openOptionalSignIn } = useValueFirstAuth();
 
   const guestSignedOut = authReady && !user;
+  const { title, subtitle } = pageChrome(pathname);
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
-      {/* Premium mobile chrome: translucent bar, slim divider */}
-      <div className="border-b border-white/[0.06] bg-background/80 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72 dark:bg-background/78 dark:border-white/[0.05] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)]">
-      <div
-        className={cn(
-          "mx-auto flex w-full items-center gap-2 sm:gap-4",
-          "min-h-[56px] py-2 sm:py-2",
-          WORKSPACE_MAX_W,
-          WORKSPACE_GUTTERS
-        )}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-lg"
-          className="touch-manipulation h-10 min-h-10 w-10 min-w-10 shrink-0 lg:hidden"
-          aria-expanded={mobileNavOpen}
-          aria-controls="main-nav-drawer"
-          aria-label={
-            mobileNavOpen ? "Close navigation menu" : "Open navigation menu"
-          }
-          onClick={onMobileMenuToggle}
+      <div className="border-b border-white/[0.06] bg-background/82 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.07)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/74 dark:bg-background/80 dark:border-white/[0.05] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)]">
+        <div
+          className={cn(
+            "mx-auto flex w-full max-w-[100vw] items-center gap-3 sm:gap-4",
+            "min-h-[56px] py-2.5",
+            WORKSPACE_MAX_W,
+            WORKSPACE_GUTTERS
+          )}
         >
-          <MenuIcon className="size-[22px]" aria-hidden />
-        </Button>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              className="touch-manipulation h-10 min-h-10 w-10 min-w-10 shrink-0 lg:hidden"
+              aria-expanded={mobileNavOpen}
+              aria-controls="main-nav-drawer"
+              aria-label={
+                mobileNavOpen ? "Close navigation menu" : "Open navigation menu"
+              }
+              onClick={onMobileMenuToggle}
+            >
+              <MenuIcon className="size-[22px]" aria-hidden />
+            </Button>
 
-        <div className="flex min-w-0 flex-1 flex-col justify-center truncate lg:hidden">
-          <span className="block truncate text-[14px] font-semibold leading-tight tracking-tight text-foreground">
-            Label Workspace
-          </span>
-          <span className="mt-px block truncate text-[11px] font-medium text-muted-foreground">
-            {mobileBreadcrumb(pathname)}
-          </span>
-        </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center truncate lg:hidden">
+              <span className="block truncate text-[14px] font-semibold leading-tight tracking-tight text-foreground">
+                Tulmin
+              </span>
+              <span className="mt-px block truncate text-[11px] font-medium text-muted-foreground">
+                Smart label filtering for Meesho sellers
+              </span>
+            </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5 lg:justify-end">
-          {guestSignedOut ? (
+            <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
+              <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                {title}
+              </h1>
+              {subtitle ? (
+                <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <div
+              className="hidden items-center gap-1.5 rounded-full bg-muted/55 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-white/[0.06] sm:flex dark:bg-muted/30"
+              title={
+                user
+                  ? "Workspace synced — Tulmin can keep your map in the cloud"
+                  : "Tulmin Ready — working on this device"
+              }
+            >
+              <Cloud
+                className={cn(
+                  "size-3.5 shrink-0",
+                  user ? "text-primary" : "text-muted-foreground/70"
+                )}
+                aria-hidden
+                strokeWidth={1.75}
+              />
+              <span className="tabular-nums">{user ? "Workspace synced" : "Tulmin Ready"}</span>
+            </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-10 min-h-10 w-10 shrink-0 text-primary hover:bg-primary/10 sm:size-10"
-              aria-label="Profile — sign in with email code"
-              onClick={openOptionalSignIn}
+              disabled
+              title="Notifications (coming soon)"
+              aria-label="Notifications — coming soon"
+              className="hidden size-10 text-muted-foreground opacity-35 sm:inline-flex"
             >
-              <CircleUserRound className="size-[22px] sm:size-5" strokeWidth={1.65} aria-hidden />
+              <Bell className="size-[18px]" strokeWidth={1.65} aria-hidden />
             </Button>
-          ) : authReady && user ? (
-            <Link
-              href="/settings"
-              prefetch={false}
-              aria-label="Account · Settings"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "h-10 min-h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-10"
-              )}
-            >
-              <CircleUserRound className="size-[21px] sm:size-5" strokeWidth={1.5} aria-hidden />
-            </Link>
-          ) : null}
+
+            {guestSignedOut ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 min-h-10 w-10 shrink-0 text-primary hover:bg-primary/10 sm:size-10"
+                aria-label="Profile — sign in with email code"
+                onClick={openOptionalSignIn}
+              >
+                <CircleUserRound
+                  className="size-[22px] sm:size-5"
+                  strokeWidth={1.65}
+                  aria-hidden
+                />
+              </Button>
+            ) : authReady && user ? (
+              <Link
+                href="/settings"
+                prefetch={false}
+                aria-label="Account · Workspace Settings"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "h-10 min-h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-10"
+                )}
+              >
+                <CircleUserRound
+                  className="size-[21px] sm:size-5"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+              </Link>
+            ) : null}
+          </div>
         </div>
-      </div>
       </div>
     </header>
   );

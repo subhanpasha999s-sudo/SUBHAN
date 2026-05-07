@@ -45,7 +45,7 @@ export default function MainSegmentError({
           href="/export-labels"
           className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-[15px] font-medium whitespace-nowrap text-foreground outline-none ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Label PDF
+          Labels
         </Link>
       </div>
       {process.env.NODE_ENV === "development" ? (

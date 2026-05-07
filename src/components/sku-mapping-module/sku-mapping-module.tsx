@@ -639,7 +639,9 @@ export function SkuMappingModule() {
     setSnapshotRefreshing(true);
     try {
       await pullRemoteSkuSnapshot();
-      notify.success("Mappings updated");
+      notify.success("Changes synced", {
+        description: "Latest Tulmin SKU map pulled from cloud.",
+      });
     } finally {
       setSnapshotRefreshing(false);
     }
@@ -1096,9 +1098,9 @@ export function SkuMappingModule() {
         );
       }
 
-      notify.success("Workspace saved", {
+      notify.success("Changes synced", {
         description:
-          "Changes are in your cloud workspace. Your import list stays visible so you can finish remaining SKUs anytime.",
+          "Tulmin saved your mappings. Your import list stays visible—finish any remaining SKUs anytime.",
       });
     } finally {
       setBulkBusy(false);
@@ -1157,7 +1159,9 @@ export function SkuMappingModule() {
       writeSkuMappingLocalDraft({});
       setLocalDraft({});
       await pullRemoteSkuSnapshot();
-      notify.success("Local drafts synced to your workspace");
+      notify.success("Changes synced", {
+        description: "Local Tulmin drafts merged into your workspace.",
+      });
     } finally {
       setPushDraftBusy(false);
     }
@@ -1230,7 +1234,7 @@ export function SkuMappingModule() {
   ) : (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-50">
       <span className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden />
-      Workspace connected
+      Workspace synced
     </span>
   );
 
@@ -1238,11 +1242,11 @@ export function SkuMappingModule() {
     <>
       <ModulePageHeader
         breadcrumb={[
-          { label: "Label PDF", href: "/export-labels" },
+          { label: "Labels", href: "/export-labels" },
           { label: "SKU Mapping" },
         ]}
         title="SKU Mapping"
-        description="Map once and let every future export stay aligned. Reduce repetitive edits and keep daily dispatch workflows smooth."
+        description="Tulmin ties every listing SKU to a master so label runs stay fast. Map once—then filter and export Meesho labels in minutes, not hours."
         badges={headerBadges}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -1300,7 +1304,7 @@ export function SkuMappingModule() {
               <span className="tabular-nums font-semibold text-foreground">
                 {counts.unmapped.toLocaleString()}
               </span>{" "}
-              unmapped listings. Continue where you left off, or clear this import and upload a fresh file.
+              SKU Missing rows. Continue where you left off, or clear this import and upload a fresh file.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1465,7 +1469,7 @@ export function SkuMappingModule() {
         <WorkspaceSurfaceCard padding="px-8 py-14 sm:py-16">
           <div className="rounded-[14px] border border-dashed border-border bg-muted/25 px-6 py-10 text-center dark:bg-muted/10">
           <p className="text-[15px] font-medium text-foreground">
-            Import listing SKUs to unlock faster mapping
+            Import a listing file to unlock faster Tulmin SKU mapping
           </p>
           <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
             Recommended Meesho sheet format:{" "}

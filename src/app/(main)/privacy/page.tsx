@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     <>
       <ModulePageHeader
         breadcrumb={[
-          { label: "Label PDF", href: "/export-labels" },
+          { label: "Labels", href: "/export-labels" },
           { label: "Privacy" },
         ]}
         title="Privacy policy"

@@ -70,10 +70,10 @@ export function SkuSpreadsheetUploadZone({
           </div>
           <div className="space-y-1">
             <p className="text-[17px] font-semibold tracking-tight text-foreground">
-              Import listing SKUs
+              Import listing file
             </p>
             <p className="max-w-md text-[13px] leading-snug text-muted-foreground">
-              Meesho-style sheet: SKUs in{" "}
+              Tulmin reads Meesho-style sheets: SKUs in{" "}
               <span className="font-semibold text-foreground">column F</span>, starting{" "}
               <span className="font-semibold text-foreground">row 3</span> (rows 1–2
               skipped). CSV or Excel—drop or browse.

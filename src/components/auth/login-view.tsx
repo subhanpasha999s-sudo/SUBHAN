@@ -188,7 +188,7 @@ export function LoginView() {
                   L
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[15px] font-semibold tracking-tight">Label Workspace</p>
+                  <p className="text-[15px] font-semibold tracking-tight">Tulmin</p>
                   <p className="mt-0.5 text-[12px] text-slate-600 dark:text-white/70">
                     Dispatch clarity for high-volume teams.
                   </p>
