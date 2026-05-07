@@ -55,10 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "system",
     label: "System",
-    items: [
-      { href: "/settings", label: "Settings", icon: Settings2 },
-      { href: "/account", label: "Account", icon: CircleUserRound },
-    ],
+    items: [{ href: "/settings", label: "Settings", icon: Settings2 }],
   },
 ];
 
@@ -391,15 +388,6 @@ function SidebarChrome({
             SIDEBAR_PAD_X
           )}
         >
-          <Link
-            href="/settings"
-            prefetch={false}
-            onClick={onNavNavigate}
-            className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          >
-            <Settings2 className="size-[18px] text-sidebar-foreground/50" strokeWidth={1.6} />
-            Settings
-          </Link>
           {guestSignedOut ? (
             <button
               type="button"

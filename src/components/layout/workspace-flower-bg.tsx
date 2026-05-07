@@ -5,7 +5,7 @@ const PETALS_5 = [0, 72, 144, 216, 288] as const;
 export function WorkspaceFlowerBg() {
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
+      className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden select-none sm:block"
       aria-hidden
     >
       {/* Large bloom — upper right */}

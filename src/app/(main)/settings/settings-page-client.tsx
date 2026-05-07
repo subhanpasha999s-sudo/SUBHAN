@@ -189,20 +189,16 @@ export function SettingsPageClient() {
         ]}
         title="Settings"
         description="Theme and data on this device and in the cloud. Profile and password live under Account."
-        badges={
-          <Badge
-            variant="outline"
-            className="border-border bg-muted/50 px-2.5 py-0.5 text-xs font-normal text-muted-foreground"
-          >
-            Tulmin workspace
-          </Badge>
-        }
+        badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Tulmin workspace</Badge>}
       />
 
       <WorkspaceFormPageStack>
-        <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+        <WorkspaceSurfaceCard
+          padding="p-4 sm:p-8"
+          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+        >
           <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
               <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
                 Appearance
               </CardTitle>
@@ -210,15 +206,18 @@ export function SettingsPageClient() {
                 Theme is saved on this device only.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8">
               <ThemePreferenceControl />
             </CardContent>
           </Card>
         </WorkspaceSurfaceCard>
 
-        <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+        <WorkspaceSurfaceCard
+          padding="p-4 sm:p-8"
+          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+        >
           <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
               <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
                 Data control
               </CardTitle>
@@ -226,13 +225,13 @@ export function SettingsPageClient() {
                 Clear caches here; cloud wipes need a signed-in account.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 pt-8 pb-8">
-              <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <CardContent className="space-y-3.5 pt-6 pb-6 sm:space-y-4 sm:pt-8 sm:pb-8">
+              <div className="rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/20">
                 <p className="text-sm font-semibold text-foreground">This device</p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
                   Drops local drafts, label export markers, and cached uploads from this browser.
                 </p>
-                <Button type="button" variant="outline" className="mt-3" onClick={clearThisDeviceData}>
+                <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={clearThisDeviceData}>
                   Clear local data
                 </Button>
               </div>
@@ -244,7 +243,7 @@ export function SettingsPageClient() {
                 </p>
               ) : user ? (
                 <>
-                  <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <div className="rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/20">
                     <p className="text-sm font-semibold text-foreground">Cloud SKU data</p>
                     <p className="mt-1 text-[13px] text-muted-foreground">
                       Deletes your SKU map and master rows in Tulmin&apos;s database for this account.
@@ -252,7 +251,7 @@ export function SettingsPageClient() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="mt-3"
+                      className="mt-3 w-full sm:w-auto"
                       disabled={dangerBusy}
                       onClick={() => void deleteCloudData()}
                     >
@@ -260,7 +259,7 @@ export function SettingsPageClient() {
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border border-red-300/60 bg-red-50/70 p-4 dark:border-red-900/70 dark:bg-red-950/30">
+                  <div className="rounded-lg border border-red-300/50 bg-red-50/45 p-4 dark:border-red-900/60 dark:bg-red-950/22">
                     <p className="text-sm font-semibold text-red-900 dark:text-red-100">
                       Delete account
                     </p>
@@ -271,7 +270,7 @@ export function SettingsPageClient() {
                     <Button
                       type="button"
                       variant="destructive"
-                      className="mt-3"
+                      className="mt-3 w-full sm:w-auto"
                       disabled={dangerBusy}
                       onClick={() => void requestAccountDeletion()}
                     >

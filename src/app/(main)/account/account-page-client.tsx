@@ -142,20 +142,16 @@ export function AccountPageClient() {
         ]}
         title="Account"
         description="Profile and sign-in for Tulmin — appearance and device data stay under Settings."
-        badges={
-          <Badge
-            variant="outline"
-            className="border-border bg-muted/50 px-2.5 py-0.5 text-xs font-normal text-muted-foreground"
-          >
-            Tulmin identity
-          </Badge>
-        }
+        badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Tulmin identity</Badge>}
       />
 
       <WorkspaceFormPageStack>
-        <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+        <WorkspaceSurfaceCard
+          padding="p-4 sm:p-8"
+          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+        >
           <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
               <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
                 Profile
               </CardTitle>
@@ -163,14 +159,14 @@ export function AccountPageClient() {
                 Name and company shown in your Tulmin workspace.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 pt-8 pb-8">
+            <CardContent className="space-y-5 pt-6 pb-6 sm:space-y-6 sm:pt-8 sm:pb-8">
               {!authReady ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" aria-hidden />
                   Loading profile…
                 </p>
               ) : !user ? (
-                <div className="space-y-3 rounded-lg border border-border bg-muted/35 p-4">
+                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
                   <p className="text-sm text-foreground">Sign in to edit profile.</p>
                   <Button type="button" size="sm" onClick={openOptionalSignIn} className="font-semibold">
                     Sign in
@@ -178,7 +174,7 @@ export function AccountPageClient() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-3 rounded-lg border border-border/65 bg-muted/12 px-4 py-3 sm:rounded-xl sm:bg-muted/20">
                     <div className="flex size-10 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold text-primary">
                       {(profile.fullName || user.email || "U").slice(0, 1).toUpperCase()}
                     </div>
@@ -192,7 +188,7 @@ export function AccountPageClient() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4">
+                  <div className="grid gap-3.5 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="account-profile-full-name">Full name</Label>
                       <Input
@@ -232,7 +228,7 @@ export function AccountPageClient() {
                   <div className="flex justify-end">
                     <Button
                       type="button"
-                      className="min-w-32 font-semibold"
+                      className="min-w-32 w-full font-semibold sm:w-auto"
                       disabled={profileBusy}
                       onClick={() => void saveProfile()}
                     >
@@ -253,9 +249,12 @@ export function AccountPageClient() {
         </WorkspaceSurfaceCard>
 
         {user ? (
-          <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+          <WorkspaceSurfaceCard
+            padding="p-4 sm:p-8"
+            className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+          >
             <Card className="border-0 shadow-none ring-0">
-              <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+              <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
                 <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
                   Sign-in &amp; security
                 </CardTitle>
@@ -263,7 +262,7 @@ export function AccountPageClient() {
                   Email and password for your Tulmin account.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-8 pb-8">
+              <CardContent className="space-y-7 pt-6 pb-6 sm:space-y-8 sm:pt-8 sm:pb-8">
                 <section className="space-y-3">
                   <p className="text-sm font-semibold text-foreground">Change email</p>
                   <div className="grid gap-2">
@@ -281,6 +280,7 @@ export function AccountPageClient() {
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     disabled={emailBusy || !newEmail.trim()}
                     onClick={() => void changeEmail()}
                   >
@@ -321,6 +321,7 @@ export function AccountPageClient() {
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     disabled={
                       passwordBusy ||
                       !passwordForm.next.trim() ||
@@ -336,9 +337,12 @@ export function AccountPageClient() {
           </WorkspaceSurfaceCard>
         ) : null}
 
-        <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+        <WorkspaceSurfaceCard
+          padding="p-4 sm:p-8"
+          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+        >
           <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-3 border-b border-border/90 pb-5">
+            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
               <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
                 Session
               </CardTitle>
@@ -346,14 +350,14 @@ export function AccountPageClient() {
                 Sign out on this device when you&apos;re done.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 pt-8">
+            <CardContent className="space-y-4 pt-6 sm:pt-8">
               {!authReady ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" aria-hidden />
                   Checking session…
                 </p>
               ) : user ? (
-                <div className="space-y-3 rounded-lg border border-border bg-muted/35 p-4">
+                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
                   <p className="text-sm font-medium text-foreground">
                     Signed in as{" "}
                     <span className="font-mono text-[13px] text-muted-foreground">
@@ -364,6 +368,7 @@ export function AccountPageClient() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={signOutBusy}
                     onClick={() => void signOut()}
                   >
@@ -376,7 +381,7 @@ export function AccountPageClient() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3 rounded-lg border border-border bg-muted/35 p-4">
+                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
                   <p className="text-sm text-foreground">Not signed in.</p>
                   <Button
                     type="button"
