@@ -25,13 +25,13 @@ function pageChrome(pathname: string) {
     return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };
   }
   if (p.startsWith("/settings")) {
-    return { title: "Workspace Settings", subtitle: "Account · Tulmin workspace" };
+    return { title: "Settings", subtitle: "Account · Tulmin" };
   }
   if (p.startsWith("/privacy")) {
-    return { title: "Privacy", subtitle: "Policy" };
+    return { title: "Privacy", subtitle: "Tulmin policy" };
   }
   if (p.startsWith("/terms")) {
-    return { title: "Terms", subtitle: "Legal" };
+    return { title: "Terms", subtitle: "Tulmin legal" };
   }
   return { title: "Tulmin", subtitle: "Meesho dispatch · labels" };
 }
@@ -148,7 +148,7 @@ export function AppTopbar({
               <Link
                 href="/settings"
                 prefetch={false}
-                aria-label="Account · Workspace Settings"
+                aria-label="Account · Tulmin Settings"
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "icon" }),
                   "h-10 min-h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-10"

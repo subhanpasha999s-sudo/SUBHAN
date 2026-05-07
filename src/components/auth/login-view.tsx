@@ -33,6 +33,7 @@ import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { AuthShell } from "@/components/auth/premium/auth-shell";
 import { FadeIn } from "@/components/auth/premium/motion";
 import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
+import { TULMIN_CONTACT_EMAIL } from "@/lib/brand/tulmin";
 import { cn } from "@/lib/utils";
 
 /**
@@ -139,8 +140,14 @@ export function LoginView() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl">Sign-in unavailable</CardTitle>
             <CardDescription>
-              Sign-in is temporarily unavailable right now. Please try again shortly, or contact
-              support if this continues.
+              Sign-in is temporarily unavailable. Try again shortly, or email{" "}
+              <a
+                href={`mailto:${TULMIN_CONTACT_EMAIL}`}
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                {TULMIN_CONTACT_EMAIL}
+              </a>
+              .
             </CardDescription>
           </CardHeader>
           <CardFooter>

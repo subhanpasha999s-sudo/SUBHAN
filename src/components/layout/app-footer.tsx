@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import { WORKSPACE_MAX_W, WORKSPACE_GUTTERS } from "@/components/layout/workspace-layout";
+import { getPublicContactEmail } from "@/lib/brand/tulmin";
 import { cn } from "@/lib/utils";
 
-const contact = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
+const contact = getPublicContactEmail();
 
 export function AppFooter() {
   return (
@@ -29,18 +30,14 @@ export function AppFooter() {
           >
             Terms
           </Link>
-          {contact ? (
-            <a
-              href={`mailto:${contact}`}
-              className="font-medium underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Contact
-            </a>
-          ) : null}
+          <a
+            href={`mailto:${contact}`}
+            className="font-medium underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Contact
+          </a>
         </nav>
-        <p className="tabular-nums text-muted-foreground/90">
-          Tulmin · Meesho label filtering &amp; SKU tools
-        </p>
+        <p className="tabular-nums text-muted-foreground/90">© Tulmin</p>
       </div>
       <p className="mx-auto max-w-md pb-4 pt-3 text-center text-[11px] font-medium leading-snug tracking-wide text-muted-foreground/85">
         Subhan S/O Zulfiqar Husain &amp; Tabssum

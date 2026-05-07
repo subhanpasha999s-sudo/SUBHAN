@@ -82,15 +82,15 @@ const SCHEMA_JSON_LD = {
   "@graph": [
     {
       "@type": "WebSite",
-      name: "Label",
+      name: "Tulmin",
       url: siteUrl,
       description:
-        "Browser toolkit for Meesho label PDFs, courier-aware exports, and listing-to-master SKU mapping.",
+        "Tulmin — Meesho label PDFs, courier-aware exports, and listing-to-master SKU mapping.",
       inLanguage: "en-IN",
     },
     {
       "@type": "SoftwareApplication",
-      name: "Label",
+      name: "Tulmin",
       url: siteUrl,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Any (web browser)",
@@ -100,7 +100,7 @@ const SCHEMA_JSON_LD = {
         priceCurrency: "INR",
       },
       description:
-        "Free web workspace to upload Meesho label PDFs, filter by mapped SKU and courier, sync SKU mappings, and export labelled pages for dispatch.",
+        "Tulmin — upload Meesho label PDFs, filter by mapped SKU and courier, sync SKU mappings, and export pages for dispatch.",
     },
   ],
 };

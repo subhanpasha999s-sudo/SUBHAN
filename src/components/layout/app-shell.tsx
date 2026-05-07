@@ -8,16 +8,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   ChevronsLeft,
   CircleUserRound,
-  Download,
   FileDown,
-  Filter,
-  Hash,
   Layers2,
-  LayoutGrid,
   Link2,
-  Package,
   Settings2,
-  Truck,
   X,
 } from "lucide-react";
 
@@ -56,35 +50,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/export-labels", label: "Labels", icon: FileDown },
       { href: "/mapping", label: "SKU Mapping", icon: Link2 },
-      { href: "/export-labels?focus=export", label: "Export Center", icon: Download },
-    ],
-  },
-  {
-    id: "filters",
-    label: "Filters",
-    items: [
-      { href: "/export-labels", label: "SKU Filters", icon: Filter, quickLink: true },
-      {
-        href: "/export-labels",
-        label: "Courier Filters",
-        icon: Truck,
-        quickLink: true,
-      },
-      { href: "/export-labels", label: "Quantity Filters", icon: Hash, quickLink: true },
-    ],
-  },
-  {
-    id: "tools",
-    label: "Tools",
-    items: [
-      { label: "Batch Export", icon: Package, soon: true },
-      { label: "Dispatch View", icon: LayoutGrid, soon: true },
     ],
   },
   {
     id: "system",
     label: "System",
-    items: [{ href: "/settings", label: "Workspace Settings", icon: Settings2 }],
+    items: [{ href: "/settings", label: "Settings", icon: Settings2 }],
   },
 ];
 
@@ -106,10 +77,7 @@ function navItemActive(pathname: string, sp: URLSearchParamsLike, item: NavDef):
       : pathname === path || pathname.startsWith(`${path}/`);
   if (!pathMatches) return false;
   const want = new URLSearchParams(rawQuery);
-  if ([...want.keys()].length === 0) {
-    if (path === "/export-labels" && sp.get("focus") === "export") return false;
-    return true;
-  }
+  if ([...want.keys()].length === 0) return true;
   for (const [k, v] of want.entries()) {
     if (sp.get(k) !== v) return false;
   }
@@ -381,7 +349,7 @@ function SidebarChrome({
             title="Tulmin · Tulmin Ready"
           >
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-foreground/50">
-              LW
+              TM
             </span>
           </span>
         ) : null}
@@ -427,7 +395,7 @@ function SidebarChrome({
             className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <Settings2 className="size-[18px] text-sidebar-foreground/50" strokeWidth={1.6} />
-            Workspace Settings
+            Settings
           </Link>
           {guestSignedOut ? (
             <button

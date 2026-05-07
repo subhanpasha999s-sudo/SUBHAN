@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/supabase/auth-context";
 import {
   getSupabaseBrowser,
 } from "@/lib/supabase/browser-client";
+import { TULMIN_CONTACT_EMAIL } from "@/lib/brand/tulmin";
 import { cn } from "@/lib/utils";
 import { toast as notify } from "sonner";
 import { LAST_AUTH_METHOD_KEY, SIGNIN_NUDGE_DISMISS_KEY } from "@/lib/auth/constants";
@@ -274,8 +275,7 @@ export function SettingsPageClient() {
       clearThisDeviceData();
       await signOut();
       notify.success("Account deletion requested", {
-        description:
-          "Your data is removed from workspace tables. For full identity deletion, contact support.",
+        description: `Your data is removed from Tulmin workspace tables. For full identity deletion, email ${TULMIN_CONTACT_EMAIL}.`,
       });
     } finally {
       setDangerBusy(false);
@@ -290,13 +290,13 @@ export function SettingsPageClient() {
           { label: "Settings" },
         ]}
         title="Settings"
-        description="Fine-tune your workspace for speed, consistency, and secure sync across your team."
+        description="Account, sync, and preferences for Tulmin."
         badges={
           <Badge
             variant="outline"
             className="border-border bg-muted/50 px-2.5 py-0.5 text-xs font-normal text-muted-foreground"
           >
-            Workspace &amp; backend
+            Tulmin account
           </Badge>
         }
       />
