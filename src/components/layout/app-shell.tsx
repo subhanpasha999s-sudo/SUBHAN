@@ -55,7 +55,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "system",
     label: "System",
-    items: [{ href: "/settings", label: "Settings", icon: Settings2 }],
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings2 },
+      { href: "/account", label: "Account", icon: CircleUserRound },
+    ],
   },
 ];
 
@@ -411,7 +414,7 @@ function SidebarChrome({
             </button>
           ) : authReady && user ? (
             <Link
-              href="/settings"
+              href="/account"
               prefetch={false}
               onClick={onNavNavigate}
               className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"

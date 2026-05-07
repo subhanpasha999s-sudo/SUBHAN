@@ -23,59 +23,44 @@ export default function PrivacyPage() {
           { label: "Privacy" },
         ]}
         title="Privacy policy"
-        description="How Tulmin treats your data — practical and jargon-light."
+        description="Simple privacy terms focused on customer control."
       />
       <WorkspaceSurfaceCard padding="p-6 sm:p-8">
         <article className="space-y-5 text-[15px] leading-relaxed text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">What Tulmin does</h2>
+            <h2 className="text-base font-semibold text-foreground">What Tulmin processes</h2>
             <p>
-              Tulmin helps you work with shipment label PDFs and optional SKU mappings. PDF processing
-              and mapping preview run in your browser; Tulmin is not a courier or marketplace,
-              and is not endorsed by marketplace brands you may integrate with manually.
+              Tulmin helps you process shipment label PDFs and optional SKU mappings. Most PDF
+              parsing and filtering run in your browser.
             </p>
           </section>
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">Data locations</h2>
+            <h2 className="text-base font-semibold text-foreground">Where data stays</h2>
             <p>
-              <strong>Optional sign-in:</strong> If you create an account, SKU map data may be
-              stored in our database (hosted with Supabase) under your identity so it syncs across
-              devices. Row-level policies are designed so each user only reads and writes their own
-              records.
+              <strong>Without sign-in:</strong> Data stays on your device (browser storage).
             </p>
             <p>
-              <strong>Without sign-in:</strong> Draft SKU maps and uploads may remain on your device
-              (browser storage); clearing site data removes them unless you exported a backup
-              separately.
+              <strong>With sign-in:</strong> You can choose to store SKU mapping data in cloud sync
+              so it is available across devices.
             </p>
           </section>
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">What we avoid</h2>
+            <h2 className="text-base font-semibold text-foreground">Your control</h2>
             <p>
-              Tulmin does not sell SKU lists from your workspace. Authentication uses industry-standard email
-              verification through our auth provider — Tulmin does not operate its own password store for OTP
-              flows.
+              You decide whether to keep data in the cloud or delete it. You can clear local data,
+              remove cloud mapping data, or request account deletion from Tulmin settings.
             </p>
           </section>
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">Retention &amp; deletion</h2>
+            <h2 className="text-base font-semibold text-foreground">Data selling</h2>
             <p>
-              You can disconnect by signing out locally; authenticated data may persist until removed
-              or until you contact us at{" "}
-              <a
-                href={`mailto:${SUPPORT}`}
-                className="font-medium text-primary underline-offset-2 hover:underline"
-              >
-                {SUPPORT}
-              </a>{" "}
-              for deletion, subject to short backup horizons at the database provider.
+              Tulmin does not sell customer workspace data.
             </p>
           </section>
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">Questions</h2>
+            <h2 className="text-base font-semibold text-foreground">Contact</h2>
             <p>
-              Not legal advice — align Tulmin with contracts you owe your customers and partners. Reach
-              Tulmin at{" "}
+              For help with privacy or deletion requests, email{" "}
               <a
                 href={`mailto:${SUPPORT}`}
                 className="font-medium text-primary underline-offset-2 hover:underline"
@@ -85,9 +70,36 @@ export default function PrivacyPage() {
               .
             </p>
           </section>
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold text-foreground">Common questions</h2>
+            <details className="group rounded-lg border border-border bg-muted/15 p-3">
+              <summary className="cursor-pointer list-none font-medium text-foreground">
+                Can I keep data only on my device?
+              </summary>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Yes. If you do not sign in, Tulmin keeps your working data in browser storage on this device.
+              </p>
+            </details>
+            <details className="group rounded-lg border border-border bg-muted/15 p-3">
+              <summary className="cursor-pointer list-none font-medium text-foreground">
+                Can I delete cloud data anytime?
+              </summary>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Yes. In settings, you can delete cloud mapping data or request account deletion.
+              </p>
+            </details>
+            <details className="group rounded-lg border border-border bg-muted/15 p-3">
+              <summary className="cursor-pointer list-none font-medium text-foreground">
+                Do you sell customer data?
+              </summary>
+              <p className="mt-2 text-sm text-muted-foreground">
+                No. Tulmin does not sell customer workspace data.
+              </p>
+            </details>
+          </section>
           <p className="border-t border-border pt-5 text-[13px]">
-            Summary: PDF work is primarily client-side; cloud sync requires sign-in and is partitioned per
-            account. See the{" "}
+            Summary: customer data control is yours. Keep it local, sync to cloud, or delete it.
+            See the{" "}
             <Link href="/terms" className="font-medium text-primary underline-offset-2 hover:underline">
               Terms
             </Link>{" "}

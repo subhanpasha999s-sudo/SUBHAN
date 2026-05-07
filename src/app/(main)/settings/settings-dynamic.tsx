@@ -13,8 +13,8 @@ function SettingsPageSkeleton() {
         <div className="h-7 w-40 animate-pulse rounded-md bg-muted sm:h-8" />
         <div className="h-4 max-w-lg animate-pulse rounded bg-muted/70" />
       </div>
-      <div className="h-48 animate-pulse rounded-xl border border-border bg-card p-6 shadow-sm sm:h-52" />
-      <div className="h-72 animate-pulse rounded-xl border border-border bg-card p-6 shadow-sm" />
+      <div className="h-44 animate-pulse rounded-xl border border-border bg-card p-6 shadow-sm sm:h-48" />
+      <div className="h-56 animate-pulse rounded-xl border border-border bg-card p-6 shadow-sm" />
     </div>
   );
 }

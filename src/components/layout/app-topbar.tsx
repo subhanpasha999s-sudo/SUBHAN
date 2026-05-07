@@ -25,7 +25,10 @@ function pageChrome(pathname: string) {
     return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };
   }
   if (p.startsWith("/settings")) {
-    return { title: "Settings", subtitle: "Account · Tulmin" };
+    return { title: "Settings", subtitle: "Theme · data · Tulmin" };
+  }
+  if (p.startsWith("/account")) {
+    return { title: "Account", subtitle: "Profile · Tulmin" };
   }
   if (p.startsWith("/privacy")) {
     return { title: "Privacy", subtitle: "Tulmin policy" };
@@ -146,9 +149,9 @@ export function AppTopbar({
               </Button>
             ) : authReady && user ? (
               <Link
-                href="/settings"
+                href="/account"
                 prefetch={false}
-                aria-label="Account · Tulmin Settings"
+                aria-label="Tulmin account"
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "icon" }),
                   "h-10 min-h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-10"

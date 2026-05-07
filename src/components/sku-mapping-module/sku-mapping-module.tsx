@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
-import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
+import {
+  WorkspaceModulePageStack,
+  WorkspaceSurfaceCard,
+} from "@/components/layout/workspace-layout";
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -1338,6 +1341,7 @@ export function SkuMappingModule() {
         </DialogContent>
       </Dialog>
 
+      <WorkspaceModulePageStack>
       <WorkspaceSurfaceCard padding="p-5 sm:p-6">
         <SkuSpreadsheetUploadZone
           busy={parseBusy}
@@ -1544,9 +1548,10 @@ export function SkuMappingModule() {
             Sign in or create an account
           </button>{" "}
           to store this map securely in your cloud workspace so your team can continue from any
-          browser. Local work and exports stay fully available.
+          browser.           Local work and exports stay fully available.
         </div>
       ) : null}
+      </WorkspaceModulePageStack>
 
       <Dialog open={editListingOpen} onOpenChange={setEditListingOpen}>
         <DialogContent className="gap-5 sm:max-w-lg">

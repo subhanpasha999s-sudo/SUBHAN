@@ -64,7 +64,10 @@ import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
-import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
+import {
+  WorkspaceModulePageStack,
+  WorkspaceSurfaceCard,
+} from "@/components/layout/workspace-layout";
 import {
   Dialog,
   DialogContent,
@@ -1713,7 +1716,7 @@ export function MeeshoLabelExportTool() {
   const mapBusy = parsing;
 
   return (
-    <>
+    <WorkspaceModulePageStack>
       <WorkspaceSurfaceCard padding="p-5 sm:p-6">
         <div
           className={cn(
@@ -2178,6 +2181,6 @@ export function MeeshoLabelExportTool() {
           </section>
         </WorkspaceSurfaceCard>
       ) : null}
-    </>
+    </WorkspaceModulePageStack>
   );
 }

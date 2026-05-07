@@ -5,9 +5,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import SettingsPage from "./settings-dynamic";
 
 export const metadata: Metadata = {
-  title: "Workspace settings for speed and control",
+  title: "Settings",
   description:
-    "Manage appearance, sign-in, and cloud sync so your team can work faster with reliable SKU mapping and seamless dispatch workflows.",
+    "Theme and local or cloud data control for Tulmin. Profile and sign-in are under Account.",
   alternates: { canonical: `${getSiteUrl()}/settings` },
 };
 

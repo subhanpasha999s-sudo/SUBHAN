@@ -54,6 +54,38 @@ export function WorkspaceSectionStack({
   );
 }
 
+/** Narrow centered column for Settings / Account (forms, readable width on mobile). */
+export function WorkspaceFormPageStack({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <WorkspaceSectionStack
+      className={cn("mx-auto min-w-0 w-full max-w-xl", className)}
+    >
+      {children}
+    </WorkspaceSectionStack>
+  );
+}
+
+/** Full-width section stack for SKU Mapping and similar workspace modules. */
+export function WorkspaceModulePageStack({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <WorkspaceSectionStack className={cn("min-w-0 w-full", className)}>
+      {children}
+    </WorkspaceSectionStack>
+  );
+}
+
 /** Premium SaaS surface — soft elevation, minimal border, subtle hover depth */
 export function WorkspaceSurfaceCard({
   children,

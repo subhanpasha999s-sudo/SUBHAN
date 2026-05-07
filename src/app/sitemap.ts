@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/export-labels",
     "/mapping",
     "/settings",
+    "/account",
     "/login",
     "/privacy",
     "/terms",
