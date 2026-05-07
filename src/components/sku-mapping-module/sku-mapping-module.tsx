@@ -61,23 +61,29 @@ import { cn } from "@/lib/utils";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
 
 const SKU_MAPPING_UPLOAD_SESSION_KEY = "lable:sku-mapping:upload-v1";
+const SKU_MAPPING_UPLOAD_LOCAL_PREFIX = "lable:sku-mapping:upload-user:";
 
-function readSessionUpload(): {
+function localUploadStorageKey(userId: string) {
+  return `${SKU_MAPPING_UPLOAD_LOCAL_PREFIX}${userId}`;
+}
+
+type PersistedSkuUploadPayload = {
   listingSkus: string[];
   scannedRows: number;
   columnUsed: string | null;
-} | null {
-  if (typeof sessionStorage === "undefined") return null;
+  userId?: string;
+};
+
+function parseSkuUploadPayload(
+  raw: string | null
+): PersistedSkuUploadPayload | null {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(SKU_MAPPING_UPLOAD_SESSION_KEY);
-    if (!raw) return null;
-    const o = JSON.parse(raw) as {
-      listingSkus?: unknown;
-      scannedRows?: unknown;
-      columnUsed?: unknown;
-    };
+    const o = JSON.parse(raw) as Record<string, unknown>;
     if (!Array.isArray(o.listingSkus)) return null;
-    const listingSkus = o.listingSkus.filter((x) => typeof x === "string") as string[];
+    const listingSkus = o.listingSkus.filter(
+      (x) => typeof x === "string"
+    ) as string[];
     if (listingSkus.length === 0) return null;
     return {
       listingSkus,
@@ -86,38 +92,107 @@ function readSessionUpload(): {
           ? o.scannedRows
           : 0,
       columnUsed: typeof o.columnUsed === "string" ? o.columnUsed : null,
+      ...(typeof o.userId === "string" ? { userId: o.userId } : {}),
     };
   } catch {
     return null;
   }
 }
 
-function writeSessionUpload(
-  listingSkus: string[],
-  meta: { scannedRows: number; columnUsed: string | null }
-) {
-  if (typeof sessionStorage === "undefined") return;
+/** Restores the last imported listing SKU list — cloud holds mappings only. */
+function readPersistedSkuUpload(userId: string | undefined): {
+  listingSkus: string[];
+  scannedRows: number;
+  columnUsed: string | null;
+} | null {
+  if (typeof window === "undefined") return null;
+
   try {
-    sessionStorage.setItem(
-      SKU_MAPPING_UPLOAD_SESSION_KEY,
-      JSON.stringify({
-        listingSkus,
-        scannedRows: meta.scannedRows,
-        columnUsed: meta.columnUsed,
-      })
-    );
+    if (userId && typeof localStorage !== "undefined") {
+      const loc = parseSkuUploadPayload(
+        localStorage.getItem(localUploadStorageKey(userId))
+      );
+      if (
+        loc &&
+        loc.listingSkus.length &&
+        (!loc.userId || loc.userId === userId)
+      ) {
+        return {
+          listingSkus: loc.listingSkus,
+          scannedRows: loc.scannedRows,
+          columnUsed: loc.columnUsed,
+        };
+      }
+    }
   } catch {
-    /* quota / private mode */
+    /* ignore */
+  }
+
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const s = parseSkuUploadPayload(
+      sessionStorage.getItem(SKU_MAPPING_UPLOAD_SESSION_KEY)
+    );
+    if (!s?.listingSkus.length) return null;
+    if (userId) {
+      if (s.userId && s.userId !== userId) return null;
+    }
+    return {
+      listingSkus: s.listingSkus,
+      scannedRows: s.scannedRows,
+      columnUsed: s.columnUsed,
+    };
+  } catch {
+    return null;
   }
 }
 
-/** Mappings live in Supabase or local draft — the sheet is only parsed in-memory; drop session copy after save. */
-function clearSessionUpload() {
-  if (typeof sessionStorage === "undefined") return;
+function persistSkuUpload(
+  listingSkus: string[],
+  meta: { scannedRows: number; columnUsed: string | null },
+  userId: string | undefined
+) {
+  const payload = {
+    listingSkus,
+    scannedRows: meta.scannedRows,
+    columnUsed: meta.columnUsed,
+    ...(userId ? { userId } : {}),
+  };
+
   try {
-    sessionStorage.removeItem(SKU_MAPPING_UPLOAD_SESSION_KEY);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(SKU_MAPPING_UPLOAD_SESSION_KEY, JSON.stringify(payload));
+    }
+  } catch {
+    /* quota / private mode */
+  }
+
+  if (userId && typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(
+        localUploadStorageKey(userId),
+        JSON.stringify(payload)
+      );
+    } catch {
+      /* quota / private mode */
+    }
+  }
+}
+
+function clearPersistedSkuUpload(userId: string | undefined) {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(SKU_MAPPING_UPLOAD_SESSION_KEY);
+    }
   } catch {
     /* ignore */
+  }
+  if (userId && typeof localStorage !== "undefined") {
+    try {
+      localStorage.removeItem(localUploadStorageKey(userId));
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -218,11 +293,11 @@ export function SkuMappingModule() {
     };
   }, [authReady, cloudConfigured, userId, pullRemoteSkuSnapshot]);
 
-  /** Restore last uploaded listing SKUs after refresh (session only); mappings come from Supabase. */
+  /** Restore last imported listing SKU list (browser + workspace); mappings come from Supabase. */
   React.useEffect(() => {
     if (!authReady) return;
     if (uploadedSkus.length > 0) return;
-    const stored = readSessionUpload();
+    const stored = readPersistedSkuUpload(userId);
     if (!stored) return;
     setUploadedSkus(stored.listingSkus);
     setUploadMeta({
@@ -230,7 +305,7 @@ export function SkuMappingModule() {
       columnUsed: stored.columnUsed,
     });
     setFileEpoch((n) => n + 1);
-  }, [authReady, uploadedSkus]);
+  }, [authReady, uploadedSkus, userId]);
 
   async function onManualRefresh() {
     if (!cloudConfigured || !userId) return;
@@ -297,10 +372,10 @@ export function SkuMappingModule() {
         scannedRows: res.scannedRows,
         columnUsed: res.columnUsed,
       });
-      writeSessionUpload(res.listingSkus, {
+      persistSkuUpload(res.listingSkus, {
         scannedRows: res.scannedRows,
         columnUsed: res.columnUsed,
-      });
+      }, userId);
       setFileEpoch((n) => n + 1);
       notify.success(
         `${res.listingSkus.length.toLocaleString()} listing SKUs imported`
@@ -311,17 +386,10 @@ export function SkuMappingModule() {
     }
   }
 
-  function discardUploadAfterSuccessfulSave() {
-    clearSessionUpload();
-    setUploadedSkus([]);
-    setUploadMeta(null);
-    setFileEpoch((n) => n + 1);
-  }
-
-  /** Drop session upload, clear grid, prune device-only drafts for dropped SKUs. */
+  /** Drop persisted import, clear grid, prune device-only drafts for dropped SKUs. */
   function removeUploadedListing(skusToRemove: readonly string[]) {
     const drop = new Set(skusToRemove);
-    clearSessionUpload();
+    clearPersistedSkuUpload(userId);
     setLocalDraft((prev) => {
       const next = { ...prev };
       for (const sku of drop) delete next[sku];
@@ -339,7 +407,7 @@ export function SkuMappingModule() {
     setRemoveUploadOpen(false);
     notify.success("Upload cleared", {
       description:
-        "This session’s listing list is cleared. Saved workspace mappings are unchanged.",
+        "The imported listing list is cleared on this device. Saved workspace mappings stay in the cloud.",
     });
   }
 
@@ -373,10 +441,10 @@ export function SkuMappingModule() {
       return next;
     });
     setUploadedSkus(uniq);
-    writeSessionUpload(uniq, {
+    persistSkuUpload(uniq, {
       scannedRows: uniq.length,
       columnUsed: null,
-    });
+    }, userId);
     setUploadMeta({ scannedRows: uniq.length, columnUsed: null });
     setFileEpoch((n) => n + 1);
     setEditListingOpen(false);
@@ -442,10 +510,17 @@ export function SkuMappingModule() {
       });
 
       await pullRemoteSkuSnapshot();
-      discardUploadAfterSuccessfulSave();
+      persistSkuUpload(
+        uploadedSkus,
+        uploadMeta ?? {
+          scannedRows: uploadedSkus.length,
+          columnUsed: null,
+        },
+        userId
+      );
       notify.success("Mappings saved", {
         description:
-          "This listing import is cleared from the browser—your map lives in Supabase.",
+          "Your listing import stays on this page so you can map, unmap, or edit anytime. Mappings are stored in your workspace.",
       });
     } finally {
       setBulkBusy(false);
