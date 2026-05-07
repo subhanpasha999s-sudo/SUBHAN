@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { SkuMasterFirstRow } from "@/types/sku-mapping-module";
+import type { SkuMasterFirstRow, MappingStatusFilter } from "@/types/sku-mapping-module";
 import type { MasterSkuRecord } from "@/types/sku-map";
 import { newEmptyMasterRow } from "@/lib/sku-mapping-module/master-first-helpers";
 import {
@@ -28,6 +28,10 @@ import { cn } from "@/lib/utils";
 const GRID_TEMPLATE =
   "grid grid-cols-[minmax(160px,1fr)_minmax(220px,2fr)_72px_minmax(88px,0.7fr)_40px] items-center gap-x-3 gap-y-0 px-4 py-2.5 transition-colors";
 
+const GRID_VIRTUAL_THRESHOLD = 500;
+const UNMAPPED_VIRTUAL_THRESHOLD = 400;
+const ROW_ESTIMATE_PX = 72;
+
 function ChildSkuPicker({
   rowId,
   masterName,
@@ -38,7 +42,6 @@ function ChildSkuPicker({
   onToggle,
 }: {
   rowId: string;
-  /** Used to rank listing SKUs: closest string match appears first */
   masterName: string;
   rowSelections: string[];
   uploadedSkus: string[];
@@ -71,8 +74,6 @@ function ChildSkuPicker({
       : pool.slice();
 
     const masterTrim = masterName.trim();
-    // Order must NOT depend on selection — otherwise checking an item re-sorts the list
-    // and jumps the scroll / “moves” rows to the top (bad multi-select UX).
     matched.sort((a, b) => {
       if (!masterTrim) {
         return a.localeCompare(b, undefined, { sensitivity: "base" });
@@ -160,10 +161,11 @@ export interface SkuMasterFirstPanelProps {
   masterNameSuggestions: MasterSkuRecord[];
   globalBusy: boolean;
   remoteAvailable: boolean;
-  /** Enables guest vs local-only wording in the footer hint */
   cloudConfigured: boolean;
-  onSaveAll: () => void | Promise<void>;
-  saveBusy: boolean;
+  workspaceSearch: string;
+  mappingStatusFilter: MappingStatusFilter;
+  onFlushSaveNow: () => void | Promise<void>;
+  flushSaveBusy: boolean;
 }
 
 export function SkuMasterFirstPanel({
@@ -174,12 +176,14 @@ export function SkuMasterFirstPanel({
   globalBusy,
   remoteAvailable,
   cloudConfigured,
-  onSaveAll,
-  saveBusy,
+  workspaceSearch,
+  mappingStatusFilter,
+  onFlushSaveNow,
+  flushSaveBusy,
 }: SkuMasterFirstPanelProps) {
-  const [gridSearch, setGridSearch] = React.useState("");
-
   const suggestionsListId = React.useId();
+  const scrollParentRef = React.useRef<HTMLDivElement>(null);
+  const unmappedScrollRef = React.useRef<HTMLDivElement>(null);
 
   function toggleChild(rowId: string, sku: string, checked: boolean) {
     setMasterRows((rows) =>
@@ -208,24 +212,135 @@ export function SkuMasterFirstPanel({
     setMasterRows((rows) => rows.filter((r) => r.id !== rowId));
   }
 
-  const q = gridSearch.trim().toLowerCase();
-  const visibleRows = React.useMemo(() => {
-    if (!q) return masterRows;
-    return masterRows.filter((r) => {
-      if (r.masterName.toLowerCase().includes(q)) return true;
-      return r.listingSkus.some((s) => s.toLowerCase().includes(q));
-    });
-  }, [masterRows, q]);
-
-  const assignedCount = React.useMemo(() => {
+  const assignedSet = React.useMemo(() => {
     const s = new Set<string>();
     for (const r of masterRows) {
       for (const ls of r.listingSkus) s.add(ls);
     }
-    return s.size;
+    return s;
   }, [masterRows]);
 
+  const assignedCount = assignedSet.size;
   const unmappedCount = uploadedSkus.length - assignedCount;
+
+  const unmappedSkusFiltered = React.useMemo(() => {
+    const q = workspaceSearch.trim().toLowerCase();
+    const base = uploadedSkus.filter((s) => !assignedSet.has(s));
+    if (!q) return base;
+    return base.filter((s) => s.toLowerCase().includes(q));
+  }, [uploadedSkus, assignedSet, workspaceSearch]);
+
+  const needle = workspaceSearch.trim().toLowerCase();
+  const visibleRows = React.useMemo(() => {
+    let rows = masterRows;
+    if (mappingStatusFilter === "mapped") {
+      rows = rows.filter((r) => r.listingSkus.length > 0);
+    }
+    if (!needle) return rows;
+    return rows.filter((r) => {
+      if (r.masterName.toLowerCase().includes(needle)) return true;
+      return r.listingSkus.some((s) => s.toLowerCase().includes(needle));
+    });
+  }, [masterRows, mappingStatusFilter, needle]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: mappingStatusFilter === "unmapped" ? 0 : visibleRows.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => ROW_ESTIMATE_PX,
+    overscan: 14,
+  });
+
+  const unmappedVirtualizer = useVirtualizer({
+    count: unmappedSkusFiltered.length,
+    getScrollElement: () => unmappedScrollRef.current,
+    estimateSize: () => ROW_ESTIMATE_PX - 24,
+    overscan: 12,
+  });
+
+  function renderRow(row: SkuMasterFirstRow, idx: number) {
+    const named = Boolean(row.masterName.trim());
+    const hasChildren = row.listingSkus.length > 0;
+    const status =
+      named && hasChildren
+        ? "mapped"
+        : named || hasChildren
+          ? "partial"
+          : "draft";
+
+    return (
+      <div
+        key={row.id}
+        className={cn(
+          GRID_TEMPLATE,
+          "min-w-[min(100%,880px)] border-b border-border last:border-b-0 hover:bg-muted/40",
+          idx % 2 === 1 && "bg-muted/25"
+        )}
+        role="row"
+      >
+        <div className="min-w-0 pr-1">
+          <Input
+            value={row.masterName}
+            onChange={(e) => updateMasterName(row.id, e.target.value)}
+            disabled={globalBusy}
+            placeholder="e.g. KURTI_RED_FAMILY"
+            list={suggestionsListId}
+            className="min-h-11 rounded-md border-input bg-background font-mono text-[13px] shadow-sm sm:min-h-9"
+          />
+        </div>
+        <div className="min-w-0 pl-0.5">
+          <ChildSkuPicker
+            rowId={row.id}
+            masterName={row.masterName}
+            rowSelections={row.listingSkus}
+            uploadedSkus={uploadedSkus}
+            masterRows={masterRows}
+            globalBusy={globalBusy}
+            onToggle={(sku, c) => toggleChild(row.id, sku, c)}
+          />
+        </div>
+        <div className="text-center tabular-nums text-[13px] font-medium text-muted-foreground">
+          {row.listingSkus.length.toLocaleString()}
+        </div>
+        <div className="flex justify-center">
+          {status === "mapped" ? (
+            <Badge
+              variant="outline"
+              className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/45 dark:text-emerald-50"
+            >
+              Mapped
+            </Badge>
+          ) : status === "partial" ? (
+            <Badge
+              variant="outline"
+              className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-950 dark:border-amber-800/60 dark:text-amber-950/40 dark:text-amber-50"
+            >
+              Partial
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="rounded-full border-border bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Draft
+            </Badge>
+          )}
+        </div>
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="min-h-11 min-w-11 rounded-md p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:min-h-8 sm:min-w-8"
+            disabled={globalBusy}
+            aria-label="Remove SKU row"
+            onClick={() => removeRow(row.id)}
+          >
+            <Trash2 className="size-4" aria-hidden />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -235,24 +350,13 @@ export function SkuMasterFirstPanel({
         ))}
       </datalist>
 
-      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-elevate-xs">
-        <div className="min-w-[220px] flex-1 space-y-1.5">
-          <Label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Filter rows
-          </Label>
-          <Input
-            value={gridSearch}
-            onChange={(e) => setGridSearch(e.target.value)}
-            placeholder="SKU or listing SKU…"
-            className="min-h-11 rounded-md border-input bg-muted/40 text-[14px] placeholder:text-muted-foreground focus-visible:bg-background sm:min-h-10"
-          />
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-elevate-xs">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="min-h-11 flex-1 rounded-md px-3.5 text-[13px] font-medium shadow-sm hover:bg-muted sm:min-h-10 sm:flex-initial"
+            className="min-h-10 flex-1 rounded-md px-3.5 text-[13px] font-medium shadow-sm hover:bg-muted sm:flex-initial"
             disabled={globalBusy}
             onClick={() =>
               setMasterRows((rows) => [newEmptyMasterRow(), ...rows])
@@ -264,163 +368,172 @@ export function SkuMasterFirstPanel({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 flex-[2] rounded-md px-5 text-[13px] font-semibold shadow-sm hover:bg-primary/90 sm:min-h-10 sm:flex-initial"
-            disabled={globalBusy || saveBusy || uploadedSkus.length === 0}
-            onClick={() => void onSaveAll()}
+            className="min-h-10 flex-[2] rounded-md px-5 text-[13px] font-semibold shadow-sm hover:bg-primary/90 sm:flex-initial"
+            disabled={
+              globalBusy || flushSaveBusy || uploadedSkus.length === 0
+            }
+            onClick={() => void onFlushSaveNow()}
           >
-            {saveBusy ? "Saving…" : "Save mappings"}
+            {flushSaveBusy ? "Saving…" : "Save now"}
           </Button>
         </div>
       </div>
 
       <p className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
-        Add each <span className="font-medium text-foreground">SKU</span>, choose{" "}
-        <span className="font-medium text-foreground">Select listings</span>, attach
-        any SKUs from your import, then{" "}
-        <span className="font-medium text-foreground">Save mappings</span>.
+        Add each{" "}
+        <span className="font-medium text-foreground">master SKU name</span>, choose{" "}
+        <span className="font-medium text-foreground">Select listings</span>, then attach listings.
+        Signed-in workspaces{" "}
+        <span className="font-semibold text-foreground">sync automatically every few seconds</span>
+        . Use <span className="font-medium text-foreground">Save now</span> after large edits when you want an immediate confirmation.
         {!remoteAvailable && cloudConfigured ? (
           <span className="text-muted-foreground">
             {" "}
-            First save asks for email verification once, then writes to your cloud
-            workspace.
+            First save may ask you to verify email once—then cloud sync kicks in quietly.
           </span>
         ) : null}
         {!remoteAvailable && !cloudConfigured ? (
           <span className="text-muted-foreground">
             {" "}
-            Configure Supabase under Settings—or keep drafts on this device only.
+            Configure Supabase in Settings—or stay on-device only.
           </span>
         ) : null}
       </p>
 
-      <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-elevate-sm">
-        <div className="overflow-x-auto border-b border-border">
+      {mappingStatusFilter === "unmapped" ? (
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-elevate-sm">
+          <div className="border-b border-border bg-muted/30 px-4 py-3 text-[13px]">
+            <p className="font-semibold text-foreground">
+              Unmapped listings (
+              <span className="tabular-nums">
+                {unmappedSkusFiltered.length.toLocaleString()}
+              </span>
+              )
+            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Switch to{" "}
+              <span className="font-semibold text-foreground">All</span> filter to attach these to master SKUs in the grid.
+            </p>
+          </div>
           <div
-            className={cn(
-              GRID_TEMPLATE,
-              "min-w-[min(100%,880px)] shrink-0 bg-label-grid-header py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-            )}
-            role="row"
+            ref={unmappedScrollRef}
+            className="max-h-[min(55vh,560px)] min-h-[160px] overflow-y-auto overscroll-contain px-4 py-2"
           >
-            <div className="min-w-0">SKU</div>
-            <div className="min-w-0">Listing SKUs</div>
-            <div className="text-center tabular-nums">Qty</div>
-            <div className="min-w-0 text-center">Status</div>
-            <span className="sr-only">Remove</span>
+            {unmappedSkusFiltered.length === 0 ? (
+              <p className="py-14 text-center text-[13px] text-muted-foreground">
+                Everything in your import matches a filter—or all listings are already assigned.
+              </p>
+            ) : unmappedSkusFiltered.length > UNMAPPED_VIRTUAL_THRESHOLD ? (
+              <div
+                className="relative w-full"
+                style={{ height: unmappedVirtualizer.getTotalSize() }}
+              >
+                {unmappedVirtualizer.getVirtualItems().map((v) => (
+                  <div
+                    key={v.key}
+                    className="absolute left-0 top-0 w-full px-2"
+                    style={{
+                      transform: `translateY(${v.start}px)`,
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        "rounded-lg border border-border/70 bg-muted/20 px-3 py-2 font-mono text-[12px] text-foreground",
+                        v.index % 2 === 1 && "bg-muted/35"
+                      )}
+                    >
+                      {unmappedSkusFiltered[v.index]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ul className="space-y-1.5 pb-2">
+                {unmappedSkusFiltered.map((sku, i) => (
+                  <li
+                    key={sku}
+                    className={cn(
+                      "rounded-lg border border-border/70 px-3 py-2 font-mono text-[12px] text-foreground",
+                      i % 2 === 1 ? "bg-muted/25" : "bg-muted/10"
+                    )}
+                  >
+                    {sku}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
-
-        <div
-          className="max-h-[min(55vh,560px)] min-h-[140px] overflow-x-auto overflow-y-auto overscroll-contain"
-          role="rowgroup"
-        >
-          {visibleRows.length === 0 ? (
-            <div className="px-6 py-14 text-center">
-              <p className="text-[15px] font-medium text-foreground">
-                {masterRows.length === 0
-                  ? "Start with a SKU row"
-                  : "No rows match this filter"}
-              </p>
-              <p className="mt-1.5 text-[13px] text-muted-foreground">
-                {masterRows.length === 0 ? (
-                  <>
-                    Use{" "}
-                    <span className="font-medium text-foreground">Add SKU row</span>
-                    , or pull the latest map once you&apos;re signed in.
-                  </>
-                ) : (
-                  "Clear the filter or try another search."
-                )}
-              </p>
+      ) : (
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-elevate-sm">
+          <div className="overflow-x-auto border-b border-border">
+            <div
+              className={cn(
+                GRID_TEMPLATE,
+                "min-w-[min(100%,880px)] shrink-0 bg-label-grid-header py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+              )}
+              role="row"
+            >
+              <div className="min-w-0">SKU</div>
+              <div className="min-w-0">Listing SKUs</div>
+              <div className="text-center tabular-nums">Qty</div>
+              <div className="min-w-0 text-center">Status</div>
+              <span className="sr-only">Remove</span>
             </div>
-          ) : (
-            visibleRows.map((row, idx) => {
-            const named = Boolean(row.masterName.trim());
-            const hasChildren = row.listingSkus.length > 0;
-            const status =
-              named && hasChildren
-                ? "mapped"
-                : named || hasChildren
-                  ? "partial"
-                  : "draft";
+          </div>
 
-            return (
-              <div
-                key={row.id}
-                className={cn(
-                  GRID_TEMPLATE,
-                  "min-w-[min(100%,880px)] border-b border-border last:border-b-0 hover:bg-muted/40",
-                  idx % 2 === 1 && "bg-muted/25"
-                )}
-                role="row"
-              >
-                <div className="min-w-0 pr-1">
-                  <Input
-                    value={row.masterName}
-                    onChange={(e) => updateMasterName(row.id, e.target.value)}
-                    disabled={globalBusy}
-                    placeholder="e.g. KURTI_RED_FAMILY"
-                    list={suggestionsListId}
-                    className="min-h-11 rounded-md border-input bg-background font-mono text-[13px] shadow-sm sm:min-h-9"
-                  />
-                </div>
-                <div className="min-w-0 pl-0.5">
-                  <ChildSkuPicker
-                    rowId={row.id}
-                    masterName={row.masterName}
-                    rowSelections={row.listingSkus}
-                    uploadedSkus={uploadedSkus}
-                    masterRows={masterRows}
-                    globalBusy={globalBusy}
-                    onToggle={(sku, c) => toggleChild(row.id, sku, c)}
-                  />
-                </div>
-                <div className="text-center tabular-nums text-[13px] font-medium text-muted-foreground">
-                  {row.listingSkus.length.toLocaleString()}
-                </div>
-                <div className="flex justify-center">
-                  {status === "mapped" ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/45 dark:text-emerald-50"
-                    >
-                      Mapped
-                    </Badge>
-                  ) : status === "partial" ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-50"
-                    >
-                      Partial
-                    </Badge>
+          <div
+            ref={scrollParentRef}
+            className="max-h-[min(55vh,560px)] min-h-[140px] overflow-x-auto overflow-y-auto overscroll-contain"
+            role="rowgroup"
+          >
+            {visibleRows.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <p className="text-[15px] font-medium text-foreground">
+                  {masterRows.length === 0
+                    ? "Start with a SKU row"
+                    : "No rows match this filter"}
+                </p>
+                <p className="mt-1.5 text-[13px] text-muted-foreground">
+                  {masterRows.length === 0 ? (
+                    <>
+                      Use{" "}
+                      <span className="font-medium text-foreground">
+                        Add SKU row
+                      </span>
+                      , or pull fresh mappings when signed in.
+                    </>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Draft
-                    </Badge>
+                    "Clear the toolbar search or widen the workspace filter chips."
                   )}
-                </div>
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-11 min-w-11 rounded-md p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:min-h-8 sm:min-w-8"
-                    disabled={globalBusy}
-                    aria-label="Remove SKU row"
-                    onClick={() => removeRow(row.id)}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </Button>
-                </div>
+                </p>
               </div>
-            );
-          })
-          )}
+            ) : visibleRows.length > GRID_VIRTUAL_THRESHOLD ? (
+              <div
+                className="relative min-w-[min(100%,880px)]"
+                style={{ height: rowVirtualizer.getTotalSize() }}
+              >
+                {rowVirtualizer.getVirtualItems().map((v) => {
+                  const row = visibleRows[v.index];
+                  return (
+                    <div
+                      key={v.key}
+                      className="absolute left-0 top-0 min-w-[min(100%,880px)] px-2"
+                      style={{
+                        transform: `translateY(${v.start}px)`,
+                      }}
+                    >
+                      {renderRow(row, v.index)}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              visibleRows.map((row, idx) => renderRow(row, idx))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-[12px] tabular-nums text-muted-foreground">
         <span>
@@ -435,7 +548,7 @@ export function SkuMasterFirstPanel({
         </span>
         <span className="text-muted-foreground">
           {masterRows.length.toLocaleString()}{" "}
-          {masterRows.length === 1 ? "SKU" : "SKUs"}
+          {masterRows.length === 1 ? "SKU row" : "SKU rows"}
         </span>
       </div>
     </div>

@@ -157,7 +157,13 @@ export function SettingsPageClient() {
       for (let i = 0; i < localStorage.length; i += 1) {
         const k = localStorage.key(i);
         if (!k) continue;
-        if (k.startsWith("lable.sku-map-cache.v1:")) toDelete.push(k);
+        if (
+          k.startsWith("lable.sku-map-cache.v1:") ||
+          k.startsWith("lable:sku-workspace-v1:") ||
+          k.startsWith("lable:sku-mapping:upload-user:")
+        ) {
+          toDelete.push(k);
+        }
       }
       for (const k of toDelete) localStorage.removeItem(k);
       sessionStorage.removeItem("lable:sku-mapping:upload-v1");
@@ -179,10 +185,23 @@ export function SettingsPageClient() {
     if (!sb || !user) return;
     setDangerBusy(true);
     try {
-      let [{ error: mapErr }, { error: masterErr }] = await Promise.all([
+      let [
+        { error: mapErr },
+        { error: masterErr },
+        { error: workspaceErr },
+      ] = await Promise.all([
         sb.from("sku_map").delete().eq("user_id", user.id),
         sb.from("master_skus").delete().eq("user_id", user.id),
+        sb.from("sku_mapping_workspace").delete().eq("user_id", user.id),
       ]);
+      const m = workspaceErr?.message ?? "";
+      const workspaceIgnorable =
+        !workspaceErr ||
+        workspaceErr.code === "PGRST205" ||
+        m.includes('relation "sku_mapping_workspace"') ||
+        (m.includes("sku_mapping_workspace") &&
+          m.includes("does not exist")) ||
+        m.includes("Could not find the table");
       if (
         isMissingUserIdColumnError(mapErr?.message) ||
         isMissingUserIdColumnError(masterErr?.message)
@@ -194,8 +213,15 @@ export function SettingsPageClient() {
         mapErr = legacy[0].error;
         masterErr = legacy[1].error;
       }
-      if (mapErr || masterErr) {
-        notify.error(mapErr?.message ?? masterErr?.message ?? "Could not delete cloud data.");
+      const wsBlocking =
+        workspaceErr && !workspaceIgnorable ? workspaceErr : undefined;
+      if (mapErr || masterErr || wsBlocking) {
+        notify.error(
+          mapErr?.message ??
+            masterErr?.message ??
+            wsBlocking?.message ??
+            "Could not delete cloud data."
+        );
         return;
       }
       notify.success("Cloud mapping data deleted");
@@ -216,6 +242,7 @@ export function SettingsPageClient() {
       const del = await Promise.all([
         sb.from("sku_map").delete().eq("user_id", user.id),
         sb.from("master_skus").delete().eq("user_id", user.id),
+        sb.from("sku_mapping_workspace").delete().eq("user_id", user.id),
         sb.auth.updateUser({
           data: {
             deletion_requested_at: new Date().toISOString(),
@@ -231,6 +258,18 @@ export function SettingsPageClient() {
           sb.from("sku_map").delete().neq("id", ""),
           sb.from("master_skus").delete().neq("id", ""),
         ]);
+      }
+      const wsErrDel = del[2].error;
+      const wsm = wsErrDel?.message ?? "";
+      const wsIgnorable =
+        !wsErrDel ||
+        wsErrDel.code === "PGRST205" ||
+        wsm.includes('relation "sku_mapping_workspace"') ||
+        (wsm.includes("sku_mapping_workspace") &&
+          wsm.includes("does not exist"));
+      if (wsErrDel && !wsIgnorable) {
+        notify.error(wsErrDel.message);
+        return;
       }
       clearThisDeviceData();
       await signOut();

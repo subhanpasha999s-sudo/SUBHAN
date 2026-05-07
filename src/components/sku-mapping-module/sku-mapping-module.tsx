@@ -36,9 +36,14 @@ import { SkuSpreadsheetUploadZone } from "@/components/sku-mapping-module/sku-sp
 import {
   buildMasterFirstRowsFromMerged,
   flattenMasterFirstRows,
-  mergeGroupsForRemoteBatch,
   newEmptyMasterRow,
 } from "@/lib/sku-mapping-module/master-first-helpers";
+import { computeAssignmentDiff } from "@/lib/sku-mapping-module/incremental-mapping-sync";
+import {
+  clearSkuWorkspaceLocalCache,
+  readSkuWorkspaceLocalCache,
+  writeSkuWorkspaceLocalCache,
+} from "@/lib/sku-mapping-module/sku-workspace-local-cache";
 import { mergeListingUploadWithSnapshot } from "@/lib/sku-mapping-module/merge-upload-with-snapshot";
 import {
   applyLocalDraftOverlay,
@@ -56,7 +61,16 @@ import {
   getSkuMapAuthContext,
   unassignListingsRemote,
 } from "@/lib/supabase/sku-map-remote";
-import type { SkuMasterFirstRow } from "@/types/sku-mapping-module";
+import {
+  fetchSkuMappingWorkspace,
+  upsertSkuMappingWorkspace,
+  deleteSkuMappingWorkspace,
+} from "@/lib/supabase/sku-workspace-remote";
+import {
+  SkuMappingWorkspaceToolbar,
+  type WorkspaceAutosaveState,
+} from "@/components/sku-mapping-module/sku-mapping-workspace-toolbar";
+import type { MappingStatusFilter, SkuMasterFirstRow } from "@/types/sku-mapping-module";
 import { cn } from "@/lib/utils";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
 
@@ -196,6 +210,35 @@ function clearPersistedSkuUpload(userId: string | undefined) {
   }
 }
 
+const SESSION_RESUME_DISMISS_KEY = "lable:sku-mapping:dismiss-resume-session";
+
+/** Session + enrichment cache for SKU listing workspace bundles. */
+function persistWorkspaceBundle(
+  listingSkus: string[],
+  meta: { scannedRows: number; columnUsed: string | null },
+  userId: string | undefined,
+  bundle: {
+    workspaceId: string;
+    fileLabel: string;
+    uploadedAtIso: string | null;
+    cloudUpdatedIso?: string | null;
+  }
+) {
+  persistSkuUpload(listingSkus, meta, userId);
+
+  writeSkuWorkspaceLocalCache(userId, {
+    workspaceId: bundle.workspaceId,
+    fileName: bundle.fileLabel,
+    uploadedAt:
+      bundle.uploadedAtIso ??
+      new Date().toISOString(),
+    updatedAt: bundle.cloudUpdatedIso ?? new Date().toISOString(),
+    listingSkus,
+    columnUsed: meta.columnUsed,
+    scannedRows: meta.scannedRows,
+  });
+}
+
 export function SkuMappingModule() {
   const { user, authReady } = useAuth();
   const { requestAuthThenContinue, openOptionalSignIn } = useValueFirstAuth();
@@ -231,11 +274,66 @@ export function SkuMappingModule() {
 
   const [masterRows, setMasterRows] = React.useState<SkuMasterFirstRow[]>([]);
   const [fileEpoch, setFileEpoch] = React.useState(0);
+  const masterRowsRef = React.useRef(masterRows);
+  React.useEffect(() => {
+    masterRowsRef.current = masterRows;
+  }, [masterRows]);
 
   const [editListingOpen, setEditListingOpen] = React.useState(false);
   const [editListingDraft, setEditListingDraft] = React.useState("");
   const [resetGroupingOpen, setResetGroupingOpen] = React.useState(false);
   const [removeUploadOpen, setRemoveUploadOpen] = React.useState(false);
+
+  const [workspaceId, setWorkspaceId] = React.useState<string | null>(null);
+  const [workspaceFileLabel, setWorkspaceFileLabel] = React.useState("");
+  const [workspaceUploadedAtIso, setWorkspaceUploadedAtIso] = React.useState<
+    string | null
+  >(null);
+  const [cloudWorkspaceUpdatedAt, setCloudWorkspaceUpdatedAt] = React.useState<
+    string | null
+  >(null);
+
+  const [workspaceSearch, setWorkspaceSearch] =
+    React.useState("");
+  const [mappingStatusFilter, setMappingStatusFilter] =
+    React.useState<MappingStatusFilter>("all");
+
+  const [autosaveUi, setAutosaveUi] = React.useState<{
+    state: WorkspaceAutosaveState;
+    detail: string | null;
+  }>({ state: "idle", detail: null });
+  const [mappingLastSyncedAt, setMappingLastSyncedAt] = React.useState<
+    string | null
+  >(null);
+
+  const [workspaceBootBusy, setWorkspaceBootBusy] = React.useState(false);
+  const [resumeWorkspaceOpen, setResumeWorkspaceOpen] = React.useState(false);
+
+  const workspaceIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    workspaceIdRef.current = workspaceId;
+  }, [workspaceId]);
+
+  const persistenceQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const enqueuePersistJob = React.useCallback((job: () => Promise<unknown>) => {
+    persistenceQueueRef.current = persistenceQueueRef.current
+      .then(() => job().then(() => undefined))
+      .catch((e: unknown) => {
+        console.warn(e);
+      });
+  }, []);
+
+  const lastSyncedAssignmentFlatRef =
+    React.useRef<Record<string, string>>({});
+  /** First debounced autosave cycle after reset only syncs refs; no API churn. */
+  const initialAutosaveBypassRef = React.useRef(true);
+  const assignmentDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const workspaceListingDebounceRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const resumePromptShownRef = React.useRef(false);
 
   const pullRemoteSkuSnapshot = React.useCallback(async () => {
     if (!cloudConfigured || !userId) return;
@@ -293,19 +391,248 @@ export function SkuMappingModule() {
     };
   }, [authReady, cloudConfigured, userId, pullRemoteSkuSnapshot]);
 
-  /** Restore last imported listing SKU list (browser + workspace); mappings come from Supabase. */
   React.useEffect(() => {
     if (!authReady) return;
     if (uploadedSkus.length > 0) return;
-    const stored = readPersistedSkuUpload(userId);
-    if (!stored) return;
-    setUploadedSkus(stored.listingSkus);
-    setUploadMeta({
-      scannedRows: stored.scannedRows,
-      columnUsed: stored.columnUsed,
-    });
-    setFileEpoch((n) => n + 1);
-  }, [authReady, uploadedSkus, userId]);
+
+    let cancelled = false;
+
+    const pickLegacyEnvelope = (): {
+      listingSkus: string[];
+      scannedRows: number;
+      columnUsed: string | null;
+    } | null => readPersistedSkuUpload(userId);
+
+    async function hydrateWorkspace() {
+      if (!remoteAvailable) {
+        setWorkspaceBootBusy(true);
+        try {
+          if (cancelled) return;
+          const cache = readSkuWorkspaceLocalCache(userId);
+          const legacy = pickLegacyEnvelope();
+          const listings =
+            cache?.listingSkus?.length ? cache.listingSkus
+            : legacy?.listingSkus?.length ? legacy.listingSkus
+            : null;
+          if (listings?.length) {
+            const scanned =
+              cache?.listingSkus?.length ?
+                cache.scannedRows || cache.listingSkus.length
+              : legacy!.scannedRows || listings.length;
+            const col =
+              cache?.listingSkus?.length ? cache.columnUsed : legacy!.columnUsed;
+            if (cache?.workspaceId) setWorkspaceId(cache.workspaceId);
+            if (cache?.fileName) setWorkspaceFileLabel(cache.fileName);
+            if (cache?.uploadedAt) setWorkspaceUploadedAtIso(cache.uploadedAt);
+            setUploadedSkus(listings);
+            setUploadMeta({ scannedRows: scanned, columnUsed: col });
+            setFileEpoch((n) => n + 1);
+            initialAutosaveBypassRef.current = true;
+          }
+        } finally {
+          if (!cancelled) setWorkspaceBootBusy(false);
+        }
+        return;
+      }
+
+      setWorkspaceBootBusy(true);
+
+      try {
+        const cached = readSkuWorkspaceLocalCache(userId);
+        const legacy = pickLegacyEnvelope();
+        const cloudWs = await fetchSkuMappingWorkspace();
+        if (!cloudWs.ok && !cancelled) {
+          setAutosaveUi({
+            state: "offline",
+            detail:
+              `${cloudWs.message} — showing local cache until the cloud responds.`,
+          });
+        }
+
+        let chosen:
+          | {
+              listingSkus: string[];
+              scannedRows: number;
+              columnUsed: string | null;
+              workspaceId: string;
+              fileName: string;
+              uploadedAtIso: string;
+              cloudUpdatedIso: string;
+            }
+          | null = null;
+
+        const cloudListing =
+          cloudWs.ok &&
+          cloudWs.workspace &&
+          cloudWs.workspace.listing_skus.length > 0 ?
+            cloudWs.workspace
+          : undefined;
+
+        if (cloudListing) {
+          const cloudTs = Date.parse(cloudListing.updated_at);
+          const cachedTs =
+            cached ? Date.parse(cached.updatedAt) : Number.NaN;
+          const preferCached =
+            Number.isFinite(cachedTs) &&
+            Number.isFinite(cloudTs) &&
+            cachedTs > cloudTs;
+
+          const src = preferCached && cached?.listingSkus.length ? cached : null;
+          if (preferCached && src) {
+            chosen = {
+              listingSkus: src.listingSkus,
+              scannedRows:
+                src.scannedRows || src.listingSkus.length,
+              columnUsed:
+                src.columnUsed ?? cloudListing.column_used,
+              workspaceId:
+                src.workspaceId || cloudListing.workspace_id,
+              fileName:
+                src.fileName || cloudListing.file_name || "(workspace)",
+              uploadedAtIso:
+                src.uploadedAt || cloudListing.uploaded_at,
+              cloudUpdatedIso: new Date(
+                Math.max(cloudTs, cachedTs || 0)
+              ).toISOString(),
+            };
+
+            await upsertSkuMappingWorkspace({
+              workspaceId: chosen.workspaceId,
+              fileName: chosen.fileName,
+              uploadedAt: chosen.uploadedAtIso,
+              listingSkus: chosen.listingSkus,
+              columnUsed: chosen.columnUsed,
+              scannedRows:
+                chosen.scannedRows || chosen.listingSkus.length,
+            }).catch(() => {
+              setAutosaveUi({
+                state: "offline",
+                detail: "Showing device copy • cloud reconnect will sync listings.",
+              });
+            });
+          } else {
+            chosen = {
+              listingSkus: cloudListing.listing_skus,
+              scannedRows:
+                cloudListing.scanned_rows || cloudListing.listing_skus.length,
+              columnUsed: cloudListing.column_used,
+              workspaceId: cloudListing.workspace_id,
+              fileName: cloudListing.file_name || "(workspace)",
+              uploadedAtIso: cloudListing.uploaded_at,
+              cloudUpdatedIso: cloudListing.updated_at,
+            };
+          }
+        } else if (cached?.listingSkus.length) {
+          chosen = {
+            listingSkus: cached.listingSkus,
+            scannedRows: cached.scannedRows || cached.listingSkus.length,
+            columnUsed: cached.columnUsed,
+            workspaceId: cached.workspaceId,
+            fileName: cached.fileName || "(import)",
+            uploadedAtIso: cached.uploadedAt,
+            cloudUpdatedIso: cached.updatedAt,
+          };
+          await upsertSkuMappingWorkspace({
+            workspaceId: chosen.workspaceId,
+            fileName: chosen.fileName,
+            uploadedAt: chosen.uploadedAtIso,
+            listingSkus: chosen.listingSkus,
+            columnUsed: chosen.columnUsed,
+            scannedRows: chosen.scannedRows,
+          }).catch(() => {
+            setAutosaveUi({
+              state: "offline",
+              detail: null,
+            });
+          });
+        } else if (legacy?.listingSkus.length) {
+          const wid =
+            crypto.randomUUID?.() ?? `ws-${Date.now().toString(36)}`;
+          chosen = {
+            listingSkus: legacy.listingSkus,
+            scannedRows: legacy.scannedRows,
+            columnUsed: legacy.columnUsed,
+            workspaceId: wid,
+            fileName: "(import)",
+            uploadedAtIso: new Date().toISOString(),
+            cloudUpdatedIso: new Date().toISOString(),
+          };
+          persistWorkspaceBundle(
+            chosen.listingSkus,
+            {
+              scannedRows: chosen.scannedRows,
+              columnUsed: chosen.columnUsed,
+            },
+            userId,
+            {
+              workspaceId: chosen.workspaceId,
+              fileLabel: chosen.fileName,
+              uploadedAtIso: chosen.uploadedAtIso,
+              cloudUpdatedIso: chosen.cloudUpdatedIso,
+            }
+          );
+          await upsertSkuMappingWorkspace({
+            workspaceId: chosen.workspaceId,
+            fileName: chosen.fileName,
+            uploadedAt: chosen.uploadedAtIso,
+            listingSkus: chosen.listingSkus,
+            columnUsed: chosen.columnUsed,
+            scannedRows: chosen.scannedRows,
+          }).catch(() => {
+            setAutosaveUi({
+              state: "offline",
+              detail: null,
+            });
+          });
+        }
+
+        if (chosen && !cancelled) {
+          setUploadedSkus(chosen.listingSkus);
+          setUploadMeta({
+            scannedRows:
+              chosen.scannedRows || chosen.listingSkus.length,
+            columnUsed: chosen.columnUsed,
+          });
+          setWorkspaceId(chosen.workspaceId);
+          setWorkspaceFileLabel(chosen.fileName);
+          setWorkspaceUploadedAtIso(chosen.uploadedAtIso);
+          setCloudWorkspaceUpdatedAt(chosen.cloudUpdatedIso);
+          persistWorkspaceBundle(
+            chosen.listingSkus,
+            {
+              scannedRows:
+                chosen.scannedRows || chosen.listingSkus.length,
+              columnUsed: chosen.columnUsed,
+            },
+            userId,
+            {
+              workspaceId: chosen.workspaceId,
+              fileLabel: chosen.fileName,
+              uploadedAtIso: chosen.uploadedAtIso,
+              cloudUpdatedIso: chosen.cloudUpdatedIso,
+            }
+          );
+          initialAutosaveBypassRef.current = true;
+          setFileEpoch((n) => n + 1);
+        }
+
+        await pullRemoteSkuSnapshot();
+      } finally {
+        if (!cancelled) setWorkspaceBootBusy(false);
+      }
+    }
+
+    void hydrateWorkspace();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authReady,
+    uploadedSkus.length,
+    remoteAvailable,
+    userId,
+    pullRemoteSkuSnapshot,
+  ]);
 
   async function onManualRefresh() {
     if (!cloudConfigured || !userId) return;
@@ -351,6 +678,173 @@ export function SkuMappingModule() {
     };
   }, [masterRows, uploadedSkus.length]);
 
+  const completedPercent = React.useMemo(() => {
+    if (!uploadedSkus.length) return 0;
+    return Math.min(
+      100,
+      Math.round((counts.mapped / uploadedSkus.length) * 100)
+    );
+  }, [counts.mapped, uploadedSkus.length]);
+
+  const runAssignmentPersistence = React.useCallback(async (): Promise<boolean> => {
+    if (!remoteAvailable || !userId) return false;
+
+    const flat = flattenMasterFirstRows(masterRowsRef.current);
+
+    if (initialAutosaveBypassRef.current) {
+      initialAutosaveBypassRef.current = false;
+      lastSyncedAssignmentFlatRef.current = { ...flat };
+      setAutosaveUi({ state: "idle", detail: null });
+      return true;
+    }
+
+    const diff = computeAssignmentDiff(
+      lastSyncedAssignmentFlatRef.current,
+      flat
+    );
+
+    if (diff.groupsToAssign.length === 0 && diff.listingSkusToUnassign.length === 0)
+      return true;
+
+    try {
+      setAutosaveUi({ state: "syncing", detail: null });
+      const auth = await getSkuMapAuthContext();
+      if (!auth.ok) {
+        throw new Error(auth.message);
+      }
+
+      if (diff.listingSkusToUnassign.length > 0) {
+        const u = await unassignListingsRemote(diff.listingSkusToUnassign);
+        if (!u.ok) throw new Error(u.message);
+      }
+
+      if (diff.groupsToAssign.length > 0) {
+        const res = await batchApplyMasterMappingsRemote(diff.groupsToAssign);
+        if (!res.ok) throw new Error(res.message);
+      }
+
+      await pullRemoteSkuSnapshot();
+      lastSyncedAssignmentFlatRef.current = { ...flat };
+      setMappingLastSyncedAt(new Date().toISOString());
+      setAutosaveUi({ state: "saved", detail: null });
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setAutosaveUi({ state: "error", detail: msg });
+      notify.error(msg);
+      return false;
+    }
+  }, [remoteAvailable, userId, pullRemoteSkuSnapshot]);
+
+  React.useEffect(() => {
+    if (!remoteAvailable || !userId || uploadedSkus.length === 0) return;
+    if (bulkBusy || parseBusy) return;
+    if (assignmentDebounceRef.current) {
+      clearTimeout(assignmentDebounceRef.current);
+    }
+    assignmentDebounceRef.current = setTimeout(() => {
+      const nextFlat = flattenMasterFirstRows(masterRowsRef.current);
+      if (!initialAutosaveBypassRef.current) {
+        const pending = computeAssignmentDiff(
+          lastSyncedAssignmentFlatRef.current,
+          nextFlat
+        );
+        if (
+          pending.groupsToAssign.length === 0 &&
+          pending.listingSkusToUnassign.length === 0
+        )
+          return;
+      }
+      enqueuePersistJob(() => runAssignmentPersistence());
+    }, 1850);
+    return () => {
+      if (assignmentDebounceRef.current) {
+        clearTimeout(assignmentDebounceRef.current);
+        assignmentDebounceRef.current = null;
+      }
+    };
+  }, [
+    masterRows,
+    uploadedSkus.length,
+    remoteAvailable,
+    userId,
+    enqueuePersistJob,
+    runAssignmentPersistence,
+    bulkBusy,
+    parseBusy,
+  ]);
+
+  React.useEffect(() => {
+    if (!remoteAvailable || !userId || uploadedSkus.length === 0) return;
+    if (bulkBusy || parseBusy) return;
+    if (workspaceListingDebounceRef.current) {
+      clearTimeout(workspaceListingDebounceRef.current);
+    }
+    workspaceListingDebounceRef.current = setTimeout(() => {
+      enqueuePersistJob(async () => {
+        const wid = workspaceIdRef.current;
+        if (!wid) return;
+        const up = await upsertSkuMappingWorkspace({
+          workspaceId: wid,
+          fileName: workspaceFileLabel || "Inventory import",
+          uploadedAt: workspaceUploadedAtIso ?? undefined,
+          listingSkus: uploadedSkus,
+          columnUsed: uploadMeta?.columnUsed ?? null,
+          scannedRows: uploadMeta?.scannedRows ?? uploadedSkus.length,
+        });
+        if (!up.ok) {
+          setAutosaveUi({ state: "error", detail: up.message });
+          return;
+        }
+        if (up.workspace) {
+          setWorkspaceId(up.workspace.workspace_id);
+          setCloudWorkspaceUpdatedAt(up.workspace.updated_at);
+          persistWorkspaceBundle(
+            uploadedSkus,
+            {
+              scannedRows: uploadMeta?.scannedRows ?? uploadedSkus.length,
+              columnUsed: uploadMeta?.columnUsed ?? null,
+            },
+            userId,
+            {
+              workspaceId: up.workspace.workspace_id,
+              fileLabel: workspaceFileLabel || up.workspace.file_name,
+              uploadedAtIso:
+                workspaceUploadedAtIso ?? up.workspace.uploaded_at,
+              cloudUpdatedIso: up.workspace.updated_at,
+            }
+          );
+        }
+      });
+    }, 1100);
+    return () => {
+      if (workspaceListingDebounceRef.current) {
+        clearTimeout(workspaceListingDebounceRef.current);
+        workspaceListingDebounceRef.current = null;
+      }
+    };
+  }, [
+    uploadedSkus,
+    uploadMeta,
+    workspaceFileLabel,
+    workspaceUploadedAtIso,
+    remoteAvailable,
+    userId,
+    enqueuePersistJob,
+    bulkBusy,
+    parseBusy,
+  ]);
+
+  React.useEffect(() => {
+    if (typeof sessionStorage === "undefined") return;
+    if (workspaceBootBusy) return;
+    if (uploadedSkus.length === 0 || counts.unmapped === 0) return;
+    if (resumePromptShownRef.current) return;
+    if (sessionStorage.getItem(SESSION_RESUME_DISMISS_KEY) === "1") return;
+    resumePromptShownRef.current = true;
+    setResumeWorkspaceOpen(true);
+  }, [workspaceBootBusy, uploadedSkus.length, counts.unmapped]);
+
   async function ingestFile(file: File) {
     setParseBusy(true);
     try {
@@ -367,19 +861,75 @@ export function SkuMappingModule() {
         });
         return;
       }
+      resumePromptShownRef.current = false;
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(SESSION_RESUME_DISMISS_KEY);
+      }
+
+      const upAt = new Date().toISOString();
+      const wsId =
+        crypto.randomUUID?.() ?? `ws-${Date.now().toString(36)}`;
+      initialAutosaveBypassRef.current = true;
+
       setUploadedSkus(res.listingSkus);
       setUploadMeta({
         scannedRows: res.scannedRows,
         columnUsed: res.columnUsed,
       });
-      persistSkuUpload(res.listingSkus, {
-        scannedRows: res.scannedRows,
-        columnUsed: res.columnUsed,
-      }, userId);
+      setWorkspaceId(wsId);
+      setWorkspaceFileLabel(file.name || "Import");
+      setWorkspaceUploadedAtIso(upAt);
+      setCloudWorkspaceUpdatedAt(upAt);
+      persistWorkspaceBundle(
+        res.listingSkus,
+        {
+          scannedRows: res.scannedRows,
+          columnUsed: res.columnUsed,
+        },
+        userId,
+        {
+          workspaceId: wsId,
+          fileLabel: file.name || "Import",
+          uploadedAtIso: upAt,
+          cloudUpdatedIso: upAt,
+        }
+      );
       setFileEpoch((n) => n + 1);
       notify.success(
         `${res.listingSkus.length.toLocaleString()} listing SKUs imported`
       );
+
+      if (remoteAvailable && userId) {
+        enqueuePersistJob(async () => {
+          const cw = await upsertSkuMappingWorkspace({
+            workspaceId: wsId,
+            fileName: file.name || "Import",
+            uploadedAt: upAt,
+            listingSkus: res.listingSkus,
+            columnUsed: res.columnUsed,
+            scannedRows: res.scannedRows || res.listingSkus.length,
+          });
+          if (cw.ok && cw.workspace) {
+            setWorkspaceId(cw.workspace.workspace_id);
+            setCloudWorkspaceUpdatedAt(cw.workspace.updated_at);
+            persistWorkspaceBundle(
+              res.listingSkus,
+              {
+                scannedRows: res.scannedRows,
+                columnUsed: res.columnUsed,
+              },
+              userId,
+              {
+                workspaceId: cw.workspace.workspace_id,
+                fileLabel: cw.workspace.file_name,
+                uploadedAtIso: cw.workspace.uploaded_at,
+                cloudUpdatedIso: cw.workspace.updated_at,
+              }
+            );
+          }
+        });
+      }
+
       await pullRemoteSkuSnapshot();
     } finally {
       setParseBusy(false);
@@ -390,6 +940,10 @@ export function SkuMappingModule() {
   function removeUploadedListing(skusToRemove: readonly string[]) {
     const drop = new Set(skusToRemove);
     clearPersistedSkuUpload(userId);
+    clearSkuWorkspaceLocalCache(userId);
+    if (remoteAvailable && userId) {
+      void deleteSkuMappingWorkspace();
+    }
     setLocalDraft((prev) => {
       const next = { ...prev };
       for (const sku of drop) delete next[sku];
@@ -399,6 +953,13 @@ export function SkuMappingModule() {
     setUploadedSkus([]);
     setUploadMeta(null);
     setMasterRows([]);
+    setWorkspaceId(null);
+    setWorkspaceFileLabel("");
+    setWorkspaceUploadedAtIso(null);
+    setCloudWorkspaceUpdatedAt(null);
+    lastSyncedAssignmentFlatRef.current = {};
+    initialAutosaveBypassRef.current = true;
+    setMappingLastSyncedAt(null);
     setFileEpoch((n) => n + 1);
   }
 
@@ -440,12 +1001,43 @@ export function SkuMappingModule() {
       writeSkuMappingLocalDraft(next);
       return next;
     });
+    const wid =
+      workspaceId ??
+      (crypto.randomUUID?.() ?? `ws-${Date.now().toString(36)}`);
+    if (!workspaceId) setWorkspaceId(wid);
+    const upAt = workspaceUploadedAtIso ?? new Date().toISOString();
+    if (!workspaceUploadedAtIso) setWorkspaceUploadedAtIso(upAt);
+
     setUploadedSkus(uniq);
-    persistSkuUpload(uniq, {
-      scannedRows: uniq.length,
-      columnUsed: null,
-    }, userId);
     setUploadMeta({ scannedRows: uniq.length, columnUsed: null });
+    persistWorkspaceBundle(
+      uniq,
+      { scannedRows: uniq.length, columnUsed: null },
+      userId,
+      {
+        workspaceId: wid,
+        fileLabel: workspaceFileLabel || "Manual list",
+        uploadedAtIso: upAt,
+        cloudUpdatedIso: new Date().toISOString(),
+      }
+    );
+    initialAutosaveBypassRef.current = true;
+    if (remoteAvailable && userId) {
+      enqueuePersistJob(() =>
+        upsertSkuMappingWorkspace({
+          workspaceId: wid,
+          fileName: workspaceFileLabel || "Manual list",
+          uploadedAt: upAt,
+          listingSkus: uniq,
+          columnUsed: null,
+          scannedRows: uniq.length,
+        }).then((cw) => {
+          if (cw.ok && cw.workspace) {
+            setCloudWorkspaceUpdatedAt(cw.workspace.updated_at);
+          }
+        })
+      );
+    }
     setFileEpoch((n) => n + 1);
     setEditListingOpen(false);
     notify.success(
@@ -456,7 +1048,7 @@ export function SkuMappingModule() {
     );
   }
 
-  async function saveAllMasterMappings() {
+  async function flushMappingsManual() {
     if (!uploadedSkus.length) return;
 
     if (!cloudConfigured) {
@@ -466,8 +1058,6 @@ export function SkuMappingModule() {
       return;
     }
 
-    const flat = flattenMasterFirstRows(masterRows);
-
     setBulkBusy(true);
     try {
       const auth = await getSkuMapAuthContext();
@@ -476,31 +1066,10 @@ export function SkuMappingModule() {
         return;
       }
 
-      const groups = mergeGroupsForRemoteBatch(masterRows).filter(
-        (g) => g.listingSkus.length > 0
-      );
+      initialAutosaveBypassRef.current = false;
+      const ok = await runAssignmentPersistence();
 
-      if (groups.length > 0) {
-        const res = await batchApplyMasterMappingsRemote(groups);
-        if (!res.ok) {
-          notify.error(res.message);
-          return;
-        }
-      }
-
-      const toUnassign = uploadedSkus.filter((sku) => {
-        if (flat[sku]) return false;
-        const prev = mergedRows.find((r) => r.listing_sku === sku);
-        return Boolean(prev?.master_name?.trim());
-      });
-
-      if (toUnassign.length > 0) {
-        const u = await unassignListingsRemote(toUnassign);
-        if (!u.ok) {
-          notify.error(u.message);
-          return;
-        }
-      }
+      if (!ok) return;
 
       setLocalDraft((prev) => {
         const next = { ...prev };
@@ -509,26 +1078,35 @@ export function SkuMappingModule() {
         return next;
       });
 
-      await pullRemoteSkuSnapshot();
-      persistSkuUpload(
-        uploadedSkus,
-        uploadMeta ?? {
-          scannedRows: uploadedSkus.length,
-          columnUsed: null,
-        },
-        userId
-      );
-      notify.success("Mappings saved", {
+      if (workspaceId) {
+        persistWorkspaceBundle(
+          uploadedSkus,
+          uploadMeta ?? {
+            scannedRows: uploadedSkus.length,
+            columnUsed: null,
+          },
+          userId,
+          {
+            workspaceId: workspaceId,
+            fileLabel: workspaceFileLabel || "Inventory import",
+            uploadedAtIso:
+              workspaceUploadedAtIso ?? new Date().toISOString(),
+            cloudUpdatedIso: cloudWorkspaceUpdatedAt ?? new Date().toISOString(),
+          }
+        );
+      }
+
+      notify.success("Workspace saved", {
         description:
-          "Your listing import stays on this page so you can map, unmap, or edit anytime. Mappings are stored in your workspace.",
+          "Changes are in your cloud workspace. Your import list stays visible so you can finish remaining SKUs anytime.",
       });
     } finally {
       setBulkBusy(false);
     }
   }
 
-  const saveMappingsRef = React.useRef(saveAllMasterMappings);
-  saveMappingsRef.current = saveAllMasterMappings;
+  const flushMappingsManualRef = React.useRef(flushMappingsManual);
+  flushMappingsManualRef.current = flushMappingsManual;
 
   function handleProtectedSaveMappings() {
     if (!uploadedSkus.length) return;
@@ -541,12 +1119,12 @@ export function SkuMappingModule() {
     if (!authReady) return;
     if (!userId) {
       requestAuthThenContinue(
-        () => void saveMappingsRef.current(),
+        () => void flushMappingsManualRef.current(),
         "save-sku-mapping"
       );
       return;
     }
-    void saveAllMasterMappings();
+    void flushMappingsManual();
   }
 
   async function pushLocalDraftToCloud() {
@@ -702,6 +1280,60 @@ export function SkuMappingModule() {
         }
       />
 
+      <Dialog
+        open={resumeWorkspaceOpen}
+        onOpenChange={(open) => {
+          if (
+            !open &&
+            typeof sessionStorage !== "undefined"
+          ) {
+            sessionStorage.setItem(SESSION_RESUME_DISMISS_KEY, "1");
+          }
+          setResumeWorkspaceOpen(open);
+        }}
+      >
+        <DialogContent className="gap-5 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Continue previous SKU mapping?</DialogTitle>
+            <DialogDescription>
+              An unfinished workspace is ready with{" "}
+              <span className="tabular-nums font-semibold text-foreground">
+                {counts.unmapped.toLocaleString()}
+              </span>{" "}
+              unmapped listings. Continue where you left off, or clear this import and upload a fresh file.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                removeUploadedListing(uploadedSkus);
+                if (typeof sessionStorage !== "undefined") {
+                  sessionStorage.setItem(SESSION_RESUME_DISMISS_KEY, "1");
+                }
+                setResumeWorkspaceOpen(false);
+                notify.info("Starting fresh — upload a new inventory file anytime.");
+              }}
+            >
+              Start new upload
+            </Button>
+            <Button
+              type="button"
+              className="font-semibold sm:order-first"
+              onClick={() => {
+                if (typeof sessionStorage !== "undefined") {
+                  sessionStorage.setItem(SESSION_RESUME_DISMISS_KEY, "1");
+                }
+                setResumeWorkspaceOpen(false);
+              }}
+            >
+              Continue workspace
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <WorkspaceSurfaceCard padding="p-5 sm:p-6">
         <SkuSpreadsheetUploadZone
           busy={parseBusy}
@@ -803,6 +1435,31 @@ export function SkuMappingModule() {
               </DropdownMenu>
             </div>
           </div>
+          {workspaceFileLabel.trim() ? (
+            <p className="mt-4 text-[12px] text-muted-foreground">
+              Source file:{" "}
+              <span className="font-semibold text-foreground">
+                {workspaceFileLabel}
+              </span>
+            </p>
+          ) : null}
+        </WorkspaceSurfaceCard>
+      ) : workspaceBootBusy && remoteAvailable && userId ? (
+        <WorkspaceSurfaceCard padding="px-8 py-14 sm:py-16">
+          <div className="flex flex-col items-center justify-center gap-4 text-center">
+            <Loader2
+              className="size-10 animate-spin text-primary"
+              aria-hidden
+            />
+            <div className="space-y-1">
+              <p className="text-[15px] font-semibold text-foreground">
+                Restoring SKU mapping workspace…
+              </p>
+              <p className="max-w-md text-[13px] text-muted-foreground">
+                Loading your latest import list and mapping progress from this device and your workspace.
+              </p>
+            </div>
+          </div>
         </WorkspaceSurfaceCard>
       ) : (
         <WorkspaceSurfaceCard padding="px-8 py-14 sm:py-16">
@@ -822,17 +1479,34 @@ export function SkuMappingModule() {
 
       {uploadedSkus.length > 0 ? (
         <WorkspaceSurfaceCard padding="p-5 sm:p-6">
-          <SkuMasterFirstPanel
-            uploadedSkus={uploadedSkus}
-            masterRows={masterRows}
-            setMasterRows={setMasterRows}
-            masterNameSuggestions={mastersForDatalist}
-            globalBusy={globalBusy}
-            remoteAvailable={remoteAvailable}
-            cloudConfigured={cloudConfigured}
-            onSaveAll={handleProtectedSaveMappings}
-            saveBusy={bulkBusy}
+          <SkuMappingWorkspaceToolbar
+            total={uploadedSkus.length}
+            mapped={counts.mapped}
+            remaining={counts.unmapped}
+            completedPercent={completedPercent}
+            searchValue={workspaceSearch}
+            onSearchChange={setWorkspaceSearch}
+            statusFilter={mappingStatusFilter}
+            onStatusFilterChange={setMappingStatusFilter}
+            autosaveState={autosaveUi.state}
+            autosaveMessage={autosaveUi.detail}
+            lastSyncedAtForMappings={mappingLastSyncedAt}
           />
+          <div className="mt-5">
+            <SkuMasterFirstPanel
+              uploadedSkus={uploadedSkus}
+              masterRows={masterRows}
+              setMasterRows={setMasterRows}
+              masterNameSuggestions={mastersForDatalist}
+              globalBusy={globalBusy}
+              remoteAvailable={remoteAvailable}
+              cloudConfigured={cloudConfigured}
+              workspaceSearch={workspaceSearch}
+              mappingStatusFilter={mappingStatusFilter}
+              onFlushSaveNow={handleProtectedSaveMappings}
+              flushSaveBusy={bulkBusy}
+            />
+          </div>
         </WorkspaceSurfaceCard>
       ) : null}
 
