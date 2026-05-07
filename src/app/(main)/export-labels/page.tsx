@@ -25,7 +25,7 @@ export default function ExportLabelsPage() {
       <ModulePageHeader
         breadcrumb={[{ label: "Labels" }]}
         title="Labels"
-        description="Filter, organize, and export Meesho labels in minutes. Turn hours of manual PDF work into a 3‑minute Tulmin run—built for high‑volume dispatch teams."
+        description="Turn hours of manual PDF work into a 3‑minute Tulmin run—built for high‑volume dispatch teams. Filter, organize, and export Meesho labels in minutes."
       />
       <ExportLabelsBody />
     </>

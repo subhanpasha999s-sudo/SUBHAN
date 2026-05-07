@@ -56,7 +56,7 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-base font-semibold text-foreground">Contact</h2>
             <p>
-              For support, email{" "}
+              For any issue or query, contact{" "}
               <a
                 href={`mailto:${SUPPORT}`}
                 className="font-medium text-primary underline-offset-2 hover:underline"

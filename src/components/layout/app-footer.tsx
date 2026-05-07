@@ -40,7 +40,7 @@ export function AppFooter() {
         <p className="tabular-nums text-muted-foreground/90">© Tulmin</p>
       </div>
       <p className="mx-auto max-w-md pb-4 pt-3 text-center text-[11px] font-medium leading-snug tracking-wide text-muted-foreground/85">
-        Subhan S/O Zulfiqar Husain &amp; Tabssum
+        All rights reserved.
       </p>
     </footer>
   );

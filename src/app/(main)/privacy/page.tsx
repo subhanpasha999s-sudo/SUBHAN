@@ -28,10 +28,10 @@ export default function PrivacyPage() {
       <WorkspaceSurfaceCard padding="p-6 sm:p-8">
         <article className="space-y-5 text-[15px] leading-relaxed text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-foreground">What Tulmin processes</h2>
+            <h2 className="text-base font-semibold text-foreground">How Tulmin works</h2>
             <p>
-              Tulmin helps you process shipment label PDFs and optional SKU mappings. Most PDF
-              parsing and filtering run in your browser.
+              Tulmin filters labels based on your needs by SKU, quantity, and courier partner, then
+              lets you export only the specific filtered set from large label files.
             </p>
           </section>
           <section className="space-y-2">
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
           <section className="space-y-2">
             <h2 className="text-base font-semibold text-foreground">Contact</h2>
             <p>
-              For help with privacy or deletion requests, email{" "}
+              For any issue or query, contact{" "}
               <a
                 href={`mailto:${SUPPORT}`}
                 className="font-medium text-primary underline-offset-2 hover:underline"
