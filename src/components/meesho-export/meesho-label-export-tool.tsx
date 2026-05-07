@@ -13,6 +13,8 @@ import {
   FileUp,
   Layers2,
   Loader2,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
@@ -63,13 +65,21 @@ import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
 import { WorkspaceSurfaceCard } from "@/components/layout/workspace-layout";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useRuntimePerformanceProfile } from "@/hooks/use-runtime-performance-profile";
 import { cn } from "@/lib/utils";
 import type { VirtualListTuning } from "@/lib/runtime/performance-tier";
 
 const ROW_H = 42;
-/** Virtual row height — compact two-line card + gutter (premium mobile density). */
-const CARD_ROW_H = 98;
+/** Virtual row estimate — mapped rows add a “Mapped to” line; refined by `measureElement`. */
+const CARD_ROW_H = 108;
 
 /** Session key for “already exported” hints — scoped per imported PDF fingerprint. */
 const MEESHO_SKU_EXPORT_MARK_STORAGE = "lable.meeshoSkuExported.v1";
@@ -319,6 +329,34 @@ function FilterMenuCountRow({
   );
 }
 
+function MobileFilterChip({
+  active,
+  children,
+  onClick,
+  className,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "touch-manipulation shrink-0 rounded-full px-3.5 py-2 text-[12px] font-semibold tracking-tight transition-[transform,box-shadow,background-color,color] duration-150 ease-smooth active:scale-[0.98]",
+        active
+          ? "bg-primary text-primary-foreground shadow-[0_0_24px_-4px_rgb(96_165_250/0.45)] ring-1 ring-white/15"
+          : "bg-muted/55 text-muted-foreground shadow-sm ring-1 ring-white/[0.04] hover:bg-muted/80 hover:text-foreground",
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 function LabelPdfFilterFields({
   layout,
   listingSkuSearch,
@@ -338,7 +376,7 @@ function LabelPdfFilterFields({
   onClearFilters,
   mappedSkuLabelStats,
 }: {
-  layout: "desktop" | "mobile";
+  layout: "desktop" | "sheet";
   listingSkuSearch: string;
   onListingSkuSearch: (v: string) => void;
   mappedMasterFilter: MappedSkuMasterFilter;
@@ -356,12 +394,12 @@ function LabelPdfFilterFields({
   onClearFilters: () => void;
   mappedSkuLabelStats: MappedSkuLabelStats;
 }) {
-  const isMobile = layout === "mobile";
-  const lbl = isMobile ? MOBILE_FILTER_LABEL_CLASS : PREMIUM_FIELD_LABEL_CLASS;
-  const ctl = isMobile ? MOBILE_FIELD_CONTROL_CLASS : PREMIUM_FIELD_CONTROL_CLASS;
+  const isSheet = layout === "sheet";
+  const lbl = isSheet ? MOBILE_FILTER_LABEL_CLASS : PREMIUM_FIELD_LABEL_CLASS;
+  const ctl = isSheet ? MOBILE_FIELD_CONTROL_CLASS : PREMIUM_FIELD_CONTROL_CLASS;
   const selectTriggerExtras = cn(
     "h-10 shrink-0 border py-0 pr-8 hover:bg-background [&_svg]:size-[15px] [&_svg]:text-muted-foreground/70 [&_[data-slot=select-value]]:truncate",
-    isMobile ? "rounded-lg" : "rounded-full"
+    isSheet ? "rounded-xl" : "rounded-full"
   );
 
   const masterBlock = (
@@ -502,7 +540,7 @@ function LabelPdfFilterFields({
         <p
           className={cn(
             "font-medium leading-snug text-muted-foreground",
-            isMobile ? "mt-1 text-[10px]" : "mt-2 text-[11px]"
+            isSheet ? "mt-1 text-[10px]" : "mt-2 text-[11px]"
           )}
         >
           No quantity detected in this PDF.
@@ -564,7 +602,7 @@ function LabelPdfFilterFields({
       variant="outline"
       size="sm"
       className={
-        isMobile
+        isSheet
           ? "h-10 w-full text-[13px] font-semibold"
           : "h-9 shrink-0 px-4 text-[12px] font-semibold"
       }
@@ -575,40 +613,95 @@ function LabelPdfFilterFields({
     </Button>
   );
 
-  if (isMobile) {
+  if (isSheet) {
+    const qtyChipMax = 12;
+    const partnerChipMax = 10;
+    const qtyChipValues = qtyCarrierStats.quantitiesSortedDesc.slice(0, qtyChipMax);
+    const partnerChipValues = qtyCarrierStats.partnersSortedDesc.slice(0, partnerChipMax);
+    const qtyFilterNum =
+      qtyFilter === QTY_PARTNER_FILTER_ALL
+        ? null
+        : Number.parseInt(qtyFilter, 10);
+    const qtyNotOnChip =
+      qtyFilter !== QTY_PARTNER_FILTER_ALL &&
+      (qtyFilterNum == null ||
+        !Number.isFinite(qtyFilterNum) ||
+        !qtyChipValues.includes(qtyFilterNum));
+    const partnerNotOnChip =
+      partner !== QTY_PARTNER_FILTER_ALL && !partnerChipValues.includes(partner);
+    const showQtySelect =
+      qtyCarrierStats.quantitiesSortedDesc.length > qtyChipMax || qtyNotOnChip;
+    const showPartnerSelect =
+      qtyCarrierStats.partnersSortedDesc.length > partnerChipMax || partnerNotOnChip;
+
+    const chipScroller =
+      "flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <p className="text-[12px] leading-relaxed text-muted-foreground">
-          Filters only control your working view. Your source PDF stays unchanged until export, so
-          teams can refine confidently and move faster without risk. Use{" "}
-          <span className="font-semibold text-foreground/85">Mapped SKU</span> for the SKU you
-          set in SKU Mapping.
+          Refine what appears in the list. Your PDF file is unchanged until you export.
         </p>
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="label-filter-listing-sku" className={lbl}>
-              Listing SKU
-            </Label>
-            <Input
-              id="label-filter-listing-sku"
-              value={listingSkuSearch}
-              onChange={(e) => onListingSkuSearch(e.target.value)}
-              placeholder="Search listing SKUs…"
-              title="Find labels by marketplace listing SKU (partial match)."
-              aria-describedby="label-filter-listing-hint-mobile"
-              className={cn(ctl, "h-10 py-2")}
-            />
-            <p id="label-filter-listing-hint-mobile" className="mt-1.5 text-[11px] text-muted-foreground">
-              Matches any part of the listing code.
-            </p>
+        <div>
+          <span className={lbl}>Mapped status</span>
+          <div className={cn("mt-2", chipScroller)}>
+            <MobileFilterChip active={mappedMasterFilter.mode === "all"} onClick={onMasterFilterAll}>
+              All
+            </MobileFilterChip>
+            <MobileFilterChip
+              active={mappedMasterFilter.mode === "unmapped"}
+              onClick={onMasterFilterUnmapped}
+            >
+              Unmapped
+            </MobileFilterChip>
           </div>
-          {masterBlock}
-          {qtyBlock}
-          {courierBlock}
+          <div className="mt-3">{masterBlock}</div>
         </div>
 
-        <div>{clearBtn}</div>
+        <div>
+          <span className={lbl}>Quantity</span>
+          <div className={cn("mt-2", chipScroller)}>
+            <MobileFilterChip
+              active={qtyFilter === QTY_PARTNER_FILTER_ALL}
+              onClick={() => onQtyFilter(QTY_PARTNER_FILTER_ALL)}
+            >
+              All
+            </MobileFilterChip>
+            {qtyChipValues.map((q) => (
+              <MobileFilterChip
+                key={q}
+                active={qtyFilter === String(q)}
+                onClick={() => onQtyFilter(String(q))}
+              >
+                {q.toLocaleString()}
+              </MobileFilterChip>
+            ))}
+          </div>
+          {showQtySelect ? <div className="mt-2">{qtyBlock}</div> : null}
+        </div>
+
+        <div>
+          <span className={lbl}>Carrier</span>
+          <div className={cn("mt-2", chipScroller)}>
+            <MobileFilterChip
+              active={partner === QTY_PARTNER_FILTER_ALL}
+              onClick={() => onPartner(QTY_PARTNER_FILTER_ALL)}
+            >
+              All
+            </MobileFilterChip>
+            {partnerChipValues.map((p) => (
+              <MobileFilterChip
+                key={p}
+                active={partner === p}
+                onClick={() => onPartner(p)}
+              >
+                {p}
+              </MobileFilterChip>
+            ))}
+          </div>
+          {showPartnerSelect ? <div className="mt-2">{courierBlock}</div> : null}
+        </div>
       </div>
     );
   }
@@ -929,6 +1022,53 @@ function LabelsVirtualGrid({
   );
 }
 
+function LabelMappingStatusPill({ mapped }: { mapped: boolean }) {
+  if (mapped) {
+    return (
+      <span
+        className="inline-flex items-center rounded-full bg-emerald-500/[0.13] px-2 py-0.5 text-[11px] font-semibold leading-none tracking-tight text-emerald-200 ring-1 ring-emerald-400/25 shadow-[0_0_14px_-4px_rgb(52_211_153/0.55)] dark:text-emerald-100"
+        title="This listing SKU is mapped in SKU Mapping."
+      >
+        Mapped
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-amber-500/[0.12] px-2 py-0.5 text-[11px] font-semibold leading-none tracking-tight text-amber-100 ring-1 ring-amber-400/30 shadow-[0_0_12px_-4px_rgb(251_191_36/0.35)]"
+      title="Not linked to a master SKU yet."
+    >
+      Pending
+    </span>
+  );
+}
+
+function MobileStatPill({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-baseline gap-2 rounded-full px-3 py-2 ring-1 transition-[box-shadow,background-color] duration-200",
+        active
+          ? "bg-primary/[0.14] ring-primary/30 shadow-[0_0_28px_-10px_rgb(96_165_250/0.65)]"
+          : "bg-muted/40 ring-white/[0.05] dark:bg-muted/25"
+      )}
+    >
+      <span className="text-[14px] font-semibold tabular-nums leading-none text-foreground">
+        {value}
+      </span>
+      <span className="text-[11px] font-medium leading-none text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 function LabelsMobileCards({
   rows,
   selected,
@@ -950,7 +1090,11 @@ function LabelsMobileCards({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => CARD_ROW_H,
+    estimateSize: (index) => {
+      const r = rows[index];
+      if (!r) return CARD_ROW_H;
+      return r.master_sku?.trim() ? 128 : 104;
+    },
     overscan: virtualTune.overscan,
     useAnimationFrameWithResizeObserver: virtualTune.useAnimationFrameWithResizeObserver,
   });
@@ -959,95 +1103,122 @@ function LabelsMobileCards({
     rows.length > 0 && rows.every((r) => Boolean(selected[r.id]));
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm ring-1 ring-border/10 dark:border-border dark:ring-border/25">
-      <div className="flex min-h-11 items-center gap-2 border-b border-border/50 bg-muted/40 px-3 py-2 dark:bg-muted/25">
+    <div className="flex flex-col gap-2">
+      <div className="flex min-h-10 items-center gap-2 px-1">
         <Checkbox
           checked={allInViewSelected}
           disabled={globalBusy || rows.length === 0}
           onCheckedChange={(c) => onSelectAllInView(Boolean(c))}
           aria-label="Select all in view"
-          className="size-5"
+          className="size-[22px] rounded-md"
         />
         <span className="text-[12px] font-medium text-muted-foreground">
-          <span className="tabular-nums font-semibold text-foreground">
-            {rows.length.toLocaleString()}
-          </span>{" "}
-          rows · tap checkbox to export
+          Select all in view
+        </span>
+        <span className="ml-auto text-[12px] tabular-nums text-muted-foreground">
+          {rows.length.toLocaleString()} shown
         </span>
       </div>
       <div
         ref={scrollRef}
-        className="max-h-[min(56dvh,560px)] overflow-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+        className="max-h-[min(58dvh,620px)] overflow-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
         role="list"
       >
         {rows.length === 0 ? (
-          <p className="py-12 text-center text-xs text-muted-foreground">
-            No rows match these filters.
+          <p className="py-16 text-center text-[13px] text-muted-foreground">
+            No labels match your search or filters.
           </p>
         ) : (
           <div
-            className="relative px-2 py-3"
+            className="relative px-0 py-1"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
           >
             {virtualizer.getVirtualItems().map((vi) => {
               const r = rows[vi.index];
               if (!r) return null;
+              const mapped = Boolean(r.master_sku?.trim());
+              const masterSku = r.master_sku?.trim() ?? "";
+
               return (
                 <div
                   key={r.id}
-                  className="absolute left-2 right-2 top-0"
+                  data-index={vi.index}
+                  ref={virtualizer.measureElement}
+                  className="absolute left-0 right-0 top-0 px-0"
                   style={{
-                    height: `${vi.size}px`,
                     transform: `translateY(${vi.start}px)`,
                   }}
                   role="listitem"
                 >
-                  <div className="flex h-[calc(100%-6px)] gap-2.5 rounded-lg border border-border/60 bg-card px-3 py-2.5 shadow-sm dark:border-border/80">
-                    <div className="flex shrink-0 items-center">
+                  <div
+                    className={cn(
+                      "mb-2 flex gap-3 rounded-2xl px-3 py-2.5",
+                      "bg-gradient-to-br from-muted/25 to-muted/[0.08]",
+                      "shadow-[0_2px_24px_-12px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.06]",
+                      "dark:from-muted/20 dark:to-transparent dark:shadow-[0_12px_40px_-28px_rgb(0_0_0/0.85)]",
+                      mapped && "shadow-[inset_0_1px_0_0_rgb(16_185_129/0.08)]"
+                    )}
+                  >
+                    <div className="flex shrink-0 items-start pt-0.5">
                       <Checkbox
                         checked={Boolean(selected[r.id])}
                         disabled={globalBusy}
-                        onCheckedChange={(c) =>
-                          onToggleSelect(r.id, Boolean(c))
-                        }
+                        onCheckedChange={(c) => onToggleSelect(r.id, Boolean(c))}
                         aria-label={`Select label page ${r.page}`}
-                        className="size-5"
+                        className="size-[22px] rounded-md"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 break-all font-mono text-[13px] font-semibold leading-snug text-foreground">
+                        <p className="min-w-0 break-all font-mono text-[15px] font-semibold leading-snug tracking-tight text-foreground">
                           {r.listing_sku || "—"}
                         </p>
-                        <span className="shrink-0 rounded-md bg-muted/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-border/50 dark:bg-muted/40">
+                        <span className="shrink-0 rounded-full bg-background/65 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-white/[0.08]">
                           p.{r.page}
                         </span>
                       </div>
-                      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-snug text-muted-foreground">
-                        <span
-                          className={cn(
-                            "flex min-w-0 items-center gap-1",
-                            !r.master_sku?.trim() && "text-amber-700 dark:text-amber-300"
-                          )}
-                        >
-                          <span className="min-w-0 truncate">
-                            {r.master_sku?.trim()
-                              ? r.master_sku.trim()
-                              : "Unmapped"}
-                          </span>
-                          {exportedMasterKeys.has(rowMasterExportKey(r)) ? (
-                            <ExportedSkuHint />
-                          ) : null}
-                        </span>
-                        <span aria-hidden className="text-border">
-                          ·
-                        </span>
-                        <span className="tabular-nums">qty {r.quantity ?? "—"}</span>
-                        <span aria-hidden className="text-border">
-                          ·
-                        </span>
-                        <span className="min-w-0 truncate">{r.delivery_partner}</span>
-                      </div>
+
+                      {mapped ? (
+                        <>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <LabelMappingStatusPill mapped />
+                          </div>
+                          <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/90">
+                            Mapped to
+                          </p>
+                          <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
+                            <p className="min-w-0 flex-1 break-all font-mono text-[13px] font-medium leading-snug text-emerald-100/95">
+                              {masterSku}
+                            </p>
+                            {exportedMasterKeys.has(rowMasterExportKey(r)) ? (
+                              <ExportedSkuHint className="shrink-0" />
+                            ) : null}
+                          </div>
+                          <p className="mt-2 text-[12px] font-medium leading-snug text-muted-foreground">
+                            <span className="tabular-nums">Qty {r.quantity ?? "—"}</span>
+                            <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                              ·
+                            </span>
+                            <span className="min-w-0">{r.delivery_partner}</span>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                            <LabelMappingStatusPill mapped={false} />
+                            {exportedMasterKeys.has(rowMasterExportKey(r)) ? (
+                              <ExportedSkuHint className="shrink-0" />
+                            ) : null}
+                          </div>
+                          <p className="mt-1.5 text-[12px] font-medium leading-snug text-muted-foreground">
+                            <span className="tabular-nums">Qty {r.quantity ?? "—"}</span>
+                            <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                              ·
+                            </span>
+                            <span className="min-w-0">{r.delivery_partner}</span>
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1056,11 +1227,6 @@ function LabelsMobileCards({
           </div>
         )}
       </div>
-      {rows.length > 0 ? (
-        <p className="border-t border-border/45 bg-muted/25 px-3 py-1.5 text-center text-[10px] tabular-nums text-muted-foreground">
-          Pull to scroll list
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -1089,6 +1255,7 @@ export function MeeshoLabelExportTool() {
   /** `"__all__"` or stringified integer from parsed PDF */
   const [qtyFilter, setQtyFilter] = React.useState("__all__");
   const [partner, setPartner] = React.useState("__all__");
+  const [mobileFilterOpen, setMobileFilterOpen] = React.useState(false);
 
   const [sortKey, setSortKey] = React.useState<SortKey | "page">("page");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
@@ -1627,33 +1794,68 @@ export function MeeshoLabelExportTool() {
           ) : null}
           <section
             className={cn(
-              "relative space-y-3 rounded-xl border border-label-grid-border bg-label-sheet p-3 shadow-inner ring-1 ring-border/20 sm:space-y-4 sm:p-5",
-              viewMode === "mobile" && "pb-[5.5rem] sm:pb-28"
+              "relative space-y-3 sm:space-y-4",
+              viewMode === "mobile"
+                ? cn(
+                    "rounded-2xl bg-gradient-to-b from-muted/25 via-muted/[0.07] to-transparent p-4 shadow-[0_28px_90px_-55px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.05]",
+                    selectedTotal > 0 &&
+                      "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
+                  )
+                : "rounded-xl border border-label-grid-border bg-label-sheet p-3 shadow-inner ring-1 ring-border/20 sm:p-5"
             )}
             aria-labelledby="labels-grid-heading"
           >
-            <div className="flex flex-col gap-2.5 border-b border-label-grid-border pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
+            <div
+              className={cn(
+                "flex flex-col gap-2.5 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3",
+                viewMode === "mobile"
+                  ? "border-b border-white/[0.06]"
+                  : "border-b border-label-grid-border"
+              )}
+            >
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <h2
-                    id="labels-grid-heading"
-                    className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
-                  >
-                    Label workspace
-                  </h2>
-                  <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
-                    ·
-                  </span>
-                  <span className="text-[13px] font-medium tabular-nums text-muted-foreground sm:inline">
-                    {filteredLabels.length.toLocaleString()}
-                    <span className="font-normal text-muted-foreground"> in view</span>
-                  </span>
-                </div>
-                <p className="mt-2 hidden max-w-2xl text-[12px] leading-relaxed text-muted-foreground md:block lg:text-[13px]">
-                  Quickly isolate the right labels, then export selected pages or a grouped bundle.
-                  This helps reduce manual sorting and keeps dispatch smoother at scale.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2 md:hidden">
+                {viewMode === "mobile" ? (
+                  <div className="flex items-end justify-between gap-3">
+                    <h2
+                      id="labels-grid-heading"
+                      className="text-[15px] font-semibold tracking-tight text-foreground"
+                    >
+                      Label workspace
+                    </h2>
+                    <span className="shrink-0 text-[12px] font-medium tabular-nums text-muted-foreground">
+                      {filteredLabels.length.toLocaleString()}
+                      <span className="font-normal"> in view</span>
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <h2
+                        id="labels-grid-heading"
+                        className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
+                      >
+                        Label workspace
+                      </h2>
+                      <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
+                        ·
+                      </span>
+                      <span className="text-[13px] font-medium tabular-nums text-muted-foreground sm:inline">
+                        {filteredLabels.length.toLocaleString()}
+                        <span className="font-normal text-muted-foreground"> in view</span>
+                      </span>
+                    </div>
+                    <p className="mt-2 hidden max-w-2xl text-[12px] leading-relaxed text-muted-foreground md:block lg:text-[13px]">
+                      Quickly isolate the right labels, then export selected pages or a grouped bundle.
+                      This helps reduce manual sorting and keeps dispatch smoother at scale.
+                    </p>
+                  </>
+                )}
+                <div
+                  className={cn(
+                    "mt-2 flex flex-wrap gap-2 md:hidden",
+                    viewMode === "mobile" && "hidden"
+                  )}
+                >
                   <span className="inline-flex items-center rounded-md bg-background/95 px-2 py-0.5 text-[11px] font-medium tabular-nums text-foreground ring-1 ring-border/55">
                     {enrichedRows.length.toLocaleString()} total
                   </span>
@@ -1681,7 +1883,13 @@ export function MeeshoLabelExportTool() {
             !userId &&
             getSupabaseBrowser() &&
             hasMappedSkuLabels ? (
-              <div className="rounded-lg border border-border border-l-[3px] border-l-primary bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+              <div
+                className={cn(
+                  "rounded-lg border border-border border-l-[3px] border-l-primary bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground",
+                  viewMode === "mobile" &&
+                    "rounded-2xl border-white/[0.06] border-l-primary bg-muted/25 shadow-inner ring-1 ring-white/[0.04]"
+                )}
+              >
                 <span className="font-medium text-foreground">Optional workspace backup:</span>{" "}
                 your SKU mappings are enriching this PDF on-device. Sign in once if you&apos;d like
                 the same SKU map persisted in our cloud workspace long term—it&apos;s free, and exports
@@ -1697,54 +1905,143 @@ export function MeeshoLabelExportTool() {
             ) : null}
 
             {viewMode === "mobile" ? (
-              <details className="group overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-sm open:border-border open:shadow-md [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer touch-manipulation list-none items-start gap-3 px-4 py-3.5 text-left">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-[15px] font-semibold tracking-tight text-foreground">
-                        Filters
-                      </span>
-                      {labelFilterActiveCount > 0 ? (
-                        <span className="rounded-md bg-primary/12 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-primary">
-                          {labelFilterActiveCount} active
-                        </span>
-                      ) : (
-                        <span className="text-[12px] font-medium text-muted-foreground">
-                          Optional
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 max-w-[52ch] text-[12px] leading-snug text-muted-foreground">
-                      Choose exactly what appears in your export view, then clear in one tap.
-                    </p>
+              <>
+                <div className="flex flex-col gap-3">
+                  <div className="-mx-1 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <MobileStatPill
+                      label="Total"
+                      value={enrichedRows.length.toLocaleString()}
+                    />
+                    <MobileStatPill
+                      label="Mapped"
+                      value={mappedRows.length.toLocaleString()}
+                    />
+                    <MobileStatPill
+                      label="Open"
+                      value={(enrichedRows.length - mappedRows.length).toLocaleString()}
+                    />
+                    <MobileStatPill
+                      label="Selected"
+                      value={selectedTotal.toLocaleString()}
+                      active={selectedTotal > 0}
+                    />
+                    <MobileStatPill
+                      label="Export"
+                      value={selectedTotal.toLocaleString()}
+                      active={selectedTotal > 0}
+                    />
                   </div>
-                  <ChevronDown
-                    className="mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform duration-200 ease-smooth group-open:rotate-180"
-                    aria-hidden
-                  />
-                </summary>
-                <div className="border-t border-border/50 bg-muted/[0.08] px-4 pb-4 pt-3 dark:bg-muted/20">
-                  <LabelPdfFilterFields
-                    layout="mobile"
-                    listingSkuSearch={listingSkuSearch}
-                    onListingSkuSearch={setListingSkuSearch}
-                    mappedMasterFilter={mappedMasterFilter}
-                    onMasterFilterAll={onMasterFilterAll}
-                    onMasterFilterUnmapped={onMasterFilterUnmapped}
-                    onMasterFilterToggleMaster={onMasterFilterToggleMaster}
-                    qtyFilter={qtyFilter}
-                    onQtyFilter={setQtyFilter}
-                    partner={partner}
-                    onPartner={setPartner}
-                    distinctMasterNames={distinctMasterNames}
-                    qtyCarrierStats={qtyCarrierStats}
-                    rowsLen={rows.length}
-                    activeFilterCount={labelFilterActiveCount}
-                    onClearFilters={clearLabelFilters}
-                    mappedSkuLabelStats={mappedSkuLabelStats}
-                  />
+                  <div className="flex items-stretch gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <Search
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground/75"
+                        aria-hidden
+                      />
+                      <Input
+                        id="label-workspace-mobile-search"
+                        value={listingSkuSearch}
+                        onChange={(e) => setListingSkuSearch(e.target.value)}
+                        placeholder="Search SKU or mapped code…"
+                        title="Filter by listing SKU or mapped master SKU (partial match)."
+                        aria-label="Search SKU or mapped code"
+                        className="h-11 rounded-2xl border-0 bg-muted/40 py-2 pl-10 pr-3 text-[14px] font-medium shadow-[inset_0_1px_2px_rgb(0_0_0/0.12)] ring-1 ring-white/[0.06] placeholder:text-muted-foreground/55 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)]"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setMobileFilterOpen(true)}
+                      title="Open filters"
+                      className="relative h-11 shrink-0 touch-manipulation rounded-2xl px-3.5 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
+                    >
+                      <SlidersHorizontal className="mr-2 size-[18px]" aria-hidden />
+                      Filters
+                      {labelFilterActiveCount > 0 ? (
+                        <span className="ml-1 inline-flex min-w-[1.125rem] justify-center rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
+                          {labelFilterActiveCount}
+                        </span>
+                      ) : null}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      title="Export grouped workflow — all rows in view, grouped."
+                      disabled={filteredLabels.length === 0}
+                      onClick={() => void requestGroupedDownload()}
+                      className="h-11 w-11 shrink-0 touch-manipulation rounded-2xl bg-muted/55 ring-1 ring-white/[0.06]"
+                    >
+                      <Layers2 className="size-[18px]" aria-hidden />
+                      <span className="sr-only">Export grouped workflow</span>
+                    </Button>
+                  </div>
                 </div>
-              </details>
+
+                <Dialog open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                  <DialogContent
+                    showCloseButton
+                    className="flex max-h-[min(88dvh,680px)] flex-col gap-0 overflow-hidden rounded-t-[1.25rem] border-white/[0.06] bg-popover p-0 shadow-2xl ring-1 ring-white/[0.06] sm:max-w-[min(100vw-2rem,24rem)] sm:rounded-xl"
+                  >
+                    <DialogHeader className="border-b border-white/[0.06] px-5 pb-3 pt-4">
+                      <DialogTitle className="font-heading text-[17px] font-semibold tracking-tight">
+                        Filters
+                      </DialogTitle>
+                      <DialogDescription className="text-[13px] leading-snug">
+                        {labelFilterActiveCount > 0 ? (
+                          <>
+                            {labelFilterActiveCount.toLocaleString()} active — tap{" "}
+                            <span className="font-medium text-foreground/90">Done</span> when you are
+                            finished.
+                          </>
+                        ) : (
+                          <>
+                            Optional refinement — your PDF stays unchanged until you export.
+                          </>
+                        )}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                      <LabelPdfFilterFields
+                        layout="sheet"
+                        listingSkuSearch={listingSkuSearch}
+                        onListingSkuSearch={setListingSkuSearch}
+                        mappedMasterFilter={mappedMasterFilter}
+                        onMasterFilterAll={onMasterFilterAll}
+                        onMasterFilterUnmapped={onMasterFilterUnmapped}
+                        onMasterFilterToggleMaster={onMasterFilterToggleMaster}
+                        qtyFilter={qtyFilter}
+                        onQtyFilter={setQtyFilter}
+                        partner={partner}
+                        onPartner={setPartner}
+                        distinctMasterNames={distinctMasterNames}
+                        qtyCarrierStats={qtyCarrierStats}
+                        rowsLen={rows.length}
+                        activeFilterCount={labelFilterActiveCount}
+                        onClearFilters={clearLabelFilters}
+                        mappedSkuLabelStats={mappedSkuLabelStats}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2 border-t border-white/[0.06] bg-muted/25 px-4 py-4 pb-safe">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={labelFilterActiveCount === 0}
+                        className="h-11 w-full touch-manipulation rounded-xl text-[13px] font-semibold"
+                        onClick={() => clearLabelFilters()}
+                      >
+                        Clear all
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-11 w-full touch-manipulation rounded-xl text-[13px] font-semibold shadow-[0_12px_36px_-18px_rgb(96_165_250/0.85)]"
+                        onClick={() => setMobileFilterOpen(false)}
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
             ) : (
               <div
                 role="toolbar"
@@ -1867,18 +2164,34 @@ export function MeeshoLabelExportTool() {
               </div>
             )}
 
-            {viewMode === "mobile" ? (
-              <div className="pointer-events-none fixed bottom-4 left-3 z-40 pb-[env(safe-area-inset-bottom,0px)] sm:hidden">
-                <button
-                  type="button"
-                  title="Export PDF for selected rows"
-                  aria-label={`Export PDF. ${selectedTotal.toLocaleString()} rows selected.`}
-                  disabled={selectedTotal === 0}
-                  onClick={() => void requestDownload()}
-                  className="pointer-events-auto flex size-14 touch-manipulation items-center justify-center rounded-full border border-primary/35 bg-primary text-primary-foreground shadow-[0_4px_20px_rgb(59_130_246/0.35)] outline-none ring-2 ring-primary/25 transition-[transform,box-shadow] hover:bg-primary/95 hover:shadow-[0_6px_28px_rgb(59_130_246/0.45)] active:scale-[0.97] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 dark:shadow-[0_4px_24px_rgb(59_130_246/0.25)] dark:ring-offset-background"
-                >
-                  <Download className="size-7" strokeWidth={2} aria-hidden />
-                </button>
+            {viewMode === "mobile" && selectedTotal > 0 ? (
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-background/88 px-4 pt-3 shadow-[0_-12px_48px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/78 dark:shadow-[0_-16px_56px_-28px_rgb(0_0_0/0.85)] sm:hidden">
+                <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Selection
+                    </p>
+                    <p className="truncate text-[15px] font-semibold tabular-nums text-foreground">
+                      {selectedTotal.toLocaleString()} labels
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11 shrink-0 touch-manipulation rounded-xl px-3 text-[13px] font-semibold text-muted-foreground"
+                    onClick={clearSelection}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 min-w-[7.25rem] touch-manipulation gap-2 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
+                    onClick={() => void requestDownload()}
+                  >
+                    <Download className="size-[18px] shrink-0" aria-hidden />
+                    Export
+                  </Button>
+                </div>
               </div>
             ) : null}
           </section>
