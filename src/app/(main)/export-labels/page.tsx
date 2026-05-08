@@ -6,14 +6,16 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Meesho labels — filter & export in minutes",
+  title: "Meesho label filter tool for ecommerce operators",
   description:
-    "Tulmin parses your Meesho label PDF so you filter by SKU, courier, and quantity, then download only what dispatch ships. Built for sellers who need fast operations—not another warehouse ERP.",
+    "Tulmin helps ecommerce operators, especially Meesho teams, filter labels by SKU, courier partner, and quantity, then export only the exact set needed for dispatch.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "Meesho PDF labels",
     "Meesho dispatch PDF",
     "Meesho bulk label export",
+    "Meesho ecommerce operator tool",
+    "label filter by SKU quantity courier",
     "courier-wise label bundle",
     "SKU mapped filter",
   ],

@@ -26,8 +26,13 @@ const siteUrl = getSiteUrl();
 const SEO_KEYWORDS = [
   "Meesho labels",
   "Meesho label PDF",
+  "Meesho ecommerce operator",
+  "Meesho operations tool",
+  "ecommerce operator tool",
+  "ecommerce dispatch tool",
   "Meesho seller tools",
   "Meesho shipping label export",
+  "bulk label filtering",
   "Meesho courier label",
   "Delhivery label PDF",
   "Shadowfax label",
@@ -40,26 +45,26 @@ const SEO_KEYWORDS = [
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Tulmin · Smart Meesho label filtering & export",
+    default: "Tulmin · Meesho label SaaS for ecommerce operators",
     template: "%s · Tulmin",
   },
   description:
-    "Tulmin helps Meesho sellers filter shipment labels by SKU, courier, and quantity, then export only what dispatch needs—from an hour of manual PDF work to a few minutes.",
+    "Tulmin is a SaaS for ecommerce operators, especially Meesho teams. Filter shipment labels by SKU, courier partner, and quantity, then export only what dispatch needs.",
   keywords: SEO_KEYWORDS,
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: siteUrl,
     siteName: "Tulmin",
-    title: "Tulmin · Meesho label filtering & SKU mapping",
+    title: "Tulmin · Meesho label SaaS for ecommerce operators",
     description:
-      "Filter, organize, and export Meesho labels in minutes. Built for faster dispatch—not another ERP.",
+      "Built for ecommerce operators, especially Meesho dispatch teams. Filter, organize, and export only the labels you need.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tulmin · Meesho label filtering & export",
+    title: "Tulmin · Meesho label SaaS for operators",
     description:
-      "Turn hours of label work into a 3‑minute Tulmin workflow. Filter by SKU, courier, quantity—download only what you ship.",
+      "Turn hours of label work into minutes. Filter by SKU, courier partner, and quantity, then export the exact set for dispatch.",
   },
   robots: {
     index: true,
@@ -85,7 +90,7 @@ const SCHEMA_JSON_LD = {
       name: "Tulmin",
       url: siteUrl,
       description:
-        "Tulmin — Meesho label PDFs, courier-aware exports, and listing-to-master SKU mapping.",
+        "Tulmin SaaS for ecommerce operators, especially Meesho: label filtering, courier-aware exports, and SKU mapping.",
       inLanguage: "en-IN",
     },
     {
@@ -100,7 +105,7 @@ const SCHEMA_JSON_LD = {
         priceCurrency: "INR",
       },
       description:
-        "Tulmin — upload Meesho label PDFs, filter by mapped SKU and courier, sync SKU mappings, and export pages for dispatch.",
+        "Tulmin helps ecommerce operators (especially Meesho teams) upload label PDFs, filter by mapped SKU/courier/qty, and export pages for dispatch.",
     },
   ],
 };
