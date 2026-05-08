@@ -31,7 +31,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/28 duration-200 ease-smooth supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -54,7 +54,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           // Mobile: edge-to-edge sheet; sm+: centered modal (avoids tiny click targets via full-width touch surface)
-          "fixed inset-x-0 bottom-0 z-50 grid max-h-[100dvh] w-full translate-x-0 translate-y-0 gap-4 overflow-y-auto rounded-t-xl border-x border-t border-border bg-popover p-4 pt-6 text-sm text-popover-foreground shadow-lg outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[min(92dvh,calc(100%-2rem))] sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border sm:ring-1 sm:ring-foreground/10 sm:shadow-none pb-safe duration-100 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-2 sm:data-open:slide-in-from-bottom-0 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-2 sm:data-closed:slide-out-to-bottom-0 sm:data-closed:zoom-out-95",
+          "fixed inset-x-0 bottom-0 z-50 grid max-h-[100dvh] w-full translate-x-0 translate-y-0 gap-4 overflow-y-auto rounded-t-2xl border-x border-t border-border/70 bg-popover/95 p-4 pt-6 text-sm text-popover-foreground shadow-elevate-md outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[min(92dvh,calc(100%-2rem))] sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border sm:ring-1 sm:ring-white/[0.06] sm:shadow-elevate-md pb-safe duration-200 ease-smooth data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-2 sm:data-open:slide-in-from-bottom-0 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-2 sm:data-closed:slide-out-to-bottom-0 sm:data-closed:zoom-out-95",
           className
         )}
         {...props}

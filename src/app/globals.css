@@ -143,6 +143,16 @@
       transform: scale(0.985);
     }
   }
+
+  .surface-premium {
+    @apply rounded-2xl border border-border/55 bg-card/90 shadow-elevate-sm ring-1 ring-white/[0.04] backdrop-blur-[1px];
+  }
+  .surface-premium-soft {
+    @apply rounded-2xl border border-border/45 bg-card/75 shadow-elevate-xs ring-1 ring-white/[0.03] backdrop-blur-[1px];
+  }
+  .text-subtle {
+    @apply text-muted-foreground/90;
+  }
 }
 
 @layer base {
@@ -153,25 +163,25 @@
 
   /* ─── Light: gray canvas (#f8fafc), white lifted cards/sidebar ─── */
   :root {
-    --background: #f8fafc;
-    --foreground: #0f172a;
+    --background: #f5f8fd;
+    --foreground: #0d1728;
     --card: #ffffff;
-    --card-foreground: #0f172a;
+    --card-foreground: #0d1728;
     --popover: #ffffff;
     --popover-foreground: #111111;
-    --primary: #2563eb;
+    --primary: #3f6cff;
     --primary-foreground: #ffffff;
     --secondary: #f1f5f9;
     --secondary-foreground: #0f172a;
-    --muted: #f1f5f9;
-    --muted-foreground: #64748b;
-    --accent: #f1f5f9;
+    --muted: #eef3fa;
+    --muted-foreground: #617086;
+    --accent: #eef3fa;
     --accent-foreground: #0f172a;
-    --destructive: #dc2626;
+    --destructive: #dc4f5e;
     /** Silver-toned boundaries (cards, inputs, dashed zones, chrome) */
-    --border: #94a3b8;
-    --input: #94a3b8;
-    --ring: #2563eb;
+    --border: #9aa8be;
+    --input: #9aa8be;
+    --ring: #4a74ff;
     --radius: 0.5rem;
 
     --chart-1: #2563eb;
@@ -181,43 +191,43 @@
     --chart-5: #f59e0b;
 
     /** Sidebar — cool enterprise rail (Zoho-style layering vs.canvas) */
-    --sidebar: #f2f5f9;
+    --sidebar: #eef3fb;
     --sidebar-foreground: #0f172a;
-    --sidebar-primary: #2463dc;
+    --sidebar-primary: #3f6cff;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: rgba(15, 23, 42, 0.06);
     --sidebar-accent-foreground: #0f172a;
     --sidebar-border: rgba(100, 116, 139, 0.35);
-    --sidebar-ring: #2563eb;
+    --sidebar-ring: #4a74ff;
     /** Active nav row top edge (readable on light + dark rails) */
     --sidebar-inset-highlight: rgba(15, 23, 42, 0.06);
 
     /** Label PDF: inner sheet inside white card (sub-layer) */
-    --label-sheet: #f1f5f9;
+    --label-sheet: #edf2fa;
     --label-grid-border: rgba(100, 116, 139, 0.5);
     --label-grid-header: #eef2f6;
   }
 
   .dark {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --card: #1e293b;
-    --card-foreground: #f1f5f9;
-    --popover: #1e293b;
-    --popover-foreground: #f1f5f9;
-    --primary: #3b82f6;
-    --primary-foreground: #0f172a;
-    --secondary: #334155;
-    --secondary-foreground: #f8fafc;
-    --muted: #334155;
-    --muted-foreground: #94a3b8;
-    --accent: #334155;
+    --background: #060d1a;
+    --foreground: #eaf0fb;
+    --card: #0e1728;
+    --card-foreground: #eaf0fb;
+    --popover: #101b2e;
+    --popover-foreground: #eaf0fb;
+    --primary: #5f86ff;
+    --primary-foreground: #061022;
+    --secondary: #1a2638;
+    --secondary-foreground: #eef4ff;
+    --muted: #152234;
+    --muted-foreground: #8ea2bf;
+    --accent: #192739;
     --accent-foreground: #f8fafc;
-    --destructive: #f87171;
+    --destructive: #e66c7a;
     /** Dark-mode boundaries: readable slate (not black) */
-    --border: #64748b;
-    --input: #94a3b8;
-    --ring: #3b82f6;
+    --border: #30455f;
+    --input: #3b516d;
+    --ring: #6d90ff;
 
     --chart-1: #60a5fa;
     --chart-2: #94a3b8;
@@ -225,19 +235,19 @@
     --chart-4: #4ade80;
     --chart-5: #fbbf24;
 
-    --sidebar: #0a1020;
-    --sidebar-foreground: #e8edf4;
-    --sidebar-primary: #5b9cf7;
-    --sidebar-primary-foreground: #0b1220;
+    --sidebar: #071224;
+    --sidebar-foreground: #e6eefb;
+    --sidebar-primary: #6b92ff;
+    --sidebar-primary-foreground: #061327;
     --sidebar-accent: rgba(255, 255, 255, 0.06);
     --sidebar-accent-foreground: #f1f5f9;
     --sidebar-border: rgba(148, 163, 184, 0.22);
-    --sidebar-ring: #60a5fa;
+    --sidebar-ring: #6d90ff;
     --sidebar-inset-highlight: rgba(255, 255, 255, 0.06);
 
-    --label-sheet: #1e293b;
-    --label-grid-border: rgba(148, 163, 184, 0.38);
-    --label-grid-header: #334155;
+    --label-sheet: #0f1b2d;
+    --label-grid-border: rgba(113, 133, 161, 0.42);
+    --label-grid-header: #16263a;
   }
 
   * {

@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Download,
   FileUp,
-  Layers2,
   Loader2,
   Search,
   SlidersHorizontal,
@@ -38,7 +37,6 @@ import {
 } from "@/components/ui/select";
 import {
   applyMeeshoLabelFilters,
-  sortLabelsForGroupedExport,
   sortMeeshoLabels,
   type MappedSkuMasterFilter,
   type MeeshoLabelFilters,
@@ -234,6 +232,55 @@ function describeExportFailure(e: unknown): string {
     return m.length > 220 ? `${m.slice(0, 217)}…` : m;
   }
   return "Retry or try a smaller PDF.";
+}
+
+const SKELETON_PULSE =
+  "animate-pulse rounded-md bg-muted/45 dark:bg-muted/30";
+
+/** Shown until viewport mode hydrates — matches filter + grid density without layout shift shock. */
+function LabelsWorkspaceHydrationSkeleton() {
+  return (
+    <div
+      className="space-y-4"
+      aria-busy="true"
+      aria-label="Preparing workspace"
+    >
+      <div className="flex flex-wrap gap-2">
+        {[32, 40, 28, 36].map((w, i) => (
+          <div
+            key={i}
+            className={cn(SKELETON_PULSE, "h-9")}
+            style={{ width: `${w * 4}px` }}
+          />
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-xl border border-border/45 bg-muted/10 ring-1 ring-black/[0.03] dark:bg-muted/[0.06] dark:ring-white/[0.04]">
+        <div
+          className={cn(
+            "grid gap-3 border-b border-border/40 px-3 py-2.5 sm:grid-cols-[auto_1fr_1fr_80px]",
+            "bg-muted/[0.12] dark:bg-muted/[0.08]"
+          )}
+        >
+          <div className={cn(SKELETON_PULSE, "size-4")} />
+          <div className={cn(SKELETON_PULSE, "hidden h-3 sm:block")} />
+          <div className={cn(SKELETON_PULSE, "hidden h-3 sm:block")} />
+          <div className={cn(SKELETON_PULSE, "h-3 max-w-[3.5rem]")} />
+        </div>
+        <div className="divide-y divide-border/35 p-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <div className={cn(SKELETON_PULSE, "size-4 shrink-0")} />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className={cn(SKELETON_PULSE, "h-3 w-[min(100%,14rem)]")} />
+                <div className={cn(SKELETON_PULSE, "h-2.5 w-[min(100%,10rem)]")} />
+              </div>
+              <div className={cn(SKELETON_PULSE, "h-3 w-10 shrink-0 tabular-nums")} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Qty / courier selects use plain `"__all__"` (same sentinel as masters in filter module). */
@@ -868,7 +915,7 @@ function LabelsVirtualGrid({
     rows.length > 0 && rows.every((r) => Boolean(selected[r.id]));
 
   return (
-    <div className="overflow-hidden rounded-md border border-label-grid-border bg-card shadow-inner dark:shadow-none">
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-card/90 shadow-elevate-xs ring-1 ring-black/[0.03] backdrop-blur-[1px] dark:border-label-grid-border dark:bg-card/85 dark:ring-white/[0.04] dark:shadow-inner">
       <div
         className={`${grid} min-h-10 shrink-0 items-center border-b border-label-grid-border bg-label-grid-header py-1.5`}
         role="row"
@@ -978,12 +1025,19 @@ function LabelsVirtualGrid({
             {virtualizer.getVirtualItems().map((vi) => {
               const r = rows[vi.index];
               if (!r) return null;
+              const sel = Boolean(selected[r.id]);
               const stripe =
-                vi.index % 2 === 0 ? "bg-card" : "bg-muted/35";
+                vi.index % 2 === 0 ? "bg-card/95" : "bg-muted/[0.28]";
               return (
                 <div
                   key={r.id}
-                  className={`absolute left-0 top-0 w-full border-b border-border ${stripe}`}
+                  className={cn(
+                    "absolute left-0 top-0 w-full border-b border-border/55 transition-[background-color,box-shadow] duration-150 ease-smooth dark:border-border/40",
+                    stripe,
+                    sel
+                      ? "bg-primary/[0.11] shadow-[inset_3px_0_0_0_var(--primary)]"
+                      : "hover:bg-muted/50 dark:hover:bg-muted/35"
+                  )}
                   style={{
                     height: `${vi.size}px`,
                     transform: `translateY(${vi.start}px)`,
@@ -1159,6 +1213,7 @@ function LabelsMobileCards({
               if (!r) return null;
               const mapped = Boolean(r.master_sku?.trim());
               const masterSku = r.master_sku?.trim() ?? "";
+              const sel = Boolean(selected[r.id]);
 
               return (
                 <div
@@ -1173,11 +1228,12 @@ function LabelsMobileCards({
                 >
                   <div
                     className={cn(
-                      "mb-2 flex gap-3 rounded-2xl px-3 py-2.5",
-                      "bg-gradient-to-br from-muted/25 to-muted/[0.08]",
-                      "shadow-[0_2px_24px_-12px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.06]",
-                      "dark:from-muted/20 dark:to-transparent dark:shadow-[0_12px_40px_-28px_rgb(0_0_0/0.85)]",
-                      mapped && "shadow-[inset_0_1px_0_0_rgb(16_185_129/0.08)]"
+                      "mb-2 flex gap-3 rounded-2xl px-3 py-2.5 transition-[box-shadow,background-color,border-color] duration-200 ease-smooth",
+                      "border border-border/50 bg-muted/12 shadow-elevate-xs ring-1 ring-black/[0.03]",
+                      "dark:border-border/45 dark:bg-card/45 dark:ring-white/[0.04]",
+                      mapped && "border-emerald-500/15 dark:border-emerald-400/20",
+                      sel &&
+                        "border-primary/35 bg-primary/[0.08] shadow-[inset_3px_0_0_0_var(--primary)] ring-primary/20"
                     )}
                   >
                     <div className="flex shrink-0 items-start pt-0.5">
@@ -1707,34 +1763,8 @@ export function MeeshoLabelExportTool() {
     }
   }
 
-  async function downloadFilteredGroupedPdf() {
-    if (!pdfBytes || filteredLabels.length === 0) {
-      notify.info("Nothing matches filters.");
-      return;
-    }
-    const grouped = sortLabelsForGroupedExport(filteredLabels);
-    const pagesInOrder = grouped.map((r) => r.page);
-    try {
-      const out = await exportPdfPagesInOrder(pdfBytes, pagesInOrder);
-      const base = sourceName || "meesho-labels";
-      triggerPdfDownload(out, `${base}-labels-filtered-grouped.pdf`);
-      mergeExportedMastersFromRows(grouped);
-      notify.success(`Grouped · ${grouped.length.toLocaleString()} page(s)`, {
-        description: "✓ = exported for this PDF",
-      });
-    } catch (e) {
-      notify.error("Couldn’t export that PDF yet", {
-        description: describeExportFailure(e),
-      });
-    }
-  }
-
   function requestDownload() {
     void downloadFilteredPdf();
-  }
-
-  function requestGroupedDownload() {
-    void downloadFilteredGroupedPdf();
   }
 
   async function downloadAllSkuFilesZip() {
@@ -1822,7 +1852,7 @@ export function MeeshoLabelExportTool() {
   }
 
   const bulkExportLabel = React.useMemo(() => {
-    if (!bulkSkuZipState) return "Download All SKU Files";
+    if (!bulkSkuZipState) return "Download All SKUs (separate PDFs)";
     if (bulkSkuZipState.phase === "preparing") {
       return `Preparing Files... (${bulkSkuZipState.done}/${bulkSkuZipState.total})`;
     }
@@ -1831,6 +1861,38 @@ export function MeeshoLabelExportTool() {
     }
     return "Download Started";
   }, [bulkSkuZipState]);
+
+  /** Modal copy while ZIP export runs — keeps long jobs legible alongside sticky actions. */
+  const bulkSkuZipModal = React.useMemo(() => {
+    if (!bulkSkuZipState) {
+      return { title: "", body: "", pct: 0 as number };
+    }
+    if (bulkSkuZipState.phase === "preparing") {
+      const { done, total } = bulkSkuZipState;
+      const pct = total > 0 ? Math.min(100, Math.round((100 * done) / total)) : 0;
+      return {
+        title: "Preparing files",
+        body: `${done.toLocaleString()} / ${total.toLocaleString()} SKU PDFs from the current filter.`,
+        pct,
+      };
+    }
+    if (bulkSkuZipState.phase === "zipping") {
+      const { done, total } = bulkSkuZipState;
+      const pct = total > 0 ? Math.min(100, Math.round((100 * done) / total)) : 0;
+      return {
+        title: "Creating ZIP",
+        body: "Compressing PDFs — your download will begin next.",
+        pct,
+      };
+    }
+    return {
+      title: "Starting download",
+      body: "Saving the ZIP in your browser…",
+      pct: 100,
+    };
+  }, [bulkSkuZipState]);
+
+  const showBulkSkuZipAction = mappedMasterFilter.mode === "all";
 
   const hasMappedSkuLabels =
     Object.keys(mappedSkuLabelStats.perName).length > 0;
@@ -1868,9 +1930,19 @@ export function MeeshoLabelExportTool() {
                   Parsing labels…
                 </p>
                 {parseProgress ? (
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    Page {parseProgress[0]} / {parseProgress[1]}
-                  </p>
+                  <>
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      Page {parseProgress[0]} / {parseProgress[1]}
+                    </p>
+                    <div className="mt-1 h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
+                      <div
+                        className="h-full rounded-full bg-primary/75 transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
+                        }}
+                      />
+                    </div>
+                  </>
                 ) : null}
               </>
             ) : (
@@ -1913,7 +1985,7 @@ export function MeeshoLabelExportTool() {
               "relative space-y-3 sm:space-y-4",
               viewMode === "mobile"
                 ? cn(
-                    "rounded-2xl bg-gradient-to-b from-muted/25 via-muted/[0.07] to-transparent p-4 shadow-[0_28px_90px_-55px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.05]",
+                    "rounded-2xl border border-border/35 bg-muted/[0.06] p-4 shadow-elevate-xs ring-1 ring-black/[0.03] dark:border-border/40 dark:bg-muted/[0.05] dark:ring-white/[0.04]",
                     selectedTotal > 0 &&
                       "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
                   )
@@ -1925,7 +1997,7 @@ export function MeeshoLabelExportTool() {
               className={cn(
                 "flex flex-col gap-2.5 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3",
                 viewMode === "mobile"
-                  ? "border-b border-white/[0.06]"
+                  ? "border-b border-border/40"
                   : "border-b border-label-grid-border"
               )}
             >
@@ -2038,11 +2110,6 @@ export function MeeshoLabelExportTool() {
                       value={selectedTotal.toLocaleString()}
                       active={selectedTotal > 0}
                     />
-                    <MobileStatPill
-                      label="Ready"
-                      value={selectedTotal.toLocaleString()}
-                      active={selectedTotal > 0}
-                    />
                   </div>
                   <div className="flex items-stretch gap-2">
                     <div className="relative min-w-0 flex-1">
@@ -2075,34 +2142,24 @@ export function MeeshoLabelExportTool() {
                         </span>
                       ) : null}
                     </Button>
+                  </div>
+                  {showBulkSkuZipAction ? (
                     <Button
                       type="button"
-                      variant="secondary"
-                      size="icon"
-                      title="Grouped export · visible rows"
+                      variant="outline"
+                      title="Download all visible SKU files as ZIP"
                       disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
-                      onClick={() => void requestGroupedDownload()}
-                      className="h-11 w-11 shrink-0 touch-manipulation rounded-2xl bg-muted/55 ring-1 ring-white/[0.06]"
+                      onClick={() => void requestDownloadAllSkuFiles()}
+                      className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
                     >
-                      <Layers2 className="size-[18px]" aria-hidden />
-                      <span className="sr-only">Grouped export</span>
+                      {bulkSkuZipState ? (
+                        <Loader2 className="mr-2 size-[16px] animate-spin" aria-hidden />
+                      ) : (
+                        <Download className="mr-2 size-[16px]" aria-hidden />
+                      )}
+                      {bulkExportLabel}
                     </Button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    title="Download all visible SKU files as ZIP"
-                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
-                    onClick={() => void requestDownloadAllSkuFiles()}
-                    className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
-                  >
-                    {bulkSkuZipState ? (
-                      <Loader2 className="mr-2 size-[16px] animate-spin" aria-hidden />
-                    ) : (
-                      <Download className="mr-2 size-[16px]" aria-hidden />
-                    )}
-                    {bulkExportLabel}
-                  </Button>
+                  ) : null}
                 </div>
 
                 <Dialog open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
@@ -2197,7 +2254,12 @@ export function MeeshoLabelExportTool() {
               </div>
             )}
 
-            <div className="hidden flex-col gap-2 border-b border-label-grid-border pb-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div
+              className={cn(
+                "sticky top-0 z-30 -mx-1 mb-1 hidden flex-col gap-2 border-b border-label-grid-border/80 px-1 py-2.5 backdrop-blur-md sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between",
+                "bg-label-sheet/90 dark:bg-label-sheet/90"
+              )}
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {selectedTotal.toLocaleString()} selected ·{" "}
@@ -2214,34 +2276,24 @@ export function MeeshoLabelExportTool() {
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  title="Grouped export · all visible rows"
-                  className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
-                  disabled={filteredLabels.length === 0}
-                  onClick={() => void requestGroupedDownload()}
-                >
-                  <Layers2 className="size-3.5 shrink-0" aria-hidden />
-                  Grouped export
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  title="Create one ZIP with separate PDF per SKU"
-                  className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
-                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
-                  onClick={() => void requestDownloadAllSkuFiles()}
-                >
-                  {bulkSkuZipState ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Download className="size-3.5" aria-hidden />
-                  )}
-                  {bulkExportLabel}
-                </Button>
+                {showBulkSkuZipAction ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Create one ZIP with separate PDF per SKU"
+                    className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
+                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
+                    onClick={() => void requestDownloadAllSkuFiles()}
+                  >
+                    {bulkSkuZipState ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Download className="size-3.5" aria-hidden />
+                    )}
+                    {bulkExportLabel}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
@@ -2266,13 +2318,7 @@ export function MeeshoLabelExportTool() {
             ) : null}
 
             {viewMode == null ? (
-              <div
-                className="flex min-h-[min(52vh,480px)] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20"
-                aria-busy="true"
-                aria-label="Preparing workspace layout"
-              >
-                <p className="text-xs text-muted-foreground">Loading…</p>
-              </div>
+              <LabelsWorkspaceHydrationSkeleton />
             ) : viewMode === "mobile" ? (
               <LabelsMobileCards
                 rows={filteredLabels}
@@ -2336,6 +2382,30 @@ export function MeeshoLabelExportTool() {
           </section>
         </WorkspaceSurfaceCard>
       ) : null}
+
+      <Dialog open={bulkSkuZipState != null} disablePointerDismissal onOpenChange={() => {}}>
+        <DialogContent showCloseButton={false} className="gap-4 sm:max-w-sm">
+          <DialogHeader className="gap-1.5 text-left sm:text-left">
+            <DialogTitle className="font-heading text-[17px] font-semibold tracking-tight">
+              {bulkSkuZipModal.title}
+            </DialogTitle>
+            <DialogDescription className="text-[13px] leading-snug">
+              {bulkSkuZipModal.body}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="h-2 overflow-hidden rounded-full bg-muted/90 ring-1 ring-border/30">
+              <div
+                className="h-full rounded-full bg-primary/85 transition-[width] duration-300 ease-out"
+                style={{ width: `${bulkSkuZipModal.pct}%` }}
+              />
+            </div>
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Only labels visible under your filters are included.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </WorkspaceModulePageStack>
   );
 }

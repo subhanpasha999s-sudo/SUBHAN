@@ -442,7 +442,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "hidden lg:flex lg:translate-x-0",
           "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
-          "bg-sidebar-rail backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/88",
+          "bg-sidebar-rail backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/86",
           "shadow-sidebar-panel transition-[width] duration-[320ms] ease-panel motion-reduce:transition-none",
           collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[16.25rem]"
         )}
@@ -464,7 +464,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className={cn(
             "relative flex h-full min-h-0 w-full flex-col rounded-r-[22px] border-r border-white/[0.06] bg-sidebar-rail",
-            "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_64px_-24px_rgb(0_0_0/0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sidebar/92",
+            "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_56px_-28px_rgb(0_0_0/0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sidebar/90",
             "outline-none animate-in slide-in-from-left duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none motion-reduce:duration-0"
           )}
         >
@@ -486,7 +486,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[16.25rem]"
         )}
       >
-        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_85%_55%_at_50%_-12%,rgb(59_130_246/0.07),transparent_52%)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-8%,rgb(96_165_250/0.09),transparent_50%)]" />
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_82%_52%_at_50%_-14%,rgb(59_130_246/0.045),transparent_56%)] dark:bg-[radial-gradient(ellipse_78%_46%_at_50%_-10%,rgb(96_165_250/0.05),transparent_55%)]" />
         <WorkspaceFlowerBg />
         <AppTopbar
           mobileNavOpen={drawerOpen}

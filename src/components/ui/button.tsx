@@ -8,10 +8,10 @@ const buttonEase =
 
 const buttonVariants = cva(
   cn(
-    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap outline-none select-none",
+    "group/button inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap outline-none select-none",
     "transition-[transform,background-color,border-color,color,box-shadow,opacity]",
     buttonEase,
-    "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+    "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/35",
     "motion-safe:active:not-aria-[haspopup]:scale-[0.985] motion-reduce:active:scale-100",
     "disabled:pointer-events-none disabled:opacity-50",
     "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
@@ -20,15 +20,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default:
+          "bg-primary text-primary-foreground shadow-[0_8px_22px_-12px_rgb(95_134_255/0.75)] hover:bg-primary/90 hover:shadow-[0_10px_28px_-13px_rgb(95_134_255/0.8)] [a]:hover:bg-primary/90",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-border/80 bg-background/70 hover:bg-muted/55 hover:text-foreground aria-expanded:bg-muted/60 aria-expanded:text-foreground dark:border-input/80 dark:bg-input/20 dark:hover:bg-input/35",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary/85 text-secondary-foreground hover:bg-secondary aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-muted/55 hover:text-foreground aria-expanded:bg-muted/60 aria-expanded:text-foreground dark:hover:bg-muted/45",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "bg-destructive/12 text-destructive hover:bg-destructive/22 focus-visible:border-destructive/40 focus-visible:ring-destructive/25 dark:bg-destructive/22 dark:hover:bg-destructive/34 dark:focus-visible:ring-destructive/35",
         link: "text-primary underline-offset-4 hover:underline motion-safe:active:scale-100",
       },
       size: {

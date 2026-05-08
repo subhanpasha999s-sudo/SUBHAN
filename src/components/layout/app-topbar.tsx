@@ -55,7 +55,7 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
-      <div className="border-b border-white/[0.06] bg-background/82 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.07)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/74 dark:bg-background/80 dark:border-white/[0.05] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)]">
+      <div className="border-b border-white/[0.05] bg-background/80 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72 dark:bg-background/76 dark:border-white/[0.04] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
         <div
           className={cn(
             "mx-auto flex w-full max-w-[100vw] items-center gap-3 sm:gap-4",
@@ -94,7 +94,7 @@ export function AppTopbar({
                 {title}
               </h1>
               {subtitle ? (
-                <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground">
+                <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground/90">
                   {subtitle}
                 </p>
               ) : null}
@@ -103,7 +103,7 @@ export function AppTopbar({
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <div
-              className="hidden items-center gap-1.5 rounded-full bg-muted/55 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-white/[0.06] sm:flex dark:bg-muted/30"
+              className="hidden items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-white/[0.05] sm:flex dark:bg-muted/22"
               title={
                 user
                   ? "Workspace synced — Tulmin can keep your map in the cloud"
