@@ -134,3 +134,18 @@ export function triggerPdfDownload(bytes: Uint8Array, filename: string) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+export function triggerZipDownload(bytes: Uint8Array, filename: string) {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".zip") ? filename : `${filename}.zip`;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

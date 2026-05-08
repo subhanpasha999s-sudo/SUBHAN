@@ -56,6 +56,7 @@ import {
   exportPdfPages,
   exportPdfPagesInOrder,
   triggerPdfDownload,
+  triggerZipDownload,
 } from "@/lib/meesho-label-export/export-selected-pages";
 import { readSkuMappingLocalDraft } from "@/lib/sku-mapping-module/sku-mapping-local-draft";
 import { useAuth } from "@/lib/supabase/auth-context";
@@ -159,6 +160,7 @@ function sanitizeExportFilenameSegment(s: string, maxLen: number): string {
 }
 
 const SELECTED_EXPORT_FILENAME_MAX = 180;
+const BULK_EXPORT_ZIP_FILENAME = "tulmin-sku-labels.zip";
 
 /**
  * Selected export filename: `{SKU1_SKU2_…}-{qty1_qty2_…}.pdf` — SKU names sorted by
@@ -186,6 +188,29 @@ function buildSelectedExportFilename(
   }
   return name;
 }
+
+function makeSkuBucketFileLabel(masterSku: string | null | undefined): string {
+  const raw = masterSku?.trim();
+  if (!raw) return "SKU-MISSING";
+  return sanitizeExportFilenameSegment(raw, 80);
+}
+
+function dedupeFilename(baseName: string, usedLower: Set<string>): string {
+  const clean = baseName.trim() || "SKU";
+  let next = clean;
+  let i = 2;
+  while (usedLower.has(next.toLowerCase())) {
+    next = `${clean}-${i}`;
+    i += 1;
+  }
+  usedLower.add(next.toLowerCase());
+  return next;
+}
+
+type BulkSkuZipState =
+  | { phase: "preparing"; done: number; total: number }
+  | { phase: "zipping"; done: number; total: number }
+  | { phase: "starting" };
 
 /** Compact hint that this mapped SKU bucket was already included in a successful export. */
 function ExportedSkuHint({ className }: { className?: string }) {
@@ -1257,6 +1282,9 @@ export function MeeshoLabelExportTool() {
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
 
   const [selected, setSelected] = React.useState<Record<string, true>>({});
+  const [bulkSkuZipState, setBulkSkuZipState] = React.useState<BulkSkuZipState | null>(
+    null
+  );
 
   const exportMarkFingerprint = React.useMemo(() => {
     if (rows.length === 0) return "";
@@ -1709,11 +1737,106 @@ export function MeeshoLabelExportTool() {
     void downloadFilteredGroupedPdf();
   }
 
+  async function downloadAllSkuFilesZip() {
+    if (!pdfBytes || filteredLabels.length === 0) {
+      notify.info("Nothing matches filters.");
+      return;
+    }
+    if (bulkSkuZipState) return;
+
+    const buckets = new Map<string, { masterSku: string | null; rows: EnrichedMeeshoLabelRow[] }>();
+    for (const r of filteredLabels) {
+      const key = rowMasterExportKey(r);
+      const cur = buckets.get(key);
+      if (cur) {
+        cur.rows.push(r);
+      } else {
+        buckets.set(key, { masterSku: r.master_sku?.trim() || null, rows: [r] });
+      }
+    }
+
+    const bucketList = [...buckets.values()].filter((b) => b.rows.length > 0);
+    if (bucketList.length === 0) {
+      notify.info("No SKU files to export.");
+      return;
+    }
+
+    setBulkSkuZipState({ phase: "preparing", done: 0, total: bucketList.length });
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+
+      for (let i = 0; i < bucketList.length; i += 1) {
+        const bucket = bucketList[i];
+        const pages = bucket.rows
+          .map((r) => r.page)
+          .filter((p) => Number.isInteger(p) && p >= 1)
+          .sort((a, b) => a - b);
+        const uniquePages = [...new Set(pages)];
+        if (uniquePages.length === 0) continue;
+
+        setBulkSkuZipState({ phase: "preparing", done: i + 1, total: bucketList.length });
+        const pdfOut = await exportPdfPagesInOrder(pdfBytes, uniquePages);
+        const base = makeSkuBucketFileLabel(bucket.masterSku);
+        const fileBase = dedupeFilename(base, usedNames);
+        zip.file(`${fileBase}.pdf`, pdfOut);
+
+        // Yield between SKU files to keep UI responsive on large exports.
+        await new Promise<void>((resolve) => {
+          if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+            window.requestAnimationFrame(() => resolve());
+          } else {
+            setTimeout(resolve, 0);
+          }
+        });
+      }
+
+      setBulkSkuZipState({ phase: "zipping", done: bucketList.length, total: bucketList.length });
+      const zipBytes = await zip.generateAsync(
+        { type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } },
+        (meta) => {
+          const pct = Math.max(0, Math.min(100, Math.round(meta.percent)));
+          const done = Math.max(0, Math.round((pct / 100) * bucketList.length));
+          setBulkSkuZipState({ phase: "zipping", done, total: bucketList.length });
+        }
+      );
+
+      setBulkSkuZipState({ phase: "starting" });
+      triggerZipDownload(zipBytes, BULK_EXPORT_ZIP_FILENAME);
+      mergeExportedMastersFromRows(filteredLabels);
+      notify.success("All SKU files downloaded successfully", {
+        description: `${bucketList.length.toLocaleString()} SKU file(s) in ${BULK_EXPORT_ZIP_FILENAME}`,
+      });
+    } catch (e) {
+      notify.error("Couldn’t create SKU ZIP yet", {
+        description: describeExportFailure(e),
+      });
+    } finally {
+      setBulkSkuZipState(null);
+    }
+  }
+
+  function requestDownloadAllSkuFiles() {
+    void downloadAllSkuFilesZip();
+  }
+
+  const bulkExportLabel = React.useMemo(() => {
+    if (!bulkSkuZipState) return "Download All SKU Files";
+    if (bulkSkuZipState.phase === "preparing") {
+      return `Preparing Files... (${bulkSkuZipState.done}/${bulkSkuZipState.total})`;
+    }
+    if (bulkSkuZipState.phase === "zipping") {
+      return `Creating ZIP... (${bulkSkuZipState.done}/${bulkSkuZipState.total})`;
+    }
+    return "Download Started";
+  }, [bulkSkuZipState]);
+
   const hasMappedSkuLabels =
     Object.keys(mappedSkuLabelStats.perName).length > 0;
 
   const ready = rows.length > 0 && pdfBytes && !parsing;
-  const mapBusy = parsing;
+  const mapBusy = parsing || bulkSkuZipState != null;
 
   return (
     <WorkspaceModulePageStack>
@@ -1957,7 +2080,7 @@ export function MeeshoLabelExportTool() {
                       variant="secondary"
                       size="icon"
                       title="Grouped export · visible rows"
-                      disabled={filteredLabels.length === 0}
+                      disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
                       onClick={() => void requestGroupedDownload()}
                       className="h-11 w-11 shrink-0 touch-manipulation rounded-2xl bg-muted/55 ring-1 ring-white/[0.06]"
                     >
@@ -1965,6 +2088,21 @@ export function MeeshoLabelExportTool() {
                       <span className="sr-only">Grouped export</span>
                     </Button>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    title="Download all visible SKU files as ZIP"
+                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
+                    onClick={() => void requestDownloadAllSkuFiles()}
+                    className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
+                  >
+                    {bulkSkuZipState ? (
+                      <Loader2 className="mr-2 size-[16px] animate-spin" aria-hidden />
+                    ) : (
+                      <Download className="mr-2 size-[16px]" aria-hidden />
+                    )}
+                    {bulkExportLabel}
+                  </Button>
                 </div>
 
                 <Dialog open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
@@ -2090,10 +2228,26 @@ export function MeeshoLabelExportTool() {
                 </Button>
                 <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Create one ZIP with separate PDF per SKU"
+                  className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
+                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
+                  onClick={() => void requestDownloadAllSkuFiles()}
+                >
+                  {bulkSkuZipState ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Download className="size-3.5" aria-hidden />
+                  )}
+                  {bulkExportLabel}
+                </Button>
+                <Button
+                  type="button"
                   size="sm"
                   title="Checked rows · PDF order"
                   className="min-h-11 gap-1 bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
-                  disabled={selectedTotal === 0}
+                  disabled={selectedTotal === 0 || bulkSkuZipState != null}
                   onClick={() => void requestDownload()}
                 >
                   <Download className="size-3.5" aria-hidden />
@@ -2170,6 +2324,7 @@ export function MeeshoLabelExportTool() {
                   <Button
                     type="button"
                     className="h-11 min-w-[7.25rem] touch-manipulation gap-2 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
+                    disabled={bulkSkuZipState != null}
                     onClick={() => void requestDownload()}
                   >
                     <Download className="size-[18px] shrink-0" aria-hidden />
