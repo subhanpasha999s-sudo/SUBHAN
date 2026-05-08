@@ -1871,8 +1871,8 @@ export function MeeshoLabelExportTool() {
       const { done, total } = bulkSkuZipState;
       const pct = total > 0 ? Math.min(100, Math.round((100 * done) / total)) : 0;
       return {
-        title: "Preparing files",
-        body: `${done.toLocaleString()} / ${total.toLocaleString()} SKU PDFs from the current filter.`,
+        title: "SKU export",
+        body: `${done.toLocaleString()} / ${total.toLocaleString()} PDFs`,
         pct,
       };
     }
@@ -1880,14 +1880,14 @@ export function MeeshoLabelExportTool() {
       const { done, total } = bulkSkuZipState;
       const pct = total > 0 ? Math.min(100, Math.round((100 * done) / total)) : 0;
       return {
-        title: "Creating ZIP",
-        body: "Compressing PDFs — your download will begin next.",
+        title: "ZIP",
+        body: "Compressing…",
         pct,
       };
     }
     return {
-      title: "Starting download",
-      body: "Saving the ZIP in your browser…",
+      title: "Download",
+      body: "Saving…",
       pct: 100,
     };
   }, [bulkSkuZipState]);
@@ -2165,20 +2165,20 @@ export function MeeshoLabelExportTool() {
                 <Dialog open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
                   <DialogContent
                     showCloseButton
-                    className="flex max-h-[min(88dvh,680px)] flex-col gap-0 overflow-hidden rounded-t-[1.25rem] border-white/[0.06] bg-popover p-0 shadow-2xl ring-1 ring-white/[0.06] sm:max-w-[min(100vw-2rem,24rem)] sm:rounded-xl"
+                    className="flex max-h-[min(88dvh,680px)] flex-col gap-0 overflow-hidden rounded-t-[1.25rem] border-border/50 bg-popover p-0 shadow-elevate-md ring-1 ring-black/[0.04] dark:ring-white/[0.06] sm:max-w-[min(100vw-2rem,24rem)] sm:rounded-xl"
                   >
-                    <DialogHeader className="border-b border-white/[0.06] px-5 pb-3 pt-4">
-                      <DialogTitle className="font-heading text-[17px] font-semibold tracking-tight">
+                    <DialogHeader className="border-b border-border/40 px-5 pb-3 pt-4">
+                      <DialogTitle className="text-[17px] font-semibold leading-tight tracking-tight text-foreground">
                         Filters
                       </DialogTitle>
-                      <DialogDescription className="text-[13px] leading-snug">
+                      <DialogDescription className="mt-0.5 text-[12px] font-medium leading-snug text-muted-foreground/90">
                         {labelFilterActiveCount > 0 ? (
                           <>
-                            {labelFilterActiveCount.toLocaleString()} on · tap{" "}
-                            <span className="font-medium text-foreground/90">Done</span>
+                            {labelFilterActiveCount.toLocaleString()} active ·{" "}
+                            <span className="text-foreground/90">Done</span>
                           </>
                         ) : (
-                          <>View only until download.</>
+                          <>No changes until export.</>
                         )}
                       </DialogDescription>
                     </DialogHeader>
@@ -2203,7 +2203,7 @@ export function MeeshoLabelExportTool() {
                         mappedSkuLabelStats={mappedSkuLabelStats}
                       />
                     </div>
-                    <div className="flex flex-col gap-2 border-t border-white/[0.06] bg-muted/25 px-4 py-4 pb-safe">
+                    <div className="flex flex-col gap-2 border-t border-border/40 bg-muted/25 px-4 py-4 pb-safe">
                       <Button
                         type="button"
                         variant="outline"
@@ -2349,14 +2349,14 @@ export function MeeshoLabelExportTool() {
             )}
 
             {viewMode === "mobile" && selectedTotal > 0 ? (
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-background/88 px-4 pt-3 shadow-[0_-12px_48px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/78 dark:shadow-[0_-16px_56px_-28px_rgb(0_0_0/0.85)] sm:hidden">
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/88 px-4 pt-3 shadow-[0_-12px_48px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72 dark:shadow-[0_-16px_56px_-28px_rgb(0_0_0/0.85)] sm:hidden">
                 <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Selected
-                    </p>
-                    <p className="truncate text-[15px] font-semibold tabular-nums text-foreground">
+                  <div className="min-w-0 flex-1 truncate">
+                    <p className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground tabular-nums">
                       {selectedTotal.toLocaleString()}
+                      <span className="ml-1.5 text-[12px] font-medium tabular-nums text-muted-foreground/90">
+                        selected
+                      </span>
                     </p>
                   </div>
                   <Button
@@ -2369,7 +2369,7 @@ export function MeeshoLabelExportTool() {
                   </Button>
                   <Button
                     type="button"
-                    className="h-11 min-w-[7.25rem] touch-manipulation gap-2 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
+                    className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
                     disabled={bulkSkuZipState != null}
                     onClick={() => void requestDownload()}
                   >
@@ -2385,11 +2385,11 @@ export function MeeshoLabelExportTool() {
 
       <Dialog open={bulkSkuZipState != null} disablePointerDismissal onOpenChange={() => {}}>
         <DialogContent showCloseButton={false} className="gap-4 sm:max-w-sm">
-          <DialogHeader className="gap-1.5 text-left sm:text-left">
-            <DialogTitle className="font-heading text-[17px] font-semibold tracking-tight">
+          <DialogHeader className="gap-0.5 text-left sm:text-left">
+            <DialogTitle className="text-[17px] font-semibold leading-tight tracking-tight text-foreground">
               {bulkSkuZipModal.title}
             </DialogTitle>
-            <DialogDescription className="text-[13px] leading-snug">
+            <DialogDescription className="mt-0.5 text-[12px] font-medium leading-snug text-muted-foreground/90">
               {bulkSkuZipModal.body}
             </DialogDescription>
           </DialogHeader>
@@ -2400,8 +2400,8 @@ export function MeeshoLabelExportTool() {
                 style={{ width: `${bulkSkuZipModal.pct}%` }}
               />
             </div>
-            <p className="text-[11px] leading-snug text-muted-foreground">
-              Only labels visible under your filters are included.
+            <p className="text-[12px] font-medium leading-snug text-muted-foreground/90">
+              Filtered rows only.
             </p>
           </div>
         </DialogContent>
