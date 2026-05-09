@@ -288,8 +288,7 @@ export function ValueFirstOtpModal(props: {
               {redirectOrigin ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
                   Use the <span className="font-medium text-foreground">six-digit code</span> from
-                  your email. If the link in email does not complete sign-in, this code works
-                  reliably.
+                  your email to finish signing in.
                 </p>
               ) : null}
             </div>

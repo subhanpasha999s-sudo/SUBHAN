@@ -405,8 +405,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
         </p>
         {step === 2 && redirectOrigin ? (
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Enter the six-digit code from your email. If the email link opens but does not sign you
-            in, use this code instead.
+            Enter the six-digit code from your email to finish signing in.
           </p>
         ) : null}
       </div>
