@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
 import { getOtpEmailRedirectUrl } from "@/lib/auth/constants";
+import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { cn } from "@/lib/utils";
@@ -124,7 +125,7 @@ export function ValueFirstOtpModal(props: {
         },
       });
       if (error) {
-        notify.error(error.message);
+        notify.error(getOtpSendErrorMessage(error.message));
         return;
       }
       setStep(2);
@@ -175,7 +176,7 @@ export function ValueFirstOtpModal(props: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-0 overflow-hidden rounded-t-xl border-border p-0 sm:max-w-[420px] sm:rounded-xl sm:border"
+        className="gap-0 overflow-hidden rounded-t-xl border-border bg-card p-0 shadow-[0_28px_90px_-32px_rgb(0_0_0/0.85)] ring-1 ring-white/[0.08] sm:max-w-[420px] sm:rounded-xl sm:border"
         showCloseButton
       >
         <div className="border-b border-border bg-card px-6 pb-4 pt-6 text-center sm:text-left">

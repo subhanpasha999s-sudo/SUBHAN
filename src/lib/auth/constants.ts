@@ -26,7 +26,7 @@ export function safeInternalNextPath(
 }
 
 /**
- * Passed to `signInWithOtp({ options: { emailRedirectTo } })` so magic-link emails
+ * Passed to `signInWithOtp({ options: { emailRedirectTo } })` so email-code messages
  * bounce back to wherever the app is actually hosted (not only Supabase “Site URL”).
  * Redirect host must still be listed under Supabase → Authentication → Redirect URLs.
  */

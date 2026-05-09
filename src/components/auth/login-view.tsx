@@ -29,6 +29,7 @@ import {
   SIGNIN_FLOW_QUERY_PARAM,
   safeInternalNextPath,
 } from "@/lib/auth/constants";
+import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { AuthShell } from "@/components/auth/premium/auth-shell";
 import { FadeIn } from "@/components/auth/premium/motion";
@@ -340,12 +341,13 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
         },
       });
       if (error) {
+        const message = getOtpSendErrorMessage(error.message);
         trackEvent("auth_login_failed", {
           method: "otp",
           action: isResend ? "resend_code" : "send_code",
-          reason: error.message,
+          reason: message,
         });
-        notify.error(error.message);
+        notify.error(message);
         return;
       }
       trackEvent("auth_otp_code_sent", { resend: isResend });
