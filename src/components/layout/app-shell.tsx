@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  BookOpenText,
   ChevronsLeft,
   CircleUserRound,
   FileDown,
@@ -50,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/export-labels", label: "Labels", icon: FileDown },
       { href: "/mapping", label: "SKU Mapping", icon: Link2 },
+      { href: "/blog", label: "Blog", icon: BookOpenText },
     ],
   },
   {

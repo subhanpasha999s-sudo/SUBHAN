@@ -19,6 +19,12 @@ export function AppFooter() {
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border/60 py-4 text-center text-[11px] text-muted-foreground sm:justify-between sm:text-left sm:text-xs">
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:justify-start">
           <Link
+            href="/blog"
+            className="font-medium underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Blog
+          </Link>
+          <Link
             href="/privacy"
             className="font-medium underline-offset-2 hover:text-foreground hover:underline"
           >

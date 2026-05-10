@@ -8,13 +8,19 @@ export default function MainNotFound() {
         Page not found
       </h1>
       <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-neutral-500">
-        This URL isn&apos;t valid. Open Labels or SKU Mapping from the Tulmin sidebar.
+        This URL isn&apos;t valid. Open Labels, Blog, or SKU Mapping from the Tulmin sidebar.
       </p>
       <Link
         href="/export-labels"
         className="mt-10 inline-flex rounded-full bg-neutral-950 px-8 py-3 text-[15px] font-semibold text-white transition hover:bg-neutral-900"
       >
         Back to Labels
+      </Link>
+      <Link
+        href="/blog"
+        className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-8 py-3 text-[15px] font-semibold text-neutral-900 transition hover:bg-neutral-50"
+      >
+        Open Blog
       </Link>
     </div>
   );

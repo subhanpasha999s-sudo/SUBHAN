@@ -24,6 +24,9 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/mapping")) {
     return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };
   }
+  if (p.startsWith("/blog")) {
+    return { title: "Blog", subtitle: "Meesho seller guides · Tulmin" };
+  }
   if (p.startsWith("/settings")) {
     return { title: "Settings", subtitle: "Theme · data · Tulmin" };
   }
