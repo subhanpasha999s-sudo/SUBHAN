@@ -6,9 +6,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Meesho label crop and print tool online",
+  title: "Meesho label filter SaaS by SKU, QTY, and courier partner",
   description:
-    "Use Tulmin as a Meesho label crop, label cropper, label cutter, PDF export, and label print tool. Filter by SKU, courier, quantity, then export dispatch-ready PDFs.",
+    "Tulmin is a Meesho label filter SaaS for sellers. Filter labels by SKU, quantity, and courier partner, find labels instantly, and export only the exact dispatch-ready set.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "meesho label crop",
@@ -47,7 +47,7 @@ export default function ExportLabelsPage() {
       <ModulePageHeader
         breadcrumb={[{ label: "Labels" }]}
         title="Labels"
-        description="Turn hours of manual PDF work into a 3‑minute Tulmin run—built for high‑volume dispatch teams. Filter, organize, and export Meesho labels in minutes."
+        description="Tulmin is a Meesho label filter SaaS built for dispatch teams. Filter labels by SKU, QTY, and courier partner, then export only the exact labels you need in minutes."
       />
       <ExportLabelsBody />
     </>

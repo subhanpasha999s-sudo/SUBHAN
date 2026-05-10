@@ -1475,11 +1475,13 @@ export function SkuMappingModule() {
           <p className="text-[15px] font-medium text-foreground">
             Import a listing file to unlock faster Tulmin SKU mapping
           </p>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-            Recommended Meesho sheet format:{" "}
-            <span className="font-semibold text-foreground">column F</span>, values from{" "}
+          <p className="mx-auto mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
+            Use the upload area above with Meesho&apos;s{" "}
+            <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
+            file from Supplier Panel → Inventory → Bulk Stock Update.
+            Tulmin reads SKUs in{" "}
+            <span className="font-semibold text-foreground">column F</span> from{" "}
             <span className="font-semibold text-foreground">row 3</span> (rows 1–2 skipped).
-            Upload CSV or Excel and start mapping immediately.
           </p>
           </div>
         </WorkspaceSurfaceCard>

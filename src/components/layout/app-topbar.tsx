@@ -19,7 +19,7 @@ function pageChrome(pathname: string) {
     return { title: "Tulmin", subtitle: "Smart label filtering for Meesho sellers" };
   }
   if (p.startsWith("/export-labels")) {
-    return { title: "Labels", subtitle: "Filter · organize · export" };
+    return { title: "Labels", subtitle: "Filter by SKU · QTY · courier partner" };
   }
   if (p.startsWith("/mapping")) {
     return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };

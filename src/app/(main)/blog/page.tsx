@@ -5,9 +5,9 @@ import { getAllBlogPosts } from "@/lib/blog/posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
-  title: "Tulmin Blog · Meesho seller guides, label tools, and growth workflows",
+  title: "Tulmin Blog · Meesho seller guides for SKU, QTY, and courier label filtering",
   description:
-    "Premium Tulmin blog for Meesho sellers: label crop workflows, SKU filtering, warehouse productivity, seller growth, and dispatch mistake reduction.",
+    "SEO-focused Tulmin blog for Meesho sellers: practical guides around filtering labels by SKU, quantity, and courier partner, plus dispatch and warehouse productivity tips.",
   alternates: { canonical: `${getSiteUrl()}/blog` },
   keywords: [
     "meesho seller login",

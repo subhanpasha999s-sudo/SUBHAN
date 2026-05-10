@@ -51,45 +51,74 @@ export function SkuSpreadsheetUploadZone({
           e.target.value = "";
         }}
       />
-      <div className="flex flex-col items-center gap-3 px-6 py-9 text-center sm:flex-row sm:justify-between sm:gap-6 sm:text-left">
-        <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-5">
-          <div
-            className={cn(
-              "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted/50 shadow-inner",
-              busy && "border-primary/30 bg-primary/10"
-            )}
+      <div className="flex flex-col gap-5 px-6 py-9">
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:gap-6 sm:text-left">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-5">
+            <div
+              className={cn(
+                "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted/50 shadow-inner",
+                busy && "border-primary/30 bg-primary/10"
+              )}
+            >
+              {busy ? (
+                <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
+              ) : (
+                <FileSpreadsheet
+                  className="size-7 text-muted-foreground"
+                  strokeWidth={1.35}
+                />
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-[17px] font-semibold tracking-tight text-foreground">
+                Import listing file
+              </p>
+              <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
+                Upload your Meesho <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
+                file here — CSV or Excel, drop or browse.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold sm:min-h-10"
+            disabled={disabled || busy}
+            onClick={() => inputRef.current?.click()}
+            aria-describedby="sku-upload-meesho-steps"
           >
-            {busy ? (
-              <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
-            ) : (
-              <FileSpreadsheet
-                className="size-7 text-muted-foreground"
-                strokeWidth={1.35}
-              />
-            )}
-          </div>
-          <div className="space-y-1">
-            <p className="text-[17px] font-semibold tracking-tight text-foreground">
-              Import listing file
-            </p>
-            <p className="max-w-md text-[13px] leading-snug text-muted-foreground">
-              Tulmin reads Meesho-style sheets: SKUs in{" "}
-              <span className="font-semibold text-foreground">column F</span>, starting{" "}
-              <span className="font-semibold text-foreground">row 3</span> (rows 1–2
-              skipped). CSV or Excel—drop or browse.
-            </p>
-          </div>
+            <Upload className="mr-2 size-4" aria-hidden />
+            Choose file
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="lg"
-          className="min-h-11 shrink-0 px-5 text-[13px] font-semibold sm:min-h-10"
-          disabled={disabled || busy}
-          onClick={() => inputRef.current?.click()}
+
+        <div
+          id="sku-upload-meesho-steps"
+          className="rounded-xl border border-border/60 bg-muted/25 px-4 py-4 text-left text-[13px] leading-relaxed text-muted-foreground dark:bg-muted/15 sm:px-5"
         >
-          <Upload className="mr-2 size-4" aria-hidden />
-          Choose file
-        </Button>
+          <p className="font-medium text-foreground">
+            Upload your Meesho &quot;Existing Stock Upload&quot; file here to automatically fetch all SKUs for mapping.
+          </p>
+          <p className="mt-3 font-semibold text-foreground">How to find the correct file</p>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 marker:font-semibold marker:text-foreground">
+            <li>Go to your Meesho Supplier Panel</li>
+            <li>Open &quot;Inventory&quot; from the left sidebar</li>
+            <li>Click on &quot;Bulk Stock Update&quot;</li>
+            <li>
+              Download the file:{" "}
+              <span className="font-semibold text-foreground">&quot;Existing Stock Upload File&quot;</span>
+            </li>
+            <li>Upload that file here</li>
+          </ol>
+          <p className="mt-3 text-foreground/90">
+            Tulmin automatically detects SKUs from this sheet and helps you map them to your Master SKU quickly.
+          </p>
+          <p className="mt-3 border-t border-border/55 pt-3 text-[12px] text-muted-foreground">
+            Tulmin expects Meesho-style layout: SKUs in{" "}
+            <span className="font-mono font-medium text-foreground">column F</span>, starting{" "}
+            <span className="font-mono font-medium text-foreground">row 3</span> (rows 1–2 skipped).
+          </p>
+        </div>
       </div>
     </div>
   );

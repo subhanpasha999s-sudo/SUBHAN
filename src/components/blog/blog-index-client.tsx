@@ -59,8 +59,8 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
             Meesho Seller Guides, Label Tools & Growth Tips
           </h1>
           <p className="max-w-3xl text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-            Learn how top Meesho sellers manage labels, reduce dispatch mistakes, grow faster, and
-            save hours using smarter workflows.
+            Learn how Meesho sellers filter labels by SKU, QTY, and courier partner, reduce wrong
+            dispatch mistakes, and save hours with faster warehouse workflows.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
