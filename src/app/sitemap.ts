@@ -1,15 +1,15 @@
 import type { MetadataRoute } from "next";
 
+import { getAllBlogPosts } from "@/lib/blog/posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl();
+  const blogPaths = ["/blog", ...getAllBlogPosts().map((post) => `/blog/${post.slug}`)];
   const paths = [
-    "/blog",
-    "/blog/meesho-label-crop-online",
-    "/blog/marketplace-label-workflow-meesho-flipkart-amazon",
+    ...blogPaths,
     "/export-labels",
     "/mapping",
     "/settings",
