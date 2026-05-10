@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
-import { getOtpEmailRedirectUrl } from "@/lib/auth/constants";
+import { EMAIL_OTP_LENGTH, getOtpEmailRedirectUrl } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -142,8 +142,8 @@ export function ValueFirstOtpModal(props: {
     const trimmed = email.trim();
     const code = otp.replace(/\D/g, "");
     if (!sb) return;
-    if (code.length !== 6) {
-      notify.error("Enter the six-digit code.");
+    if (code.length !== EMAIL_OTP_LENGTH) {
+      notify.error(`Enter the ${EMAIL_OTP_LENGTH}-digit code.`);
       return;
     }
     setVerifyBusy(true);
@@ -287,20 +287,24 @@ export function ValueFirstOtpModal(props: {
               </p>
               {redirectOrigin ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
-                  Use the <span className="font-medium text-foreground">six-digit code</span> from
-                  your email to finish signing in.
+                  Use the{" "}
+                  <span className="font-medium text-foreground">
+                    {EMAIL_OTP_LENGTH}-digit code
+                  </span>{" "}
+                  from your email to finish signing in.
                 </p>
               ) : null}
             </div>
             <div className="space-y-2">
               <Label className="text-center text-sm font-medium sm:block">
-                Six-digit code
+                {EMAIL_OTP_LENGTH}-digit code
               </Label>
               <OtpSixInput
                 idPrefix="value-first-otp"
                 value={otp}
                 onChange={setOtp}
                 disabled={verifyBusy}
+                length={EMAIL_OTP_LENGTH}
               />
             </div>
             <Button

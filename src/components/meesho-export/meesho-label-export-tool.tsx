@@ -61,6 +61,7 @@ import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
+import { trackEvent } from "@/lib/analytics/posthog-client";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
 import {
@@ -1653,11 +1654,16 @@ export function MeeshoLabelExportTool() {
 
   async function ingestPdf(file: File) {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
+      trackEvent("meesho_pdf_import_rejected", { reason: "unsupported_file_type" });
       notify.error("Unsupported file", {
         description: ".pdf only.",
       });
       return;
     }
+    trackEvent("meesho_pdf_import_started", {
+      size_bytes: file.size,
+      signed_in: Boolean(userId),
+    });
     setParsing(true);
     setParseProgress([0, 0]);
     setSelected({});
@@ -1678,6 +1684,10 @@ export function MeeshoLabelExportTool() {
     setParseProgress(null);
 
     if (res.error || res.rows.length === 0) {
+      trackEvent("meesho_pdf_import_failed", {
+        reason: res.error ? "parse_error" : "empty_pdf",
+        size_bytes: file.size,
+      });
       notify.error("Could not parse this PDF", {
         description: res.error ?? "No labels found.",
       });
@@ -1689,6 +1699,11 @@ export function MeeshoLabelExportTool() {
     setSourceName(file.name.replace(/\.pdf$/i, ""));
     notify.success("Imported", {
       description: `${res.rows.length.toLocaleString()} labels.`,
+    });
+    trackEvent("meesho_pdf_import_succeeded", {
+      label_count: res.rows.length,
+      size_bytes: file.size,
+      signed_in: Boolean(userId),
     });
 
     if (userId && getSupabaseBrowser()) await refreshMapSnapshot();
@@ -1717,6 +1732,10 @@ export function MeeshoLabelExportTool() {
 
   function selectAllInView(select: boolean) {
     const ids = filteredLabels.map((r) => r.id);
+    trackEvent(select ? "meesho_selection_all_visible" : "meesho_selection_clear_visible", {
+      visible_count: ids.length,
+      selected_count: selectedTotal,
+    });
     setSelected((prev) => {
       const next = { ...prev };
       if (select) {
@@ -1729,11 +1748,16 @@ export function MeeshoLabelExportTool() {
   }
 
   function clearSelection() {
+    trackEvent("meesho_selection_cleared", { selected_count: selectedTotal });
     setSelected({});
   }
 
   async function downloadFilteredPdf() {
     if (!pdfBytes || selectedTotal === 0) {
+      trackEvent("meesho_export_selected_blocked", {
+        reason: "no_selection",
+        visible_count: filteredLabels.length,
+      });
       notify.info("Select at least one row.");
       return;
     }
@@ -1745,6 +1769,10 @@ export function MeeshoLabelExportTool() {
       .sort((a, b) => a - b);
 
     if (pagesToExport.length === 0) {
+      trackEvent("meesho_export_selected_failed", {
+        reason: "selection_page_mismatch",
+        selected_count: selectedTotal,
+      });
       notify.error("Could not map selection to PDF pages.");
       return;
     }
@@ -1756,7 +1784,16 @@ export function MeeshoLabelExportTool() {
       notify.success("Exported", {
         description: `${pagesToExport.length.toLocaleString()} page(s) · ✓ = already in an export`,
       });
+      trackEvent("meesho_export_selected_succeeded", {
+        page_count: pagesToExport.length,
+        selected_count: selectedTotal,
+        visible_count: filteredLabels.length,
+      });
     } catch (e) {
+      trackEvent("meesho_export_selected_failed", {
+        reason: "export_error",
+        selected_count: selectedTotal,
+      });
       notify.error("Couldn’t export that PDF yet", {
         description: describeExportFailure(e),
       });
@@ -1769,6 +1806,7 @@ export function MeeshoLabelExportTool() {
 
   async function downloadAllSkuFilesZip() {
     if (!pdfBytes || filteredLabels.length === 0) {
+      trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
       notify.info("Nothing matches filters.");
       return;
     }
@@ -1787,6 +1825,7 @@ export function MeeshoLabelExportTool() {
 
     const bucketList = [...buckets.values()].filter((b) => b.rows.length > 0);
     if (bucketList.length === 0) {
+      trackEvent("meesho_export_all_skus_blocked", { reason: "empty_buckets" });
       notify.info("No SKU files to export.");
       return;
     }
@@ -1838,7 +1877,15 @@ export function MeeshoLabelExportTool() {
       notify.success("All SKU files downloaded successfully", {
         description: `${bucketList.length.toLocaleString()} SKU file(s) in ${BULK_EXPORT_ZIP_FILENAME}`,
       });
+      trackEvent("meesho_export_all_skus_succeeded", {
+        sku_file_count: bucketList.length,
+        visible_count: filteredLabels.length,
+      });
     } catch (e) {
+      trackEvent("meesho_export_all_skus_failed", {
+        reason: "zip_error",
+        visible_count: filteredLabels.length,
+      });
       notify.error("Couldn’t create SKU ZIP yet", {
         description: describeExportFailure(e),
       });

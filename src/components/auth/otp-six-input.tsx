@@ -4,32 +4,33 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const LEN = 6;
-
-/** Six single-character fields with paste/backspace chaining; synced to digits-only string ≤6. */
+/** Single-character fields with paste/backspace chaining; synced to a digits-only code. */
 export function OtpSixInput({
   value,
   onChange,
   disabled,
   idPrefix = "otp",
+  length = 6,
   className,
 }: {
   value: string;
   onChange: (digits: string) => void;
   disabled?: boolean;
   idPrefix?: string;
+  length?: number;
   className?: string;
 }) {
   const refs = React.useRef<(HTMLInputElement | null)[]>([]);
-  const safe = value.replace(/\D/g, "").slice(0, LEN);
+  const safeLength = Math.max(6, Math.min(10, Math.trunc(length)));
+  const safe = value.replace(/\D/g, "").slice(0, safeLength);
 
   function setAt(index: number, raw: string) {
     const d = raw.replace(/\D/g, "").slice(-1);
-    const arr = safe.padEnd(LEN, " ").split("");
+    const arr = safe.padEnd(safeLength, " ").split("");
     arr[index] = d || " ";
-    const next = arr.join("").replace(/\s/g, "").slice(0, LEN);
+    const next = arr.join("").replace(/\s/g, "").slice(0, safeLength);
     onChange(next);
-    if (d && index < LEN - 1) {
+    if (d && index < safeLength - 1) {
       requestAnimationFrame(() => refs.current[index + 1]?.focus());
     }
   }
@@ -38,9 +39,9 @@ export function OtpSixInput({
     <div
       className={cn("flex justify-center gap-2 sm:gap-2.5", className)}
       role="group"
-      aria-label="One-time password, 6 digits"
+      aria-label={`One-time password, ${safeLength} digits`}
     >
-      {Array.from({ length: LEN }, (_, i) => (
+      {Array.from({ length: safeLength }, (_, i) => (
         <input
           key={i}
           ref={(el) => {
@@ -69,16 +70,16 @@ export function OtpSixInput({
               refs.current[i - 1]?.focus();
               e.preventDefault();
             }
-            if (e.key === "ArrowRight" && i < LEN - 1) {
+            if (e.key === "ArrowRight" && i < safeLength - 1) {
               refs.current[i + 1]?.focus();
               e.preventDefault();
             }
           }}
           onPaste={(e) => {
             e.preventDefault();
-            const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, LEN);
+            const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, safeLength);
             onChange(text);
-            const next = Math.min(text.length, LEN - 1);
+            const next = Math.min(text.length, safeLength - 1);
             requestAnimationFrame(() => refs.current[next]?.focus());
           }}
           className={cn(

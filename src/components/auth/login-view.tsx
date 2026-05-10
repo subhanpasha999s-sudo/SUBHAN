@@ -24,6 +24,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   AUTH_DASHBOARD_PATH,
+  EMAIL_OTP_LENGTH,
   getOtpEmailRedirectUrl,
   LAST_AUTH_METHOD_KEY,
   SIGNIN_FLOW_QUERY_PARAM,
@@ -364,8 +365,8 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
     e.preventDefault();
     const trimmed = email.trim();
     const code = otp.replace(/\D/g, "");
-    if (code.length !== 6) {
-      notify.error("Enter the six-digit code.");
+    if (code.length !== EMAIL_OTP_LENGTH) {
+      notify.error(`Enter the ${EMAIL_OTP_LENGTH}-digit code.`);
       return;
     }
     trackEvent("auth_login_attempt", { method: "otp", action: "verify_code" });
@@ -400,12 +401,12 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
         </p>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           {step === 1
-            ? "Get a six-digit code by email and access your workspace in seconds."
+            ? `Get a ${EMAIL_OTP_LENGTH}-digit code by email and access your workspace in seconds.`
             : `Code sent to ${email.trim()}`}
         </p>
         {step === 2 && redirectOrigin ? (
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Enter the six-digit code from your email to finish signing in.
+            Enter the {EMAIL_OTP_LENGTH}-digit code from your email to finish signing in.
           </p>
         ) : null}
       </div>
@@ -449,6 +450,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
             value={otp}
             onChange={setOtp}
             disabled={verifyBusy}
+            length={EMAIL_OTP_LENGTH}
           />
           <Button type="submit" className="min-h-11 w-full font-semibold" disabled={verifyBusy}>
             {verifyBusy ? (

@@ -6,11 +6,31 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Meesho label filter tool for ecommerce operators",
+  title: "Meesho label crop and print tool online",
   description:
-    "Tulmin helps ecommerce operators, especially Meesho teams, filter labels by SKU, courier partner, and quantity, then export only the exact set needed for dispatch.",
+    "Use Tulmin as a Meesho label crop, label cropper, label cutter, PDF export, and label print tool. Filter by SKU, courier, quantity, then export dispatch-ready PDFs.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
+    "meesho label crop",
+    "meesho label cropper",
+    "crop meesho label",
+    "meesho label",
+    "meesho label cutter",
+    "meesho label crop tool",
+    "meesho label crop free",
+    "meesho label crop online",
+    "meesho label crop pdf",
+    "meesho label crop ai",
+    "meesho label crop 4x6",
+    "meesho label cut",
+    "meesho label crop with invoice",
+    "meesho label print",
+    "meesho label cropping",
+    "meesho label printer",
+    "meesho label size",
+    "quick meesho label crop",
+    "meesho label crop a4",
+    "meesho label generator",
     "Meesho PDF labels",
     "Meesho dispatch PDF",
     "Meesho bulk label export",

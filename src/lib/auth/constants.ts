@@ -10,6 +10,9 @@ export const SIGNIN_FLOW_QUERY_PARAM = "signin";
 /** localStorage key: `"otp"` | `"password"` */
 export const LAST_AUTH_METHOD_KEY = "lable.auth.last-method";
 
+/** Must match Supabase Auth → Email OTP length. */
+export const EMAIL_OTP_LENGTH = 6;
+
 /** User opted out of the workspace «save to cloud» prompt (persisted). */
 export const SIGNIN_NUDGE_DISMISS_KEY = "lable.workspace-signin-nudge-dismissed";
 
