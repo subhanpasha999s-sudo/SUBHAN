@@ -104,7 +104,10 @@ export function AppTopbar({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div
+            className="flex shrink-0 items-center gap-1 sm:gap-2"
+            data-tour="login-cloud"
+          >
             <div
               className="hidden items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-white/[0.05] sm:flex dark:bg-muted/22"
               title={
