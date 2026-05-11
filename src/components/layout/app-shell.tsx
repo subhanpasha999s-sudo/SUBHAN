@@ -176,6 +176,7 @@ function SidebarNavButton({
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
       className={itemClass}
+      {...(item.href === "/mapping" ? { "data-tour": "sku-map-link" } : {})}
     >
       {content}
     </Link>

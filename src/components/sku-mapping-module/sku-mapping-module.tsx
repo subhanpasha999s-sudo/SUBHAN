@@ -1212,17 +1212,9 @@ export function SkuMappingModule() {
 
   const pendingLocalOnlyCount = countLocalDraftMappings(localDraft);
 
-  const headerBadges = !cloudConfigured ? (
-    <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-[12px] text-muted-foreground">
-      Sync paused —{" "}
-      <Link
-        href="/settings"
-        className="ml-1 font-semibold text-primary underline-offset-2 hover:underline"
-      >
-        Settings
-      </Link>
-    </span>
-  ) : !userId ? (
+  const headerBadges = !cloudConfigured
+    ? null
+    : !userId ? (
     <span className="inline-flex max-w-xl flex-wrap items-center gap-x-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[12px] text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/45 dark:text-amber-50">
       Everything stays on this device until you choose backup. Optional:{" "}
       <button
@@ -1249,7 +1241,7 @@ export function SkuMappingModule() {
           { label: "SKU Mapping" },
         ]}
         title="SKU Mapping"
-        description="Tulmin ties every listing SKU to a master so label runs stay fast. Map once—then filter and export Meesho labels in minutes, not hours."
+        description="Link each listing SKU to a master once. Every future label export auto-filters by SKU — no manual sorting needed."
         badges={headerBadges}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -1469,23 +1461,7 @@ export function SkuMappingModule() {
             </div>
           </div>
         </WorkspaceSurfaceCard>
-      ) : (
-        <WorkspaceSurfaceCard padding="px-8 py-14 sm:py-16">
-          <div className="rounded-[14px] border border-dashed border-border bg-muted/25 px-6 py-10 text-center dark:bg-muted/10">
-          <p className="text-[15px] font-medium text-foreground">
-            Import a listing file to unlock faster Tulmin SKU mapping
-          </p>
-          <p className="mx-auto mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
-            Use the upload area above with Meesho&apos;s{" "}
-            <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
-            file from Supplier Panel → Inventory → Bulk Stock Update.
-            Tulmin reads SKUs in{" "}
-            <span className="font-semibold text-foreground">column F</span> from{" "}
-            <span className="font-semibold text-foreground">row 3</span> (rows 1–2 skipped).
-          </p>
-          </div>
-        </WorkspaceSurfaceCard>
-      )}
+      ) : null}
 
       {uploadedSkus.length > 0 ? (
         <WorkspaceSurfaceCard padding="p-5 sm:p-6">

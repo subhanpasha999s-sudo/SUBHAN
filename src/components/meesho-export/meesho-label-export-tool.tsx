@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +160,7 @@ function sanitizeExportFilenameSegment(s: string, maxLen: number): string {
 
 const SELECTED_EXPORT_FILENAME_MAX = 180;
 const BULK_EXPORT_ZIP_FILENAME = "tulmin-sku-labels.zip";
+const SELECTED_MULTI_SKU_ZIP_FILENAME = "tulmin-selected-skus.zip";
 
 /**
  * Selected export filename: `{SKU1_SKU2_…}-{qty1_qty2_…}.pdf` — SKU names sorted by
@@ -355,8 +356,12 @@ function mappedMasterFilterTriggerText(
 /** Label/page counts derived from enriched rows — same basis as SKU filter. */
 type QtyCarrierFilterStats = {
   totalLabels: number;
+  /** Sum of numeric `quantity` across all labels (order qty on the PDF). */
+  totalOrderQty: number;
   perQty: Record<number, number>;
   perPartner: Record<string, number>;
+  /** Sum of `quantity` per carrier (labels without qty omitted from the sum). */
+  partnerOrderQtySum: Record<string, number>;
   quantitiesSortedDesc: number[];
   partnersSortedDesc: string[];
 };
@@ -388,18 +393,39 @@ function carrierFilterTriggerDisplay(
 function FilterMenuCountRow({
   primary,
   count,
+  orderQtySum,
+  title: titleOverride,
 }: {
   primary: React.ReactNode;
   count: number;
+  /** When set, show `labels · Σqty` in the value column (dense menus). */
+  orderQtySum?: number;
+  /** Tooltip for the count column (e.g. carrier rows: labels + total qty without cluttering the label). */
+  title?: string;
 }) {
+  const countTitle =
+    titleOverride ??
+    (orderQtySum != null
+      ? `${count.toLocaleString()} label(s) · Σ ${orderQtySum.toLocaleString()} qty`
+      : `${count.toLocaleString()} in this file`);
   return (
     <span className="flex w-full min-w-0 items-center justify-between gap-4">
       <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">{primary}</span>
       <span
         className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:text-[12px]"
-        title={`${count.toLocaleString()} in this file`}
+        title={countTitle}
       >
-        {count.toLocaleString()}
+        {orderQtySum != null ? (
+          <>
+            {count.toLocaleString()}
+            <span className="mx-0.5 font-normal text-muted-foreground/55" aria-hidden>
+              ·
+            </span>
+            <span title="Sum of qty on these labels">Σ{orderQtySum.toLocaleString()}</span>
+          </>
+        ) : (
+          count.toLocaleString()
+        )}
       </span>
     </span>
   );
@@ -410,15 +436,18 @@ function MobileFilterChip({
   children,
   onClick,
   className,
+  title,
 }: {
   active: boolean;
   children: React.ReactNode;
   onClick: () => void;
   className?: string;
+  title?: string;
 }) {
   return (
     <button
       type="button"
+      title={title}
       onClick={onClick}
       className={cn(
         "touch-manipulation shrink-0 rounded-full px-3.5 py-2 text-[12px] font-semibold tracking-tight transition-[transform,box-shadow,background-color,color] duration-150 ease-smooth active:scale-[0.98]",
@@ -639,7 +668,7 @@ function LabelPdfFilterFields({
         <SelectTrigger
           size="sm"
           id="label-filter-courier"
-          title="Carrier · right = count"
+          title="Carrier · shown number = labels. Hover a chip or menu row for total qty."
           className={cn(ctl, selectTriggerExtras)}
         >
           <SelectValue placeholder={carrierFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, qtyCarrierStats)}>
@@ -660,11 +689,16 @@ function LabelPdfFilterFields({
             <FilterMenuCountRow
               primary={<span className="font-semibold text-foreground">All carriers</span>}
               count={qtyCarrierStats.totalLabels}
+              title={`${qtyCarrierStats.totalLabels.toLocaleString()} labels · ${qtyCarrierStats.totalOrderQty.toLocaleString()} total qty`}
             />
           </SelectItem>
           {qtyCarrierStats.partnersSortedDesc.map((p) => (
             <SelectItem key={p} value={p} className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium">
-              <FilterMenuCountRow primary={<span className="font-medium">{p}</span>} count={qtyCarrierStats.perPartner[p] ?? 0} />
+              <FilterMenuCountRow
+                primary={<span className="font-medium">{p}</span>}
+                count={qtyCarrierStats.perPartner[p] ?? 0}
+                title={`${(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(qtyCarrierStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
+              />
             </SelectItem>
           ))}
         </SelectContent>
@@ -763,16 +797,22 @@ function LabelPdfFilterFields({
             <MobileFilterChip
               active={partner === QTY_PARTNER_FILTER_ALL}
               onClick={() => onPartner(QTY_PARTNER_FILTER_ALL)}
+              title={`${qtyCarrierStats.totalLabels.toLocaleString()} labels · ${qtyCarrierStats.totalOrderQty.toLocaleString()} total qty`}
             >
-              All
+              <span className="tabular-nums">
+                All ({qtyCarrierStats.totalLabels.toLocaleString()})
+              </span>
             </MobileFilterChip>
             {partnerChipValues.map((p) => (
               <MobileFilterChip
                 key={p}
                 active={partner === p}
                 onClick={() => onPartner(p)}
+                title={`${(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(qtyCarrierStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
               >
-                {p}
+                <span className="max-w-[11rem] truncate text-left tabular-nums">
+                  {p} ({(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()})
+                </span>
               </MobileFilterChip>
             ))}
           </div>
@@ -1488,14 +1528,20 @@ export function MeeshoLabelExportTool() {
   const qtyCarrierStats = React.useMemo<QtyCarrierFilterStats>(() => {
     const perQty: Record<number, number> = {};
     const perPartner: Record<string, number> = {};
+    const partnerOrderQtySum: Record<string, number> = {};
+    let totalOrderQty = 0;
     for (const r of enrichedRows) {
       const q = r.quantity;
       if (q != null && Number.isFinite(q)) {
         perQty[q] = (perQty[q] ?? 0) + 1;
+        totalOrderQty += q;
       }
       const dp = r.delivery_partner?.trim();
       if (dp) {
         perPartner[dp] = (perPartner[dp] ?? 0) + 1;
+        if (q != null && Number.isFinite(q)) {
+          partnerOrderQtySum[dp] = (partnerOrderQtySum[dp] ?? 0) + q;
+        }
       }
     }
     const quantitiesSortedDesc = Object.keys(perQty)
@@ -1515,8 +1561,10 @@ export function MeeshoLabelExportTool() {
     });
     return {
       totalLabels: enrichedRows.length,
+      totalOrderQty,
       perQty,
       perPartner,
+      partnerOrderQtySum,
       quantitiesSortedDesc,
       partnersSortedDesc,
     };
@@ -1633,6 +1681,21 @@ export function MeeshoLabelExportTool() {
   }, [filteredLabels]);
 
   const selectedTotal = Object.keys(selected).length;
+
+  const selectedLabelRows = React.useMemo(
+    () => filteredLabels.filter((r) => Boolean(selected[r.id])),
+    [filteredLabels, selected]
+  );
+
+  const selectedDistinctSkuBuckets = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const r of selectedLabelRows) keys.add(rowMasterExportKey(r));
+    return keys.size;
+  }, [selectedLabelRows]);
+
+  /** Multiple mapped buckets in the current checkbox selection → offer merged PDF vs per-SKU ZIP. */
+  const selectionShowsMergeVsZipChoice =
+    selectedTotal > 0 && selectedDistinctSkuBuckets >= 2;
 
   function headerClick(key: SortKey) {
     if (sortKey === key) {
@@ -1800,20 +1863,25 @@ export function MeeshoLabelExportTool() {
     }
   }
 
-  function requestDownload() {
-    void downloadFilteredPdf();
-  }
-
-  async function downloadAllSkuFilesZip() {
-    if (!pdfBytes || filteredLabels.length === 0) {
-      trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
-      notify.info("Nothing matches filters.");
+  async function downloadSkuFilesZipFromRows(
+    sourceRows: readonly EnrichedMeeshoLabelRow[],
+    zipFilename: string,
+    scope: "filtered" | "selected"
+  ) {
+    if (!pdfBytes || sourceRows.length === 0) {
+      if (scope === "filtered") {
+        trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
+        notify.info("Nothing matches filters.");
+      } else {
+        trackEvent("meesho_export_selected_skus_zip_blocked", { reason: "no_selection" });
+        notify.info("Select at least one row.");
+      }
       return;
     }
     if (bulkSkuZipState) return;
 
     const buckets = new Map<string, { masterSku: string | null; rows: EnrichedMeeshoLabelRow[] }>();
-    for (const r of filteredLabels) {
+    for (const r of sourceRows) {
       const key = rowMasterExportKey(r);
       const cur = buckets.get(key);
       if (cur) {
@@ -1825,7 +1893,11 @@ export function MeeshoLabelExportTool() {
 
     const bucketList = [...buckets.values()].filter((b) => b.rows.length > 0);
     if (bucketList.length === 0) {
-      trackEvent("meesho_export_all_skus_blocked", { reason: "empty_buckets" });
+      if (scope === "filtered") {
+        trackEvent("meesho_export_all_skus_blocked", { reason: "empty_buckets" });
+      } else {
+        trackEvent("meesho_export_selected_skus_zip_blocked", { reason: "empty_buckets" });
+      }
       notify.info("No SKU files to export.");
       return;
     }
@@ -1872,20 +1944,37 @@ export function MeeshoLabelExportTool() {
       );
 
       setBulkSkuZipState({ phase: "starting" });
-      triggerZipDownload(zipBytes, BULK_EXPORT_ZIP_FILENAME);
-      mergeExportedMastersFromRows(filteredLabels);
-      notify.success("All SKU files downloaded successfully", {
-        description: `${bucketList.length.toLocaleString()} SKU file(s) in ${BULK_EXPORT_ZIP_FILENAME}`,
-      });
-      trackEvent("meesho_export_all_skus_succeeded", {
-        sku_file_count: bucketList.length,
-        visible_count: filteredLabels.length,
-      });
+      triggerZipDownload(zipBytes, zipFilename);
+      mergeExportedMastersFromRows(sourceRows);
+      if (scope === "filtered") {
+        notify.success("SKU ZIP ready", {
+          description: `${bucketList.length.toLocaleString()} PDF(s) from the current filter · ${zipFilename}`,
+        });
+        trackEvent("meesho_export_all_skus_succeeded", {
+          sku_file_count: bucketList.length,
+          visible_count: filteredLabels.length,
+        });
+      } else {
+        notify.success("SKU ZIP ready", {
+          description: `${bucketList.length.toLocaleString()} PDF(s) from your selection · ${zipFilename}`,
+        });
+        trackEvent("meesho_export_selected_skus_zip_succeeded", {
+          sku_file_count: bucketList.length,
+          selected_count: sourceRows.length,
+        });
+      }
     } catch (e) {
-      trackEvent("meesho_export_all_skus_failed", {
-        reason: "zip_error",
-        visible_count: filteredLabels.length,
-      });
+      if (scope === "filtered") {
+        trackEvent("meesho_export_all_skus_failed", {
+          reason: "zip_error",
+          visible_count: filteredLabels.length,
+        });
+      } else {
+        trackEvent("meesho_export_selected_skus_zip_failed", {
+          reason: "zip_error",
+          selected_count: sourceRows.length,
+        });
+      }
       notify.error("Couldn’t create SKU ZIP yet", {
         description: describeExportFailure(e),
       });
@@ -1894,12 +1983,24 @@ export function MeeshoLabelExportTool() {
     }
   }
 
+  async function downloadAllSkuFilesZip() {
+    await downloadSkuFilesZipFromRows(filteredLabels, BULK_EXPORT_ZIP_FILENAME, "filtered");
+  }
+
+  async function downloadSelectedSkuFilesZip() {
+    await downloadSkuFilesZipFromRows(
+      selectedLabelRows,
+      SELECTED_MULTI_SKU_ZIP_FILENAME,
+      "selected"
+    );
+  }
+
   function requestDownloadAllSkuFiles() {
     void downloadAllSkuFilesZip();
   }
 
   const bulkExportLabel = React.useMemo(() => {
-    if (!bulkSkuZipState) return "Download All SKUs (separate PDFs)";
+    if (!bulkSkuZipState) return "Download SKUs as ZIP (filtered)";
     if (bulkSkuZipState.phase === "preparing") {
       return `Preparing Files... (${bulkSkuZipState.done}/${bulkSkuZipState.total})`;
     }
@@ -1939,8 +2040,6 @@ export function MeeshoLabelExportTool() {
     };
   }, [bulkSkuZipState]);
 
-  const showBulkSkuZipAction = mappedMasterFilter.mode === "all";
-
   const hasMappedSkuLabels =
     Object.keys(mappedSkuLabelStats.perName).length > 0;
 
@@ -1951,6 +2050,7 @@ export function MeeshoLabelExportTool() {
     <WorkspaceModulePageStack>
       <WorkspaceSurfaceCard padding="p-5 sm:p-6">
         <div
+          data-tour="import-pdf"
           className={cn(
             "relative rounded-[14px] border border-dashed border-border bg-muted/30 transition-[border-color,box-shadow] hover:border-primary/35 dark:bg-muted/15",
             parsing && "pointer-events-none opacity-80"
@@ -2190,23 +2290,21 @@ export function MeeshoLabelExportTool() {
                       ) : null}
                     </Button>
                   </div>
-                  {showBulkSkuZipAction ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      title="Download all visible SKU files as ZIP"
-                      disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
-                      onClick={() => void requestDownloadAllSkuFiles()}
-                      className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
-                    >
-                      {bulkSkuZipState ? (
-                        <Loader2 className="mr-2 size-[16px] animate-spin" aria-hidden />
-                      ) : (
-                        <Download className="mr-2 size-[16px]" aria-hidden />
-                      )}
-                      {bulkExportLabel}
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    title="ZIP · one PDF per SKU for rows matching the current filters"
+                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
+                    onClick={() => void requestDownloadAllSkuFiles()}
+                    className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
+                  >
+                    {bulkSkuZipState ? (
+                      <Loader2 className="mr-2 size-[16px] animate-spin" aria-hidden />
+                    ) : (
+                      <Download className="mr-2 size-[16px]" aria-hidden />
+                    )}
+                    {bulkExportLabel}
+                  </Button>
                 </div>
 
                 <Dialog open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
@@ -2274,6 +2372,7 @@ export function MeeshoLabelExportTool() {
             ) : (
               <div
                 role="toolbar"
+                data-tour="filter-bar"
                 aria-label="Label filters"
                 className={cn(PREMIUM_FILTER_TOOLBAR_CLASS)}
               >
@@ -2323,35 +2422,66 @@ export function MeeshoLabelExportTool() {
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {showBulkSkuZipAction ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    title="Create one ZIP with separate PDF per SKU"
-                    className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
-                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
-                    onClick={() => void requestDownloadAllSkuFiles()}
-                  >
-                    {bulkSkuZipState ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <Download className="size-3.5" aria-hidden />
-                    )}
-                    {bulkExportLabel}
-                  </Button>
-                ) : null}
                 <Button
                   type="button"
+                  variant="outline"
                   size="sm"
-                  title="Checked rows · PDF order"
-                  className="min-h-11 gap-1 bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
-                  disabled={selectedTotal === 0 || bulkSkuZipState != null}
-                  onClick={() => void requestDownload()}
+                  title="ZIP · one PDF per SKU for rows matching the current filters"
+                  className="min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
+                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null}
+                  onClick={() => void requestDownloadAllSkuFiles()}
                 >
-                  <Download className="size-3.5" aria-hidden />
-                  Download
+                  {bulkSkuZipState ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Download className="size-3.5" aria-hidden />
+                  )}
+                  {bulkExportLabel}
                 </Button>
+                {selectionShowsMergeVsZipChoice ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger
+                      type="button"
+                      disabled={selectedTotal === 0 || bulkSkuZipState != null}
+                      title="Export checked rows"
+                      className={cn(
+                        buttonVariants({ variant: "default", size: "sm" }),
+                        "min-h-11 gap-1 text-xs font-semibold sm:h-8 sm:min-h-0"
+                      )}
+                    >
+                      <Download className="size-3.5" aria-hidden />
+                      Download
+                      <ChevronDown className="size-3.5 opacity-85" strokeWidth={2.25} aria-hidden />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[17rem]">
+                      <DropdownMenuItem
+                        className="cursor-pointer py-2.5 font-medium"
+                        onClick={() => void downloadFilteredPdf()}
+                      >
+                        Merged PDF — one file (pages in PDF order)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer py-2.5 font-medium"
+                        onClick={() => void downloadSelectedSkuFilesZip()}
+                      >
+                        ZIP — one PDF per SKU (selected rows only)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    data-tour="download-btn"
+                    title="Checked rows · PDF order"
+                    className="min-h-11 gap-1 bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
+                    disabled={selectedTotal === 0 || bulkSkuZipState != null}
+                    onClick={() => void downloadFilteredPdf()}
+                  >
+                    <Download className="size-3.5" aria-hidden />
+                    Download
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -2414,15 +2544,47 @@ export function MeeshoLabelExportTool() {
                   >
                     Clear
                   </Button>
-                  <Button
-                    type="button"
-                    className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
-                    disabled={bulkSkuZipState != null}
-                    onClick={() => void requestDownload()}
-                  >
-                    <Download className="size-[18px] shrink-0" aria-hidden />
-                    Download
-                  </Button>
+                  {selectionShowsMergeVsZipChoice ? (
+                    <DropdownMenu modal={false}>
+                      <DropdownMenuTrigger
+                        type="button"
+                        disabled={bulkSkuZipState != null}
+                        title="Export selected rows"
+                        className={cn(
+                          buttonVariants({ variant: "default", size: "lg" }),
+                          "h-11 min-w-[7.5rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
+                        )}
+                      >
+                        <Download className="size-[18px] shrink-0" aria-hidden />
+                        Download
+                        <ChevronDown className="size-4 shrink-0 opacity-85" strokeWidth={2.25} aria-hidden />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="top" align="end" sideOffset={10} className="min-w-[min(100vw-2rem,19rem)]">
+                        <DropdownMenuItem
+                          className="cursor-pointer py-2.5 text-[13px] font-medium"
+                          onClick={() => void downloadFilteredPdf()}
+                        >
+                          Merged PDF — one file
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer py-2.5 text-[13px] font-medium"
+                          onClick={() => void downloadSelectedSkuFilesZip()}
+                        >
+                          ZIP — one PDF per SKU
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
+                      disabled={bulkSkuZipState != null}
+                      onClick={() => void downloadFilteredPdf()}
+                    >
+                      <Download className="size-[18px] shrink-0" aria-hidden />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : null}

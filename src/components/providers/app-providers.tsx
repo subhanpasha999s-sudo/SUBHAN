@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ValueFirstAuthProvider } from "@/components/auth/value-first-auth-provider";
 import { AuthProvider } from "@/lib/supabase/auth-context";
 import { AnalyticsTracker } from "@/components/providers/analytics-tracker";
+import { AppTourProvider } from "@/components/providers/app-tour";
 
 /** Tooltips rarely matter on cold load; hydrate after idle to shrink first-paint blocking work. */
 function DeferredTooltipProvider({
@@ -47,7 +48,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <ValueFirstAuthProvider>
           <AnalyticsTracker />
           <DeferredTooltipProvider>
-            {children}
+            <AppTourProvider>
+              {children}
+            </AppTourProvider>
             <Toaster
               richColors
               closeButton
