@@ -6,13 +6,17 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgeCheck,
   BookOpenText,
   ChevronsLeft,
   CircleUserRound,
+  Cloud,
   FileDown,
   Layers2,
   Link2,
+  LockKeyhole,
   Settings2,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -35,6 +39,7 @@ import { useMeeshoStore } from "@/store/use-meesho-store";
 type NavDef = {
   href?: string;
   label: string;
+  description: string;
   icon: LucideIcon;
   badge?: string;
   soon?: boolean;
@@ -49,15 +54,37 @@ const NAV_GROUPS: NavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { href: "/export-labels", label: "Labels", icon: FileDown },
-      { href: "/mapping", label: "SKU Mapping", icon: Link2 },
-      { href: "/blog", label: "Blog", icon: BookOpenText },
+      {
+        href: "/export-labels",
+        label: "Labels",
+        description: "Filter and export dispatch PDFs",
+        icon: FileDown,
+      },
+      {
+        href: "/mapping",
+        label: "SKU Mapping",
+        description: "Remember listing to master SKUs",
+        icon: Link2,
+      },
+      {
+        href: "/blog",
+        label: "Blog",
+        description: "Operator guides and workflows",
+        icon: BookOpenText,
+      },
     ],
   },
   {
     id: "system",
     label: "System",
-    items: [{ href: "/settings", label: "Settings", icon: Settings2 }],
+    items: [
+      {
+        href: "/settings",
+        label: "Settings",
+        description: "Theme, data, and workspace controls",
+        icon: Settings2,
+      },
+    ],
   },
 ];
 
@@ -107,18 +134,35 @@ function SidebarNavButton({
 
   const content = (
     <>
-      <Icon
+      <span
         className={cn(
-          "size-[18px] shrink-0 transition-[color,transform] duration-200 ease-smooth",
-          active && "scale-[1.03] text-sidebar-primary motion-reduce:scale-100",
-          !active && "text-sidebar-foreground/55 group-hover:text-sidebar-foreground/88"
+          "relative flex shrink-0 items-center justify-center rounded-xl transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth",
+          collapsed ? "size-10" : "size-9",
+          active
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_12px_28px_-16px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.25)]"
+            : "bg-sidebar-foreground/[0.045] text-sidebar-foreground/55 ring-1 ring-sidebar-foreground/[0.05] group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground/90"
         )}
-        strokeWidth={1.65}
-        aria-hidden
-      />
+      >
+        <Icon
+          className={cn(
+            "shrink-0 transition-transform duration-200 ease-smooth",
+            collapsed ? "size-[18px]" : "size-[17px]",
+            active && "scale-[1.03] motion-reduce:scale-100"
+          )}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      </span>
       {!collapsed && (
-        <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium leading-snug">
-          {item.label}
+        <span className="min-w-0 flex-1 text-left leading-tight">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 truncate text-[13px] font-semibold text-sidebar-foreground">
+              {item.label}
+            </span>
+          </span>
+          <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/45">
+            {item.description}
+          </span>
         </span>
       )}
       {!collapsed && item.badge ? (
@@ -138,22 +182,23 @@ function SidebarNavButton({
     "group relative flex w-full touch-manipulation items-center outline-none select-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]",
     navInteraction,
     collapsed
-      ? "justify-center rounded-xl px-0 py-2.5"
+      ? "justify-center rounded-2xl px-0 py-1.5"
       : cn(
-          "gap-3 rounded-xl py-2.5 pl-3 pr-2.5",
-          comfortTouch && "min-h-12 py-3"
+          "gap-3 rounded-2xl py-2.5 pl-2 pr-2.5",
+          comfortTouch && "min-h-[3.65rem] py-3"
         ),
     item.soon && "cursor-not-allowed opacity-55",
     active &&
       !item.soon &&
       cn(
-        "bg-sidebar-primary/[0.14] text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(91_156_247/0.18),0_10px_28px_-16px_rgb(59_130_246/0.45)]",
-        "before:pointer-events-none before:absolute before:left-0 before:top-1/2 before:h-[58%] before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary before:content-['']",
-        "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),0_0_0_1px_rgb(96_165_250/0.16),0_12px_36px_-18px_rgb(59_130_246/0.35)]"
+        "bg-sidebar-accent/75 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.08),0_0_0_1px_rgb(91_156_247/0.18),0_14px_32px_-22px_rgb(59_130_246/0.55)]",
+        "after:pointer-events-none after:absolute after:right-3 after:top-1/2 after:size-1.5 after:-translate-y-1/2 after:rounded-full after:bg-sidebar-primary after:shadow-[0_0_18px_rgb(96_165_250/0.8)] after:content-['']",
+        collapsed && "after:right-1.5",
+        "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(96_165_250/0.16),0_14px_34px_-22px_rgb(59_130_246/0.55)]"
       ),
     !active &&
       !item.soon &&
-      "text-sidebar-foreground/72 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.04)]"
+      "text-sidebar-foreground/72 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.045)]"
   );
 
   if (item.soon || !item.href) {
@@ -225,14 +270,18 @@ function SidebarNavBody({
       {NAV_GROUPS.map((group, gi) => (
         <div key={group.id} className={cn(gi > 0 && "mt-6")}>
           {!collapsed && (
-            <p
+            <div
               className={cn(
-                "mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/38",
+                "mb-2 flex items-center gap-2 px-1",
                 SIDEBAR_PAD_X
               )}
             >
-              {group.label}
-            </p>
+              <span className="h-px flex-1 bg-sidebar-border/35" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/38">
+                {group.label}
+              </span>
+              <span className="h-px flex-1 bg-sidebar-border/35" />
+            </div>
           )}
           <div
             className={cn(
@@ -277,6 +326,7 @@ function SidebarChrome({
   const { user, authReady } = useAuth();
   const { openOptionalSignIn } = useValueFirstAuth();
   const guestSignedOut = authReady && !user;
+  const userEmail = user?.email ?? "";
 
   return (
     <>
@@ -292,19 +342,25 @@ function SidebarChrome({
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div
-              className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary/90 to-[#4178c9] shadow-[0_8px_24px_-14px_rgb(59_130_246/0.55)] ring-1 ring-white/15"
+              className="relative flex size-[40px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sidebar-primary/95 via-[#4f86dd] to-[#6a5be8] shadow-[0_12px_30px_-16px_rgb(59_130_246/0.9)] ring-1 ring-white/15"
               aria-hidden
             >
+              <span className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.28),transparent_38%)]" />
               <Layers2 className="size-[20px] text-sidebar-primary-foreground" strokeWidth={1.85} />
             </div>
             {!navCollapsed && (
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-                  Tulmin
-                </p>
-                <div className="mt-1.5 inline-flex items-center rounded-full bg-emerald-500/14 px-2 py-px text-[9px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-500/35 dark:text-emerald-200 dark:ring-emerald-400/28">
-                  Tulmin Ready
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                    Tulmin
+                  </p>
+                  <span className="rounded-md bg-sidebar-foreground/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/52 ring-1 ring-sidebar-foreground/10">
+                    SaaS
+                  </span>
                 </div>
+                <p className="mt-1 truncate text-[11px] font-medium text-sidebar-foreground/48">
+                  Meesho dispatch workspace
+                </p>
               </div>
             )}
           </div>
@@ -357,11 +413,39 @@ function SidebarChrome({
             </span>
           </span>
         ) : null}
+        {!navCollapsed ? (
+          <div className="rounded-2xl border border-sidebar-border/35 bg-sidebar-foreground/[0.035] p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.045)]">
+            <div className="flex items-start gap-2.5">
+              <span
+                className={cn(
+                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl ring-1",
+                  user
+                    ? "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200"
+                    : "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200"
+                )}
+              >
+                {user ? (
+                  <Cloud className="size-4" strokeWidth={1.8} aria-hidden />
+                ) : (
+                  <LockKeyhole className="size-4" strokeWidth={1.8} aria-hidden />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-semibold text-sidebar-foreground">
+                  {user ? "Cloud workspace active" : "Local workspace"}
+                </p>
+                <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/48">
+                  {user ? "Maps sync across browsers" : "Sign in to back up maps"}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
         <nav
-          className="flex flex-col pb-36 pt-2"
+          className="flex flex-col pb-5 pt-4"
           aria-label={variant === "mobile" ? "Main navigation" : undefined}
         >
           <Suspense
@@ -385,38 +469,70 @@ function SidebarChrome({
         </nav>
       </div>
 
-      {variant === "mobile" ? (
-        <footer
-          className={cn(
-            "mt-auto shrink-0 space-y-1 border-t border-sidebar-border/30 bg-sidebar/50 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm",
-            SIDEBAR_PAD_X
-          )}
-        >
-          {guestSignedOut ? (
-            <button
-              type="button"
-              onClick={() => {
-                openOptionalSignIn();
-                onNavNavigate?.();
-              }}
-              className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] font-semibold text-sidebar-primary transition-colors hover:bg-sidebar-primary/12"
-            >
-              <CircleUserRound className="size-[18px]" strokeWidth={1.6} />
-              Sign in to sync
-            </button>
-          ) : authReady && user ? (
-            <Link
-              href="/account"
-              prefetch={false}
-              onClick={onNavNavigate}
-              className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"
-            >
-              <CircleUserRound className="size-[18px] text-sidebar-foreground/50" strokeWidth={1.6} />
-              Account
-            </Link>
-          ) : null}
-        </footer>
-      ) : null}
+      <footer
+        className={cn(
+          "mt-auto shrink-0 border-t border-sidebar-border/30 bg-sidebar/45 px-4 py-4 backdrop-blur-sm",
+          variant === "mobile"
+            ? "pb-[max(1rem,env(safe-area-inset-bottom))]"
+            : "pb-5",
+          navCollapsed ? "px-2" : SIDEBAR_PAD_X
+        )}
+      >
+        {navCollapsed && variant === "desktop" ? (
+          <Link
+            href="/account"
+            prefetch={false}
+            title={user ? "Account" : "Sign in to sync"}
+            className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-sidebar-accent/65 text-sidebar-foreground/70 ring-1 ring-sidebar-border/35 transition-colors hover:text-sidebar-foreground"
+          >
+            <CircleUserRound className="size-[18px]" strokeWidth={1.65} aria-hidden />
+          </Link>
+        ) : guestSignedOut ? (
+          <button
+            type="button"
+            onClick={() => {
+              openOptionalSignIn();
+              onNavNavigate?.();
+            }}
+            className="group flex min-h-12 w-full items-center gap-3 rounded-2xl bg-sidebar-primary/12 px-3 text-left text-[13px] font-semibold text-sidebar-primary ring-1 ring-sidebar-primary/18 transition-[background-color,box-shadow] hover:bg-sidebar-primary/16 hover:shadow-[0_14px_32px_-24px_rgb(59_130_246/0.75)]"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_24px_-16px_rgb(59_130_246/0.95)]">
+              <CircleUserRound className="size-[17px]" strokeWidth={1.7} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">Sign in to sync</span>
+              <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/48">
+                Back up SKU mappings
+              </span>
+            </span>
+          </button>
+        ) : authReady && user ? (
+          <Link
+            href="/account"
+            prefetch={false}
+            onClick={onNavNavigate}
+            className="flex min-h-12 items-center gap-3 rounded-2xl px-2.5 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
+              <BadgeCheck className="size-[17px]" strokeWidth={1.7} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">Account</span>
+              <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/48">
+                {userEmail || "Workspace synced"}
+              </span>
+            </span>
+          </Link>
+        ) : (
+          <div className="flex min-h-12 items-center gap-3 rounded-2xl px-2.5 text-sidebar-foreground/45">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-foreground/[0.045]">
+              <Sparkles className="size-[17px]" strokeWidth={1.7} aria-hidden />
+            </span>
+            <span className="text-[12px] font-medium">Preparing workspace</span>
+          </div>
+        )}
+      </footer>
+
     </>
   );
 }
@@ -459,7 +575,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
           "bg-sidebar-rail backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/86",
           "shadow-sidebar-panel transition-[width] duration-[320ms] ease-panel motion-reduce:transition-none",
-          collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[16.25rem]"
+          collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[17.5rem]"
         )}
       >
         <SidebarChrome
@@ -498,7 +614,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
           "transition-[padding] duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[16.25rem]"
+          collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[17.5rem]"
         )}
       >
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_82%_52%_at_50%_-14%,rgb(59_130_246/0.045),transparent_56%)] dark:bg-[radial-gradient(ellipse_78%_46%_at_50%_-10%,rgb(96_165_250/0.05),transparent_55%)]" />
