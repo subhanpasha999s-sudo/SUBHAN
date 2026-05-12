@@ -31,6 +31,7 @@ import {
   safeInternalNextPath,
 } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
+import { markSignupTourPending } from "@/lib/auth/signup-tour";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { AuthShell } from "@/components/auth/premium/auth-shell";
 import { FadeIn } from "@/components/auth/premium/motion";
@@ -547,6 +548,7 @@ function PasswordLoginPanel({
           notify.error(error.message);
           return;
         }
+        markSignupTourPending(em);
         if (data.session) {
           trackEvent("auth_signup_success", { method: "password" });
           notify.success("Account ready.");

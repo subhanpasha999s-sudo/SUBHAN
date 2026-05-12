@@ -2548,6 +2548,7 @@ export function MeeshoLabelExportTool() {
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger
                         type="button"
+                        data-tour="download-btn"
                         disabled={bulkSkuZipState != null}
                         title="Export selected rows"
                         className={cn(
@@ -2577,6 +2578,7 @@ export function MeeshoLabelExportTool() {
                   ) : (
                     <Button
                       type="button"
+                      data-tour="download-btn"
                       className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
                       disabled={bulkSkuZipState != null}
                       onClick={() => void downloadFilteredPdf()}

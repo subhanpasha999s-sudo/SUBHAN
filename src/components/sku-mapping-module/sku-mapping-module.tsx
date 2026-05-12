@@ -1235,49 +1235,51 @@ export function SkuMappingModule() {
 
   return (
     <>
-      <ModulePageHeader
-        breadcrumb={[
-          { label: "Labels", href: "/export-labels" },
-          { label: "SKU Mapping" },
-        ]}
-        title="SKU Mapping"
-        description="Link each listing SKU to a master once. Every future label export auto-filters by SKU — no manual sorting needed."
-        badges={headerBadges}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {remoteAvailable && pendingLocalOnlyCount > 0 ? (
-              <Button
-                type="button"
-                size="sm"
-                className="font-semibold disabled:opacity-40"
-                disabled={pushDraftBusy || globalBusy}
-                onClick={() => void pushLocalDraftToCloud()}
-              >
-                {pushDraftBusy ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                ) : null}
-                Sync local drafts ({pendingLocalOnlyCount})
-              </Button>
-            ) : null}
-            {cloudConfigured && userId ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={snapshotRefreshing}
-                onClick={() => void onManualRefresh()}
-              >
-                {snapshotRefreshing ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                ) : (
-                  <RefreshCw className="mr-2 size-4" aria-hidden />
-                )}
-                Refresh workspace
-              </Button>
-            ) : null}
-          </div>
-        }
-      />
+      <div data-tour="sku-map-link">
+        <ModulePageHeader
+          breadcrumb={[
+            { label: "Labels", href: "/export-labels" },
+            { label: "SKU Mapping" },
+          ]}
+          title="SKU Mapping"
+          description="Link each listing SKU to a master once. Every future label export auto-filters by SKU — no manual sorting needed."
+          badges={headerBadges}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              {remoteAvailable && pendingLocalOnlyCount > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="font-semibold disabled:opacity-40"
+                  disabled={pushDraftBusy || globalBusy}
+                  onClick={() => void pushLocalDraftToCloud()}
+                >
+                  {pushDraftBusy ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                  ) : null}
+                  Sync local drafts ({pendingLocalOnlyCount})
+                </Button>
+              ) : null}
+              {cloudConfigured && userId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={snapshotRefreshing}
+                  onClick={() => void onManualRefresh()}
+                >
+                  {snapshotRefreshing ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCw className="mr-2 size-4" aria-hidden />
+                  )}
+                  Refresh workspace
+                </Button>
+              ) : null}
+            </div>
+          }
+        />
+      </div>
 
       <Dialog
         open={resumeWorkspaceOpen}

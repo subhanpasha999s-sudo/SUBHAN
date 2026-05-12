@@ -68,6 +68,7 @@ const EMPTY_SEARCH_PARAMS: URLSearchParamsLike = new URLSearchParams();
 const railEase = "cubic-bezier(0.32, 0.72, 0, 1)";
 const navInteraction =
   "transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100";
+const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
 
 function navItemActive(pathname: string, sp: URLSearchParamsLike, item: NavDef): boolean {
   if (!item.href || item.soon || item.quickLink) return false;
@@ -434,6 +435,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    const onTourMobileNav = (event: Event) => {
+      const custom = event as CustomEvent<{ open?: boolean }>;
+      setMobileNavOpen(Boolean(custom.detail?.open));
+    };
+    window.addEventListener(TOUR_MOBILE_NAV_EVENT, onTourMobileNav);
+    return () => {
+      window.removeEventListener(TOUR_MOBILE_NAV_EVENT, onTourMobileNav);
+    };
+  }, []);
 
   const drawerOpen = mobileNavOpen;
 

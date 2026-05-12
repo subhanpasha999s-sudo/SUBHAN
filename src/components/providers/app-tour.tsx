@@ -2,7 +2,7 @@
 
 /**
  * Tulmin premium onboarding — spotlight tour + completion.
- * Persists progress in localStorage; confetti + CTA on finish.
+ * Persists progress per visitor in localStorage; confetti + CTA on finish.
  */
 
 import * as React from "react";
@@ -24,17 +24,31 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/supabase/auth-context";
+import {
+  markSignupTourGiven,
+  shouldGiveSignupTour,
+} from "@/lib/auth/signup-tour";
 
 // ─── persistence ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "tulmin.onboarding-tour-v2";
+const STORAGE_KEY = "tulmin.onboarding-tour-v3";
+const VISITOR_KEY = "tulmin.visitor-id-v1";
+const TOUR_REPEAT_MS = 30 * 24 * 60 * 60 * 1000;
+const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
 
 type PersistedTour = {
-  v: 2;
+  v: 3;
+  visitorId: string;
   status: "in_progress" | "done" | "skipped";
   /** Step index 0–4 while in progress; 5 = reached completion card (optional) */
   step: number;
+  /** Last time this visitor was given the tour. */
+  shownAt: number;
+  updatedAt: number;
 };
+
+type TourLaunchKind = "first_visit" | "signup" | "monthly_refresh" | "resume" | "manual";
 
 function lsGet(key: string): string | null {
   try {
@@ -60,14 +74,41 @@ function lsRemove(key: string) {
   }
 }
 
+function createVisitorId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `visitor-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+function getVisitorId() {
+  const existing = lsGet(VISITOR_KEY);
+  if (existing) return existing;
+  const visitorId = createVisitorId();
+  lsSet(VISITOR_KEY, visitorId);
+  return visitorId;
+}
+
 function readPersisted(): PersistedTour | null {
   const raw = lsGet(STORAGE_KEY);
   if (!raw) return null;
   try {
     const o = JSON.parse(raw) as Partial<PersistedTour>;
-    if (o.v !== 2 || !o.status) return null;
+    if (o.v !== 3 || !o.status || typeof o.visitorId !== "string") return null;
     if (typeof o.step !== "number" || o.step < 0 || o.step > 5) return null;
-    return { v: 2, status: o.status, step: o.step };
+    if (typeof o.shownAt !== "number" || typeof o.updatedAt !== "number") {
+      return null;
+    }
+    return {
+      v: 3,
+      visitorId: o.visitorId,
+      status: o.status,
+      step: o.step,
+      shownAt: o.shownAt,
+      updatedAt: o.updatedAt,
+    };
   } catch {
     return null;
   }
@@ -95,6 +136,50 @@ type TourStepDef = {
   /** Navigate before measuring spotlight */
   route?: string;
 };
+
+function canAutoLaunchTour(pathname: string) {
+  const p = pathname || "/";
+  if (
+    p.startsWith("/login") ||
+    p.startsWith("/blog") ||
+    p.startsWith("/privacy") ||
+    p.startsWith("/terms")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function shouldRouteToWorkspaceBeforeTour(pathname: string) {
+  return !canAutoLaunchTour(pathname);
+}
+
+function stepTitle(step: TourStepDef, launchKind: TourLaunchKind) {
+  if (step.id === "welcome" && launchKind === "signup") {
+    return "Set up your Tulmin workspace";
+  }
+  if (step.id === "welcome" && launchKind === "monthly_refresh") {
+    return "Quick workspace refresher";
+  }
+  return step.title;
+}
+
+function stepDescription(step: TourStepDef, launchKind: TourLaunchKind) {
+  if (step.id === "welcome" && launchKind === "signup") {
+    return "Your account is ready. Here is the fastest path from uploaded labels to dispatch-ready exports.";
+  }
+  if (step.id === "welcome" && launchKind === "monthly_refresh") {
+    return "A short refresher so your team remembers the fastest label workflow.";
+  }
+  return step.description;
+}
+
+function launchLabel(launchKind: TourLaunchKind) {
+  if (launchKind === "signup") return "Workspace setup";
+  if (launchKind === "monthly_refresh") return "Monthly refresher";
+  if (launchKind === "resume") return "Continue tour";
+  return "Product tour";
+}
 
 const MAIN_STEPS: TourStepDef[] = [
   {
@@ -381,6 +466,7 @@ function MiniFlow({ nodes }: { nodes: readonly string[] }) {
 function GlassTourCard({
   step,
   stepIndex,
+  launchKind,
   spotlightRect,
   onNext,
   onPrev,
@@ -388,6 +474,7 @@ function GlassTourCard({
 }: {
   step: TourStepDef;
   stepIndex: number;
+  launchKind: TourLaunchKind;
   spotlightRect: SpotlightRect;
   onNext: () => void;
   onPrev: () => void;
@@ -402,22 +489,26 @@ function GlassTourCard({
   const progress = ((stepIndex + 1) / TOTAL_MAIN) * 100;
 
   React.useLayoutEffect(() => {
-    if (step.placement === "center" || !spotlightRect) {
-      setPos({
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "min(22rem, calc(100vw - 2rem))",
-      });
-      return;
-    }
-
     const measure = () => {
       const el = cardRef.current;
+      const viewport = window.visualViewport;
+      const vw = viewport?.width ?? window.innerWidth;
+      const vh = viewport?.height ?? window.innerHeight;
+      const vx = viewport?.offsetLeft ?? 0;
+      const vy = viewport?.offsetTop ?? 0;
+      const inset = vw < 420 ? 12 : 16;
       const popoverH = el?.offsetHeight ?? 260;
-      const popoverW = Math.min(360, window.innerWidth - 32);
-      const vw = window.innerWidth;
+      const popoverW = Math.min(360, Math.max(280, vw - inset * 2));
+
+      if (step.placement === "center" || !spotlightRect) {
+        setPos({
+          position: "fixed",
+          top: Math.max(vy + inset, vy + (vh - popoverH) / 2),
+          left: Math.max(vx + inset, vx + (vw - popoverW) / 2),
+          width: popoverW,
+        });
+        return;
+      }
 
       let top: number;
       if (step.placement === "bottom") {
@@ -436,8 +527,8 @@ function GlassTourCard({
 
       const targetCx = spotlightRect.left + spotlightRect.width / 2;
       let left = targetCx - popoverW / 2;
-      left = Math.max(16, Math.min(left, vw - popoverW - 16));
-      top = Math.max(16, Math.min(top, window.innerHeight - popoverH - 16));
+      left = Math.max(vx + inset, Math.min(left, vx + vw - popoverW - inset));
+      top = Math.max(vy + inset, Math.min(top, vy + vh - popoverH - inset));
 
       setPos({
         position: "fixed",
@@ -451,9 +542,13 @@ function GlassTourCard({
     const ro = new ResizeObserver(measure);
     if (cardRef.current) ro.observe(cardRef.current);
     window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
     };
   }, [step, spotlightRect]);
 
@@ -474,7 +569,7 @@ function GlassTourCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reduce ? undefined : { opacity: 0, y: 8, scale: 0.98 }}
       className={cn(
-        "z-[210] overflow-hidden rounded-[1.35rem] border border-white/[0.12] bg-popover/[0.72] p-5 shadow-[0_32px_80px_-24px_rgba(0,0,0,0.65)] backdrop-blur-2xl",
+        "z-[210] max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden rounded-[1.35rem] border border-white/[0.12] bg-popover/[0.72] p-4 shadow-[0_32px_80px_-24px_rgba(0,0,0,0.65)] backdrop-blur-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-5",
         "dark:border-white/[0.08] dark:bg-popover/[0.5] dark:shadow-[0_32px_90px_-28px_rgba(0,0,0,0.85)]",
         "ring-1 ring-white/[0.06]"
       )}
@@ -482,7 +577,7 @@ function GlassTourCard({
       <div className="mb-3 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-            Step {stepIndex + 1} of {TOTAL_MAIN}
+            {launchLabel(launchKind)} · Step {stepIndex + 1} of {TOTAL_MAIN}
           </span>
           <button
             type="button"
@@ -514,10 +609,10 @@ function GlassTourCard({
             id="tour-title"
             className="text-[17px] font-semibold leading-snug tracking-tight text-foreground"
           >
-            {step.title}
+            {stepTitle(step, launchKind)}
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-            {step.description}
+            {stepDescription(step, launchKind)}
           </p>
           {step.benefit ? (
             <p className="mt-2 text-[12px] font-medium leading-snug text-foreground/85">
@@ -583,10 +678,12 @@ function CompletionCard({
   onDone,
   reducedMotion,
   burstRef,
+  launchKind,
 }: {
   onDone: () => void;
   reducedMotion: boolean;
   burstRef: React.RefObject<HTMLDivElement | null>;
+  launchKind: TourLaunchKind;
 }) {
   React.useEffect(() => {
     const root = burstRef.current;
@@ -623,10 +720,12 @@ function CompletionCard({
         id="tour-done-title"
         className="text-xl font-semibold tracking-tight text-foreground"
       >
-        {COMPLETION.title}
+        {launchKind === "signup" ? "Workspace Ready" : COMPLETION.title}
       </h2>
       <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-        {COMPLETION.description}
+        {launchKind === "signup"
+          ? "Your account is set. Start with labels, add SKU mapping when needed, and keep exports consistent across the team."
+          : COMPLETION.description}
       </p>
       <button
         type="button"
@@ -655,16 +754,80 @@ export function useAppTour() {
   return React.useContext(TourContext);
 }
 
-function getSpotlightRect(selector: string | null): DOMRect | null {
+function getSpotlightElement(selector: string | null): Element | null {
   if (!selector) return null;
-  const el = document.querySelector(selector);
-  if (!el) return null;
-  return el.getBoundingClientRect();
+  const candidates = Array.from(document.querySelectorAll(selector));
+  return (
+    candidates.find((el) => {
+      const r = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return (
+        r.width > 0 &&
+        r.height > 0 &&
+        r.bottom > 0 &&
+        r.right > 0 &&
+        r.top < window.innerHeight &&
+        r.left < window.innerWidth &&
+        style.visibility !== "hidden" &&
+        style.display !== "none"
+      );
+    }) ?? null
+  );
+}
+
+function getMeasurableSpotlightElement(selector: string | null): Element | null {
+  if (!selector) return null;
+  const candidates = Array.from(document.querySelectorAll(selector));
+  return (
+    candidates.find((el) => {
+      const r = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return (
+        r.width > 0 &&
+        r.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.display !== "none"
+      );
+    }) ?? null
+  );
+}
+
+function getSpotlightRect(selector: string | null): DOMRect | null {
+  const visible = getSpotlightElement(selector);
+  if (visible) return visible.getBoundingClientRect();
+  const measurable = getMeasurableSpotlightElement(selector);
+  if (!measurable) return null;
+  const r = measurable.getBoundingClientRect();
+  const intersectsViewport =
+    r.bottom > 0 &&
+    r.right > 0 &&
+    r.top < window.innerHeight &&
+    r.left < window.innerWidth;
+  if (!intersectsViewport) {
+    return null;
+  }
+  return r;
 }
 
 function rectToSpotlight(r: DOMRect | null): SpotlightRect {
   if (!r || (r.width === 0 && r.height === 0)) return null;
-  return { top: r.top, left: r.left, width: r.width, height: r.height };
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const left = Math.max(0, Math.min(r.left, vw));
+  const top = Math.max(0, Math.min(r.top, vh));
+  const right = Math.max(left, Math.min(r.right, vw));
+  const bottom = Math.max(top, Math.min(r.bottom, vh));
+  return { top, left, width: right - left, height: bottom - top };
+}
+
+function isMobileTourViewport() {
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
+function setTourMobileNav(open: boolean) {
+  window.dispatchEvent(
+    new CustomEvent(TOUR_MOBILE_NAV_EVENT, { detail: { open } }),
+  );
 }
 
 // ─── provider ─────────────────────────────────────────────────────────────────
@@ -672,42 +835,76 @@ function rectToSpotlight(r: DOMRect | null): SpotlightRect {
 export function AppTourProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, authReady } = useAuth();
   const reduceMotion = useReducedMotion();
 
   const [mounted, setMounted] = React.useState(false);
   const [active, setActive] = React.useState(false);
   /** 0–4 main steps, 5 = completion */
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [launchKind, setLaunchKind] = React.useState<TourLaunchKind>("first_visit");
   const [spotlightRect, setSpotlightRect] = React.useState<SpotlightRect>(null);
   const burstHostRef = React.useRef<HTMLDivElement>(null);
+  const visitorIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  // First visit or resume
+  // First visit, monthly refresher, or unfinished-tour resume. Only starts in
+  // product workspace pages; auth, legal, and editorial pages stay quiet.
   React.useEffect(() => {
     if (!mounted) return;
+    if (!canAutoLaunchTour(pathname)) return;
+    const visitorId = getVisitorId();
+    visitorIdRef.current = visitorId;
     const p = readPersisted();
-    if (!p) {
+    const now = Date.now();
+    const shouldStartFresh = !p || p.visitorId !== visitorId;
+    const shouldRefresh = Boolean(
+      p?.visitorId === visitorId &&
+        p.status !== "in_progress" &&
+        now - p.shownAt >= TOUR_REPEAT_MS,
+    );
+
+    if (shouldStartFresh || shouldRefresh) {
       const t = window.setTimeout(() => {
+        setLaunchKind(shouldRefresh ? "monthly_refresh" : "first_visit");
         setStepIndex(0);
         setActive(true);
-        writePersisted({ v: 2, status: "in_progress", step: 0 });
+        writePersisted({
+          v: 3,
+          visitorId,
+          status: "in_progress",
+          step: 0,
+          shownAt: now,
+          updatedAt: now,
+        });
       }, 850);
       return () => window.clearTimeout(t);
     }
     if (p.status === "in_progress" && p.step >= 0 && p.step <= TOTAL_MAIN) {
       const t = window.setTimeout(() => {
+        setLaunchKind("resume");
         setStepIndex(Math.min(p.step, TOTAL_MAIN));
         setActive(true);
       }, 400);
       return () => window.clearTimeout(t);
     }
-  }, [mounted]);
+  }, [mounted, pathname]);
 
   const step = MAIN_STEPS[stepIndex];
   const isCompletion = active && stepIndex >= TOTAL_MAIN;
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const shouldOpen =
+      active && !isCompletion && step?.id === "sku" && isMobileTourViewport();
+    setTourMobileNav(shouldOpen);
+    return () => {
+      if (shouldOpen) setTourMobileNav(false);
+    };
+  }, [active, isCompletion, step?.id]);
 
   // Route for spotlight targets
   React.useEffect(() => {
@@ -743,7 +940,9 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
       }
       const tryMeasure = (attempt: number) => {
         if (cancelled) return;
-        const el = document.querySelector(step.target!);
+        const el =
+          getSpotlightElement(step.target) ??
+          getMeasurableSpotlightElement(step.target);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -774,7 +973,21 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
   }, [active, isCompletion, pathname, step, stepIndex]);
 
   const persistStep = React.useCallback((idx: number, status: PersistedTour["status"]) => {
-    writePersisted({ v: 2, status, step: idx });
+    const visitorId = visitorIdRef.current ?? getVisitorId();
+    visitorIdRef.current = visitorId;
+    const previous = readPersisted();
+    const now = Date.now();
+    writePersisted({
+      v: 3,
+      visitorId,
+      status,
+      step: idx,
+      shownAt:
+        previous?.visitorId === visitorId && previous.shownAt
+          ? previous.shownAt
+          : now,
+      updatedAt: now,
+    });
   }, []);
 
   const skipTour = React.useCallback(() => {
@@ -803,8 +1016,38 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
 
   const finishCompletion = React.useCallback(() => {
     setActive(false);
-    writePersisted({ v: 2, status: "done", step: TOTAL_MAIN });
+    persistStep(TOTAL_MAIN, "done");
+  }, [persistStep]);
+
+  const beginTour = React.useCallback((kind: TourLaunchKind = "manual") => {
+    const visitorId = getVisitorId();
+    visitorIdRef.current = visitorId;
+    const now = Date.now();
+    setLaunchKind(kind);
+    setStepIndex(0);
+    setActive(true);
+    writePersisted({
+      v: 3,
+      visitorId,
+      status: "in_progress",
+      step: 0,
+      shownAt: now,
+      updatedAt: now,
+    });
   }, []);
+
+  React.useEffect(() => {
+    if (!mounted || !authReady || !user) return;
+    if (!shouldGiveSignupTour(user)) return;
+    markSignupTourGiven(user);
+    if (shouldRouteToWorkspaceBeforeTour(pathname)) {
+      router.replace("/export-labels");
+    }
+    const t = window.setTimeout(() => {
+      beginTour("signup");
+    }, shouldRouteToWorkspaceBeforeTour(pathname) ? 900 : 450);
+    return () => window.clearTimeout(t);
+  }, [authReady, beginTour, mounted, pathname, router, user]);
 
   // Keyboard
   React.useEffect(() => {
@@ -846,17 +1089,13 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
 
   const startTour = React.useCallback(() => {
     lsRemove(STORAGE_KEY);
-    setStepIndex(0);
-    setActive(true);
-    writePersisted({ v: 2, status: "in_progress", step: 0 });
-  }, []);
+    beginTour("manual");
+  }, [beginTour]);
 
   const resetTour = React.useCallback(() => {
     lsRemove(STORAGE_KEY);
-    setStepIndex(0);
-    setActive(true);
-    writePersisted({ v: 2, status: "in_progress", step: 0 });
-  }, []);
+    beginTour("manual");
+  }, [beginTour]);
 
   const ctx = React.useMemo(
     () => ({ startTour, resetTour }),
@@ -899,6 +1138,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
                     key={step.id}
                     step={step}
                     stepIndex={stepIndex}
+                    launchKind={launchKind}
                     spotlightRect={spotlightRect}
                     onNext={goNext}
                     onPrev={goPrev}
@@ -910,6 +1150,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
                     onDone={finishCompletion}
                     reducedMotion={!!reduceMotion}
                     burstRef={burstHostRef}
+                    launchKind={launchKind}
                   />
                 ) : null}
               </AnimatePresence>
