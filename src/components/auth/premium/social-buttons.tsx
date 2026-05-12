@@ -5,6 +5,7 @@ import { Globe } from "lucide-react";
 import { toast as notify } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { markSignupTourPending } from "@/lib/auth/signup-tour";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +14,11 @@ type Provider = "google";
 export function SocialAuthButtons({
   redirectTo,
   className,
+  signupIntent = false,
 }: {
   redirectTo: string;
   className?: string;
+  signupIntent?: boolean;
 }) {
   const sb = React.useMemo(() => getSupabaseBrowser(), []);
   const [busy, setBusy] = React.useState<Provider | null>(null);
@@ -24,6 +27,9 @@ export function SocialAuthButtons({
     if (!sb) return;
     setBusy(p);
     try {
+      if (signupIntent) {
+        markSignupTourPending("*");
+      }
       const { data, error } = await sb.auth.signInWithOAuth({
         provider: p,
         options: { redirectTo, skipBrowserRedirect: true },
@@ -71,4 +77,3 @@ export function SocialAuthButtons({
     </div>
   );
 }
-

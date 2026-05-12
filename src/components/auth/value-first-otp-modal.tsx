@@ -21,6 +21,7 @@ import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
 import { EMAIL_OTP_LENGTH, getOtpEmailRedirectUrl } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
+import { markSignupTourPending } from "@/lib/auth/signup-tour";
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { cn } from "@/lib/utils";
@@ -127,6 +128,9 @@ export function ValueFirstOtpModal(props: {
       if (error) {
         notify.error(getOtpSendErrorMessage(error.message));
         return;
+      }
+      if (copyIntent === "optional-signin") {
+        markSignupTourPending(trimmed);
       }
       setStep(2);
       setOtp("");

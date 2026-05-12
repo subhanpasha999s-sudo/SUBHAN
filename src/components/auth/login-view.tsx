@@ -247,7 +247,10 @@ export function LoginView() {
             </CardHeader>
 
             <CardContent className="space-y-5 px-0 pb-0 pt-6">
-              <SocialAuthButtons redirectTo={`${typeof window !== "undefined" ? window.location.origin : ""}${nextPath}`} />
+              <SocialAuthButtons
+                redirectTo={`${typeof window !== "undefined" ? window.location.origin : ""}${nextPath}`}
+                signupIntent={preferredPasswordMode === "signup"}
+              />
               <div className="relative py-1">
                 <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/70" />
                 <div className="relative flex justify-center">

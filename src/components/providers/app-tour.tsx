@@ -685,6 +685,42 @@ function CompletionCard({
   burstRef: React.RefObject<HTMLDivElement | null>;
   launchKind: TourLaunchKind;
 }) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<React.CSSProperties>({});
+
+  React.useLayoutEffect(() => {
+    const measure = () => {
+      const viewport = window.visualViewport;
+      const vw = viewport?.width ?? window.innerWidth;
+      const vh = viewport?.height ?? window.innerHeight;
+      const vx = viewport?.offsetLeft ?? 0;
+      const vy = viewport?.offsetTop ?? 0;
+      const inset = vw < 420 ? 12 : 16;
+      const cardW = Math.min(360, Math.max(280, vw - inset * 2));
+      const cardH = cardRef.current?.offsetHeight ?? 300;
+
+      setPos({
+        position: "fixed",
+        top: Math.max(vy + inset, vy + (vh - cardH) / 2),
+        left: Math.max(vx + inset, vx + (vw - cardW) / 2),
+        width: cardW,
+      });
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (cardRef.current) ro.observe(cardRef.current);
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
+  }, []);
+
   React.useEffect(() => {
     const root = burstRef.current;
     if (!root) return;
@@ -694,16 +730,17 @@ function CompletionCard({
 
   return (
     <motion.div
+      ref={cardRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-done-title"
+      style={pos}
       initial={reducedMotion ? false : { opacity: 0, scale: 0.94, y: 16 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={reducedMotion ? undefined : { opacity: 0, scale: 0.96, y: 12 }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
       className={cn(
-        "fixed left-1/2 top-1/2 z-[210] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2",
-        "overflow-hidden rounded-[1.35rem] border border-white/[0.14] bg-popover/[0.78] p-8 text-center shadow-[0_40px_100px_-32px_rgba(0,0,0,0.72)] backdrop-blur-2xl",
+        "z-[210] max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden rounded-[1.35rem] border border-white/[0.14] bg-popover/[0.78] p-6 text-center shadow-[0_40px_100px_-32px_rgba(0,0,0,0.72)] backdrop-blur-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-8",
         "dark:border-white/[0.08] dark:bg-popover/[0.55] dark:shadow-[0_40px_110px_-36px_rgba(0,0,0,0.88)]",
         "ring-1 ring-white/[0.07]"
       )}

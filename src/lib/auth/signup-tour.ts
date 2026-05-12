@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 const SIGNUP_TOUR_PENDING_KEY = "tulmin.signup-tour.pending-v1";
 const SIGNUP_TOUR_GIVEN_PREFIX = "tulmin.signup-tour.given-user:";
 const RECENT_SIGNUP_MS = 10 * 60 * 1000;
+const PENDING_SIGNUP_TOUR_MS = 24 * 60 * 60 * 1000;
 
 function safeGet(key: string): string | null {
   try {
@@ -39,7 +40,7 @@ function givenKey(userId: string) {
 }
 
 export function markSignupTourPending(email: string) {
-  const normalized = normalizeEmail(email);
+  const normalized = email === "*" ? "*" : normalizeEmail(email);
   if (!normalized) return;
   safeSet(
     SIGNUP_TOUR_PENDING_KEY,
@@ -58,7 +59,14 @@ export function shouldGiveSignupTour(user: User, now = Date.now()) {
         email?: unknown;
         markedAt?: unknown;
       };
+      const markedAt =
+        typeof pending.markedAt === "number" ? pending.markedAt : 0;
+      if (!markedAt || now - markedAt > PENDING_SIGNUP_TOUR_MS) {
+        safeRemove(SIGNUP_TOUR_PENDING_KEY);
+        return false;
+      }
       if (
+        pending.email === "*" ||
         typeof pending.email === "string" &&
         normalizeEmail(pending.email) === email
       ) {
