@@ -9,7 +9,7 @@
     "dev:localhost": "next dev --turbo --hostname localhost",
     "dev:webpack": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "android:sync": "next build && npx cap sync android",
+    "android:sync": "TULMIN_STATIC_EXPORT=1 next build && npx cap sync android",
     "android:open": "npx cap open android",
     "preview": "npx serve@14 out -l 3000",
     "start": "npx serve@14 out -l 3000",

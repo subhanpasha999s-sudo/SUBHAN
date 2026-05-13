@@ -100,6 +100,13 @@ export default function BlogDetailPage({ params }: { params: { slug: string } })
       </nav>
 
       <header className="rounded-2xl border border-border/60 bg-card/90 p-6 shadow-elevate-sm sm:p-8">
+        {post.coverImage ? (
+          <div
+            className="mb-6 aspect-[16/7] rounded-2xl bg-cover bg-center ring-1 ring-border/60"
+            style={{ backgroundImage: `url(${post.coverImage})` }}
+            aria-hidden
+          />
+        ) : null}
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{post.category}</p>
         <h1 className="mt-3 max-w-4xl text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {post.title}

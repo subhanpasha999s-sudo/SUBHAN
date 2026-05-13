@@ -1,4 +1,6 @@
 import { getSiteUrl } from "@/lib/seo/site-url";
+import managedBlogPosts from "@/content/blog-posts.json";
+import deletedBlogSlugs from "@/content/blog-deleted-slugs.json";
 
 export const BLOG_CATEGORIES = [
   "Label Management",
@@ -31,6 +33,8 @@ export type BlogPost = {
   category: BlogCategory;
   readTime: string;
   publishedOn: string;
+  status?: "draft" | "published";
+  coverImage?: string;
   trending?: boolean;
   featured?: boolean;
   keywords: string[];
@@ -583,19 +587,31 @@ export const BLOG_POSTS: BlogPost[] = [
 ];
 
 export function getAllBlogPosts() {
-  return BLOG_POSTS;
+  const managed = (managedBlogPosts as BlogPost[]).filter(
+    (post) => post.slug && post.title && post.status !== "draft",
+  );
+  const managedSlugs = new Set(managed.map((post) => post.slug));
+  const deleted = new Set(deletedBlogSlugs as string[]);
+  return [
+    ...managed,
+    ...BLOG_POSTS.filter(
+      (post) => !managedSlugs.has(post.slug) && !deleted.has(post.slug),
+    ),
+  ].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn));
 }
 
 export function getFeaturedBlogPost() {
-  return BLOG_POSTS.find((p) => p.featured) ?? BLOG_POSTS[0];
+  const posts = getAllBlogPosts();
+  return posts.find((p) => p.featured) ?? posts[0];
 }
 
 export function getBlogPostBySlug(slug: string) {
-  return BLOG_POSTS.find((p) => p.slug === slug);
+  return getAllBlogPosts().find((p) => p.slug === slug);
 }
 
 export function getRelatedBlogPosts(slug: string, category: BlogCategory, limit = 3) {
-  return BLOG_POSTS.filter((p) => p.slug !== slug)
+  return getAllBlogPosts()
+    .filter((p) => p.slug !== slug)
     .sort((a, b) => {
       if (a.category === category && b.category !== category) return -1;
       if (b.category === category && a.category !== category) return 1;

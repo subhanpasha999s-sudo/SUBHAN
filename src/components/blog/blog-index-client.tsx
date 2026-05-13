@@ -191,7 +191,15 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
               href={blogUrlPath(post.slug)}
               className="group rounded-2xl border border-border/60 bg-card/90 p-4 shadow-elevate-xs transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-elevate-sm"
             >
-              <div className="mb-3 h-28 rounded-xl bg-gradient-to-br from-primary/20 via-primary/5 to-transparent ring-1 ring-border/60" />
+              {post.coverImage ? (
+                <div
+                  className="mb-3 h-28 rounded-xl bg-cover bg-center ring-1 ring-border/60"
+                  style={{ backgroundImage: `url(${post.coverImage})` }}
+                  aria-hidden
+                />
+              ) : (
+                <div className="mb-3 h-28 rounded-xl bg-gradient-to-br from-primary/20 via-primary/5 to-transparent ring-1 ring-border/60" />
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                   {post.category}

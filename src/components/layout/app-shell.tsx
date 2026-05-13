@@ -15,6 +15,7 @@ import {
   Layers2,
   Link2,
   LockKeyhole,
+  PencilLine,
   Settings2,
   Sparkles,
   X,
@@ -83,6 +84,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Settings",
         description: "Theme, data, and workspace controls",
         icon: Settings2,
+      },
+      {
+        href: "/backend/blog",
+        label: "Blog Backend",
+        description: "Write and publish articles",
+        icon: PencilLine,
       },
     ],
   },
@@ -182,7 +189,7 @@ function SidebarNavButton({
     "group relative flex w-full touch-manipulation items-center outline-none select-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]",
     navInteraction,
     collapsed
-      ? "justify-center rounded-2xl px-0 py-1.5"
+      ? "mx-auto h-12 w-12 justify-center rounded-2xl p-0"
       : cn(
           "gap-3 rounded-2xl py-2.5 pl-2 pr-2.5",
           comfortTouch && "min-h-[3.65rem] py-3"
@@ -193,7 +200,7 @@ function SidebarNavButton({
       cn(
         "bg-sidebar-accent/75 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.08),0_0_0_1px_rgb(91_156_247/0.18),0_14px_32px_-22px_rgb(59_130_246/0.55)]",
         "after:pointer-events-none after:absolute after:right-3 after:top-1/2 after:size-1.5 after:-translate-y-1/2 after:rounded-full after:bg-sidebar-primary after:shadow-[0_0_18px_rgb(96_165_250/0.8)] after:content-['']",
-        collapsed && "after:right-1.5",
+        collapsed && "after:right-0.5",
         "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(96_165_250/0.16),0_14px_34px_-22px_rgb(59_130_246/0.55)]"
       ),
     !active &&
@@ -334,113 +341,117 @@ function SidebarChrome({
       <header
         className={cn(
           "flex shrink-0 flex-col gap-3 border-b border-sidebar-border/25 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]",
-          SIDEBAR_PAD_X,
+          navCollapsed && variant === "desktop"
+            ? "items-center px-2"
+            : SIDEBAR_PAD_X,
           variant === "desktop" && "lg:pt-5",
           variant === "mobile" && "relative pr-14"
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div
-              className="relative flex size-[40px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sidebar-primary/95 via-[#4f86dd] to-[#6a5be8] shadow-[0_12px_30px_-16px_rgb(59_130_246/0.9)] ring-1 ring-white/15"
-              aria-hidden
-            >
-              <span className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.28),transparent_38%)]" />
-              <Layers2 className="size-[20px] text-sidebar-primary-foreground" strokeWidth={1.85} />
-            </div>
-            {!navCollapsed && (
-              <div className="min-w-0 flex-1 leading-tight">
-                <div className="flex min-w-0 items-center gap-2">
-                  <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-                    Tulmin
-                  </p>
-                  <span className="rounded-md bg-sidebar-foreground/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/52 ring-1 ring-sidebar-foreground/10">
-                    SaaS
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[11px] font-medium text-sidebar-foreground/48">
-                  Meesho dispatch workspace
-                </p>
-              </div>
-            )}
-          </div>
-          {variant === "desktop" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onCollapseClick}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={cn(
-                "-mr-1 size-9 shrink-0 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                collapsed && "mx-auto"
-              )}
-            >
-              <ChevronsLeft
-                className={cn(
-                  "size-[18px] transition-transform duration-300 ease-panel",
-                  collapsed && "rotate-180"
-                )}
-                strokeWidth={1.65}
-              />
-              <span className="sr-only">
-                {collapsed ? "Expand navigation" : "Collapse navigation"}
-              </span>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onMobileClose}
-              className={cn(
-                "absolute right-3 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-[1]",
-                "-mr-1 size-11 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}
-            >
-              <X className="size-[22px]" strokeWidth={1.6} />
-              <span className="sr-only">Close menu</span>
-            </Button>
-          )}
-        </div>
         {navCollapsed && variant === "desktop" ? (
-          <span
-            className="mx-auto block w-full text-center"
-            title="Tulmin · Tulmin Ready"
-          >
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-foreground/50">
+          <>
+            <button
+              type="button"
+              onClick={onCollapseClick}
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              className={cn(
+                "flex size-12 items-center justify-center rounded-2xl border border-sidebar-border/45",
+                "bg-sidebar-accent/65 text-sidebar-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_34px_-24px_rgb(59_130_246/0.55)]",
+                "transition-[background-color,color,box-shadow,transform] duration-200 ease-smooth hover:bg-sidebar-accent hover:text-sidebar-primary active:scale-[0.98]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]"
+              )}
+            >
+              <ChevronsLeft className="size-5 rotate-180" strokeWidth={1.85} />
+            </button>
+            <span className="rounded-lg bg-sidebar-foreground/[0.055] px-2 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-sidebar-foreground/70 ring-1 ring-sidebar-border/35">
               TM
             </span>
-          </span>
-        ) : null}
-        {!navCollapsed ? (
-          <div className="rounded-2xl border border-sidebar-border/35 bg-sidebar-foreground/[0.035] p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.045)]">
-            <div className="flex items-start gap-2.5">
-              <span
-                className={cn(
-                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl ring-1",
-                  user
-                    ? "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200"
-                    : "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200"
-                )}
-              >
-                {user ? (
-                  <Cloud className="size-4" strokeWidth={1.8} aria-hidden />
-                ) : (
-                  <LockKeyhole className="size-4" strokeWidth={1.8} aria-hidden />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-semibold text-sidebar-foreground">
-                  {user ? "Cloud workspace active" : "Local workspace"}
-                </p>
-                <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/48">
-                  {user ? "Maps sync across browsers" : "Sign in to back up maps"}
-                </p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                <div
+                  className="relative flex size-[40px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sidebar-primary/95 via-[#4f86dd] to-[#6a5be8] shadow-[0_12px_30px_-16px_rgb(59_130_246/0.9)] ring-1 ring-white/15"
+                  aria-hidden
+                >
+                  <span className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.28),transparent_38%)]" />
+                  <Layers2 className="size-[20px] text-sidebar-primary-foreground" strokeWidth={1.85} />
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                      Tulmin
+                    </p>
+                    <span className="rounded-md bg-sidebar-foreground/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/52 ring-1 ring-sidebar-foreground/10">
+                      SaaS
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-[11px] font-medium text-sidebar-foreground/48">
+                    Meesho dispatch workspace
+                  </p>
+                </div>
+              </div>
+              {variant === "desktop" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onCollapseClick}
+                  title="Collapse sidebar"
+                  className="-mr-1 size-9 shrink-0 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                >
+                  <ChevronsLeft
+                    className="size-[18px] transition-transform duration-300 ease-panel"
+                    strokeWidth={1.65}
+                  />
+                  <span className="sr-only">Collapse navigation</span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onMobileClose}
+                  className={cn(
+                    "absolute right-3 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-[1]",
+                    "-mr-1 size-11 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  )}
+                >
+                  <X className="size-[22px]" strokeWidth={1.6} />
+                  <span className="sr-only">Close menu</span>
+                </Button>
+              )}
+            </div>
+            <div className="rounded-2xl border border-sidebar-border/35 bg-sidebar-foreground/[0.035] p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.045)]">
+              <div className="flex items-start gap-2.5">
+                <span
+                  className={cn(
+                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl ring-1",
+                    user
+                      ? "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200"
+                      : "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200"
+                  )}
+                >
+                  {user ? (
+                    <Cloud className="size-4" strokeWidth={1.8} aria-hidden />
+                  ) : (
+                    <LockKeyhole className="size-4" strokeWidth={1.8} aria-hidden />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-semibold text-sidebar-foreground">
+                    {user ? "Cloud workspace active" : "Local workspace"}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/48">
+                    {user ? "Maps sync across browsers" : "Sign in to back up maps"}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          </>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
@@ -483,7 +494,7 @@ function SidebarChrome({
             href="/account"
             prefetch={false}
             title={user ? "Account" : "Sign in to sync"}
-            className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-sidebar-accent/65 text-sidebar-foreground/70 ring-1 ring-sidebar-border/35 transition-colors hover:text-sidebar-foreground"
+            className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-sidebar-accent/65 text-sidebar-foreground/70 ring-1 ring-sidebar-border/35 transition-colors hover:text-sidebar-foreground"
           >
             <CircleUserRound className="size-[18px]" strokeWidth={1.65} aria-hidden />
           </Link>
@@ -582,7 +593,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           variant="desktop"
           collapsed={collapsedDesktop}
           pathname={pathname}
-          onCollapseClick={() => setCollapsed(!persistedCollapsed)}
+          onCollapseClick={() => setCollapsed(!collapsedDesktop)}
         />
       </aside>
 
@@ -603,7 +614,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             variant="mobile"
             collapsed={false}
             pathname={pathname}
-            onCollapseClick={() => setCollapsed(!persistedCollapsed)}
+            onCollapseClick={() => setCollapsed(!collapsedDesktop)}
             onNavNavigate={closeMobileNav}
             onMobileClose={closeMobileNav}
           />

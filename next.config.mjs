@@ -1,7 +1,9 @@
+const staticExport = process.env.TULMIN_STATIC_EXPORT === "1";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /** Static bundle for Capacitor / APK (`out/` → `capacitor.config` webDir). */
-  output: "export",
+  ...(staticExport ? { output: "export" } : {}),
   images: { unoptimized: true },
   /** App Router: keep `fuse.js` out of the server bundle (client-only fuzzy search). */
   serverExternalPackages: ["fuse.js"],

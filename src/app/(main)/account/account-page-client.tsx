@@ -2,7 +2,18 @@
 
 import * as React from "react";
 
-import { Loader2, LogOut } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  Cloud,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  LogOut,
+  Mail,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 
 import {
   WorkspaceFormPageStack,
@@ -14,16 +25,68 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { cn } from "@/lib/utils";
 import { toast as notify } from "sonner";
+
+function initials(name: string, email?: string | null) {
+  const source = name.trim() || email?.trim() || "Tulmin";
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return source.slice(0, 2).toUpperCase();
+}
+
+function formatDate(value: string | undefined) {
+  if (!value) return "Recently";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Recently";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+}
+
+function AccountMetric({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "warning";
+}) {
+  return (
+    <div className="rounded-2xl border border-border/55 bg-background/55 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-xl ring-1",
+            tone === "success" &&
+              "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200",
+            tone === "warning" &&
+              "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200",
+            tone === "default" &&
+              "bg-primary/10 text-primary ring-primary/20",
+          )}
+        >
+          <Icon className="size-4" strokeWidth={1.8} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+            {value}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AccountPageClient() {
   const [, rerun] = React.useReducer((x) => x + 1, 0);
@@ -141,130 +204,205 @@ export function AccountPageClient() {
           { label: "Account" },
         ]}
         title="Account"
-        description="Profile and sign-in for Tulmin — appearance and device data stay under Settings."
-        badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Tulmin identity</Badge>}
+        description="Manage your Tulmin identity, workspace access, and sign-in security."
+        badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Account workspace</Badge>}
       />
 
       <WorkspaceFormPageStack>
-        <WorkspaceSurfaceCard
-          padding="p-4 sm:p-8"
-          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
-        >
-          <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
-              <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-                Profile
-              </CardTitle>
-              <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-                Name and company shown in your Tulmin workspace.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-6 pb-6 sm:space-y-6 sm:pt-8 sm:pb-8">
-              {!authReady ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  Loading profile…
+        {!authReady ? (
+          <WorkspaceSurfaceCard padding="p-6 sm:p-8">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Loading account…
+            </p>
+          </WorkspaceSurfaceCard>
+        ) : !user ? (
+          <WorkspaceSurfaceCard
+            padding="p-6 sm:p-8"
+            className="overflow-hidden border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+          >
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div>
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/20">
+                  <UserRound className="size-7" strokeWidth={1.7} aria-hidden />
+                </div>
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground">
+                  Create your Tulmin workspace
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  Sign in to sync SKU maps, protect dispatch workflows, and keep your account available from any browser.
                 </p>
-              ) : !user ? (
-                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
-                  <p className="text-sm text-foreground">Sign in to edit profile.</p>
-                  <Button type="button" size="sm" onClick={openOptionalSignIn} className="font-semibold">
-                    Sign in
+              </div>
+              <div className="rounded-2xl border border-border/55 bg-background/55 p-4">
+                <div className="space-y-3 text-sm">
+                  <AccountMetric icon={Cloud} label="Workspace" value="Cloud sync ready" />
+                  <AccountMetric icon={ShieldCheck} label="Access" value="Email protected" />
+                </div>
+                <Button
+                  type="button"
+                  onClick={openOptionalSignIn}
+                  className="mt-4 h-11 w-full font-semibold"
+                >
+                  Sign in or create account
+                </Button>
+              </div>
+            </div>
+          </WorkspaceSurfaceCard>
+        ) : (
+          <>
+            <WorkspaceSurfaceCard
+              padding="p-0"
+              className="overflow-hidden border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+            >
+              <div className="relative overflow-hidden px-5 py-6 sm:px-8 sm:py-8">
+                <div className="pointer-events-none absolute right-[-8rem] top-[-9rem] h-72 w-72 rounded-full bg-primary/14 blur-3xl" />
+                <div className="pointer-events-none absolute bottom-[-10rem] left-[-7rem] h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
+                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <div className="flex size-16 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-primary via-sky-500 to-indigo-500 text-lg font-bold text-primary-foreground shadow-[0_20px_55px_-26px_rgb(59_130_246/0.95)] ring-1 ring-white/20 sm:size-20 sm:text-xl">
+                      {initials(profile.fullName, user.email)}
+                    </div>
+                    <div className="min-w-0 pt-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                          {profile.fullName.trim() || "Tulmin operator"}
+                        </h2>
+                        <Badge className="bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
+                          Verified
+                        </Badge>
+                      </div>
+                      <p className="mt-1 truncate text-sm font-medium text-muted-foreground">
+                        {user.email ?? user.id}
+                      </p>
+                      {profile.company.trim() ? (
+                        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted/45 px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border/45">
+                          <Building2 className="size-3.5" strokeWidth={1.7} aria-hidden />
+                          {profile.company.trim()}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    disabled={signOutBusy}
+                    onClick={() => void signOut()}
+                  >
+                    {signOutBusy ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <LogOut className="mr-2 size-4" aria-hidden />
+                    )}
+                    Sign out
                   </Button>
                 </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 rounded-lg border border-border/65 bg-muted/12 px-4 py-3 sm:rounded-xl sm:bg-muted/20">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/12 text-sm font-semibold text-primary">
-                      {(profile.fullName || user.email || "U").slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {profile.fullName.trim() || "Signed-in user"}
-                      </p>
-                      <p className="truncate text-[12px] text-muted-foreground">
-                        {user.email ?? "No email"}
-                      </p>
-                    </div>
-                  </div>
+                <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
+                  <AccountMetric icon={Cloud} label="Workspace" value="Cloud synced" tone="success" />
+                  <AccountMetric icon={ShieldCheck} label="Security" value="Protected account" tone="success" />
+                  <AccountMetric icon={BadgeCheck} label="Member since" value={formatDate(user.created_at)} />
+                </div>
+              </div>
+            </WorkspaceSurfaceCard>
 
-                  <div className="grid gap-3.5 sm:gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="account-profile-full-name">Full name</Label>
-                      <Input
-                        id="account-profile-full-name"
-                        value={profile.fullName}
-                        onChange={(e) =>
-                          setProfile((p) => ({ ...p, fullName: e.target.value }))
-                        }
-                        placeholder="Your full name"
-                        className="min-h-11"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="account-profile-company">Company</Label>
-                      <Input
-                        id="account-profile-company"
-                        value={profile.company}
-                        onChange={(e) =>
-                          setProfile((p) => ({ ...p, company: e.target.value }))
-                        }
-                        placeholder="Your company name"
-                        className="min-h-11"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="account-profile-email">Email</Label>
-                      <Input
-                        id="account-profile-email"
-                        value={user.email ?? ""}
-                        readOnly
-                        disabled
-                        className="min-h-11"
-                      />
-                    </div>
+            <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <WorkspaceSurfaceCard
+                padding="p-5 sm:p-6"
+                className="border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+              >
+                <div className="mb-5 flex items-start justify-between gap-4 border-b border-border/55 pb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                      Profile details
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Personalize how this workspace identifies you.
+                    </p>
                   </div>
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <UserRound className="size-5" strokeWidth={1.7} aria-hidden />
+                  </span>
+                </div>
 
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      className="min-w-32 w-full font-semibold sm:w-auto"
-                      disabled={profileBusy}
-                      onClick={() => void saveProfile()}
-                    >
-                      {profileBusy ? (
-                        <>
-                          <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                          Saving…
-                        </>
-                      ) : (
-                        "Save changes"
-                      )}
-                    </Button>
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="account-profile-full-name">Full name</Label>
+                    <Input
+                      id="account-profile-full-name"
+                      value={profile.fullName}
+                      onChange={(e) =>
+                        setProfile((p) => ({ ...p, fullName: e.target.value }))
+                      }
+                      placeholder="Your full name"
+                      className="min-h-11"
+                    />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </WorkspaceSurfaceCard>
+                  <div className="space-y-2">
+                    <Label htmlFor="account-profile-company">Company</Label>
+                    <Input
+                      id="account-profile-company"
+                      value={profile.company}
+                      onChange={(e) =>
+                        setProfile((p) => ({ ...p, company: e.target.value }))
+                      }
+                      placeholder="Your company name"
+                      className="min-h-11"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account-profile-email">Email</Label>
+                    <Input
+                      id="account-profile-email"
+                      value={user.email ?? ""}
+                      readOnly
+                      disabled
+                      className="min-h-11"
+                    />
+                  </div>
+                </div>
 
-        {user ? (
-          <WorkspaceSurfaceCard
-            padding="p-4 sm:p-8"
-            className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
-          >
-            <Card className="border-0 shadow-none ring-0">
-              <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
-                <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-                  Sign-in &amp; security
-                </CardTitle>
-                <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-                  Email and password for your Tulmin account.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-7 pt-6 pb-6 sm:space-y-8 sm:pt-8 sm:pb-8">
-                <section className="space-y-3">
-                  <p className="text-sm font-semibold text-foreground">Change email</p>
+                <div className="mt-5 flex justify-end">
+                  <Button
+                    type="button"
+                    className="min-w-32 w-full font-semibold sm:w-auto"
+                    disabled={profileBusy}
+                    onClick={() => void saveProfile()}
+                  >
+                    {profileBusy ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                        Saving…
+                      </>
+                    ) : (
+                      "Save profile"
+                    )}
+                  </Button>
+                </div>
+              </WorkspaceSurfaceCard>
+
+              <WorkspaceSurfaceCard
+                padding="p-5 sm:p-6"
+                className="border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+              >
+                <div className="mb-5 flex items-start justify-between gap-4 border-b border-border/55 pb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                      Sign-in &amp; security
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Keep account access current and protected.
+                    </p>
+                  </div>
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
+                    <LockKeyhole className="size-5" strokeWidth={1.7} aria-hidden />
+                  </span>
+                </div>
+
+                <section className="space-y-3 rounded-2xl border border-border/55 bg-background/45 p-4">
+                  <div className="flex items-center gap-2">
+                    <Mail className="size-4 text-primary" strokeWidth={1.8} aria-hidden />
+                    <p className="text-sm font-semibold text-foreground">Change email</p>
+                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor="account-change-email">New email</Label>
                     <Input
@@ -283,13 +421,16 @@ export function AccountPageClient() {
                     className="w-full sm:w-auto"
                     disabled={emailBusy || !newEmail.trim()}
                     onClick={() => void changeEmail()}
-                  >
-                    {emailBusy ? "Sending…" : "Send email change confirmation"}
-                  </Button>
+                    >
+                      {emailBusy ? "Sending…" : "Send email change confirmation"}
+                    </Button>
                 </section>
 
-                <section className="space-y-3 border-t border-border pt-6">
-                  <p className="text-sm font-semibold text-foreground">Change password</p>
+                <section className="mt-4 space-y-3 rounded-2xl border border-border/55 bg-background/45 p-4">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="size-4 text-primary" strokeWidth={1.8} aria-hidden />
+                    <p className="text-sm font-semibold text-foreground">Change password</p>
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="account-new-password">New password</Label>
@@ -332,70 +473,10 @@ export function AccountPageClient() {
                     {passwordBusy ? "Updating…" : "Update password"}
                   </Button>
                 </section>
-              </CardContent>
-            </Card>
-          </WorkspaceSurfaceCard>
-        ) : null}
-
-        <WorkspaceSurfaceCard
-          padding="p-4 sm:p-8"
-          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
-        >
-          <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
-              <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-                Session
-              </CardTitle>
-              <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-                Sign out on this device when you&apos;re done.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-6 sm:pt-8">
-              {!authReady ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  Checking session…
-                </p>
-              ) : user ? (
-                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
-                  <p className="text-sm font-medium text-foreground">
-                    Signed in as{" "}
-                    <span className="font-mono text-[13px] text-muted-foreground">
-                      {user.email ?? user.id}
-                    </span>
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    disabled={signOutBusy}
-                    onClick={() => void signOut()}
-                  >
-                    {signOutBusy ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <LogOut className="mr-2 size-4" aria-hidden />
-                    )}
-                    Sign out
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/25">
-                  <p className="text-sm text-foreground">Not signed in.</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={openOptionalSignIn}
-                    className="font-semibold"
-                  >
-                    Sign in
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </WorkspaceSurfaceCard>
+              </WorkspaceSurfaceCard>
+            </div>
+          </>
+        )}
       </WorkspaceFormPageStack>
     </>
   );
