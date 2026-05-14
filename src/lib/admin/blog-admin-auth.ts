@@ -10,7 +10,7 @@ export type AdminPrincipal = {
   role: AdminRole;
 };
 
-const BUILT_IN_SUPER_ADMIN_EMAILS = ["info@tulmin.com"];
+const BUILT_IN_SUPER_ADMIN_EMAILS = ["info@tulmin.com", "admin@tulmin.com"];
 
 const SUPER_ADMIN_EMAILS = new Set(
   [
@@ -30,6 +30,7 @@ const EDITOR_EMAILS = new Set(
 
 export function getConfiguredAdminRole(email: string): AdminRole | null {
   const normalized = email.trim().toLowerCase();
+  if (normalized === "info@tulmin.com") return "super_admin";
   if (SUPER_ADMIN_EMAILS.has(normalized)) return "super_admin";
   if (EDITOR_EMAILS.has(normalized)) return "editor";
   return null;
@@ -54,7 +55,9 @@ export async function requireAdmin(request: Request): Promise<AdminPrincipal | N
   if (error || !data.user?.email) return adminUnauthorized("Invalid or expired admin session.");
 
   const role = getConfiguredAdminRole(data.user.email);
-  if (!role) return adminForbidden();
+  if (!role) {
+    return adminForbidden(`This email is not allowed to access Tulmin Admin: ${data.user.email}`);
+  }
 
   return {
     id: data.user.id,
