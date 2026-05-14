@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { toast as notify } from "sonner";
 
@@ -23,7 +22,6 @@ async function waitForAdminSession() {
 }
 
 export function AdminLoginClient() {
-  const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
   const [email, setEmail] = React.useState("");
   const [otp, setOtp] = React.useState("");
@@ -127,8 +125,7 @@ export function AdminLoginClient() {
         return;
       }
       notify.success("Admin session started.");
-      router.replace("/admin/blogs");
-      router.refresh();
+      window.location.href = "/admin/blogs";
     } catch (error) {
       const message =
         error instanceof Error && error.message.includes("expected pattern")
