@@ -10,11 +10,15 @@ export type AdminPrincipal = {
   role: AdminRole;
 };
 
+const BUILT_IN_SUPER_ADMIN_EMAILS = ["info@tulmin.com"];
+
 const SUPER_ADMIN_EMAILS = new Set(
-  (process.env.TULMIN_SUPER_ADMIN_EMAILS ?? process.env.TULMIN_ADMIN_EMAILS ?? "")
+  [
+    ...BUILT_IN_SUPER_ADMIN_EMAILS,
+    ...(process.env.TULMIN_SUPER_ADMIN_EMAILS ?? process.env.TULMIN_ADMIN_EMAILS ?? "")
     .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean),
+    .map((email) => email.trim().toLowerCase()),
+  ].filter(Boolean),
 );
 
 const EDITOR_EMAILS = new Set(
