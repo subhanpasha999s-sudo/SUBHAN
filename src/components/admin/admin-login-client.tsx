@@ -61,13 +61,10 @@ export function AdminLoginClient() {
     }
     setSendBusy(true);
     try {
-      const emailRedirectTo =
-        typeof window === "undefined" ? undefined : `${window.location.origin}/admin/blogs`;
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
         options: {
           shouldCreateUser: false,
-          ...(emailRedirectTo ? { emailRedirectTo } : {}),
         },
       });
       if (error) {
@@ -78,6 +75,8 @@ export function AdminLoginClient() {
       setOtp("");
       setResendCooldown(30);
       notify.success(isResend ? "New admin code sent." : "Check your email for the admin code.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Could not send admin code.");
     } finally {
       setSendBusy(false);
     }
@@ -130,6 +129,14 @@ export function AdminLoginClient() {
       notify.success("Admin session started.");
       router.replace("/admin/blogs");
       router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.includes("expected pattern")
+          ? "Admin login URL check failed. Please refresh the page and try the latest code again."
+          : error instanceof Error
+            ? error.message
+            : "Admin verification failed.";
+      notify.error(message);
     } finally {
       setVerifyBusy(false);
     }
