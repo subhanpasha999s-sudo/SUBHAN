@@ -12,6 +12,16 @@ import { EMAIL_OTP_LENGTH } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
+async function waitForAdminSession() {
+  const supabase = getSupabaseBrowser();
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const session = (await supabase?.auth.getSession())?.data.session;
+    if (session?.access_token) return session.access_token;
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+  }
+  return null;
+}
+
 export function AdminLoginClient() {
   const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
@@ -87,7 +97,7 @@ export function AdminLoginClient() {
     }
     setVerifyBusy(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email: trimmed,
         token: code,
         type: "email",
@@ -96,8 +106,22 @@ export function AdminLoginClient() {
         notify.error(error.message);
         return;
       }
+      const token = data.session?.access_token ?? (await waitForAdminSession());
+      if (!token) {
+        notify.error("OTP verified, but the browser session was not created. Please resend the code and try again.");
+        return;
+      }
+      const response = await fetch("/api/admin/blogs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const adminCheck = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        notify.error(adminCheck.error || "This email is not allowed to access Tulmin Admin.");
+        return;
+      }
       notify.success("Admin session started.");
       router.replace("/admin/blogs");
+      router.refresh();
     } finally {
       setVerifyBusy(false);
     }

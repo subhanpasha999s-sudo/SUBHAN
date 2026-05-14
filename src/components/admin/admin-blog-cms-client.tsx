@@ -95,7 +95,14 @@ function textToKeywords(value: string) {
 
 async function requestLocalBackend<T>(payload?: unknown): Promise<T> {
   const supabase = getSupabaseBrowser();
-  const token = (await supabase?.auth.getSession())?.data.session?.access_token;
+  let token = (await supabase?.auth.getSession())?.data.session?.access_token;
+  if (!token) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+      token = (await supabase?.auth.getSession())?.data.session?.access_token;
+      if (token) break;
+    }
+  }
   if (!token) throw new Error("Admin session required.");
   const response = await fetch("/api/admin/blogs", {
     method: payload ? "POST" : "GET",
