@@ -153,6 +153,13 @@
   .text-subtle {
     @apply text-muted-foreground/90;
   }
+
+  .virtual-row {
+    backface-visibility: hidden;
+    contain: layout paint style;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
 }
 
 @layer base {
@@ -261,10 +268,18 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 
   html.dark {

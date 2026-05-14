@@ -1073,7 +1073,7 @@ function LabelsVirtualGrid({
                 <div
                   key={r.id}
                   className={cn(
-                    "absolute left-0 top-0 w-full border-b border-border/55 transition-[background-color,box-shadow] duration-150 ease-smooth dark:border-border/40",
+                    "virtual-row absolute left-0 top-0 w-full border-b border-border/55 transition-colors duration-150 ease-smooth dark:border-border/40",
                     stripe,
                     sel
                       ? "bg-primary/[0.11] shadow-[inset_3px_0_0_0_var(--primary)]"
@@ -1081,7 +1081,7 @@ function LabelsVirtualGrid({
                   )}
                   style={{
                     height: `${vi.size}px`,
-                    transform: `translateY(${vi.start}px)`,
+                    transform: `translate3d(0, ${vi.start}px, 0)`,
                   }}
                 >
                   <div className={`${grid} h-full items-center`}>
@@ -1261,15 +1261,15 @@ function LabelsMobileCards({
                   key={r.id}
                   data-index={vi.index}
                   ref={virtualizer.measureElement}
-                  className="absolute left-0 right-0 top-0 px-0"
+                  className="virtual-row absolute left-0 right-0 top-0 px-0"
                   style={{
-                    transform: `translateY(${vi.start}px)`,
+                    transform: `translate3d(0, ${vi.start}px, 0)`,
                   }}
                   role="listitem"
                 >
                   <div
                     className={cn(
-                      "mb-2 flex gap-3 rounded-2xl px-3 py-2.5 transition-[box-shadow,background-color,border-color] duration-200 ease-smooth",
+                      "mb-2 flex gap-3 rounded-2xl px-3 py-2.5 transition-[background-color,border-color] duration-150 ease-smooth",
                       "border border-border/50 bg-muted/12 shadow-elevate-xs ring-1 ring-black/[0.03]",
                       "dark:border-border/45 dark:bg-card/45 dark:ring-white/[0.04]",
                       mapped && "border-emerald-500/15 dark:border-emerald-400/20",
@@ -2402,7 +2402,7 @@ export function MeeshoLabelExportTool() {
 
             <div
               className={cn(
-                "sticky top-0 z-30 -mx-1 mb-1 hidden flex-col gap-2 border-b border-label-grid-border/80 px-1 py-2.5 backdrop-blur-md sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between",
+                "sticky top-0 z-30 -mx-1 mb-1 hidden flex-col gap-2 border-b border-label-grid-border/80 bg-background/92 px-1 py-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:bg-background/88",
                 "bg-label-sheet/90 dark:bg-label-sheet/90"
               )}
             >
@@ -2526,7 +2526,7 @@ export function MeeshoLabelExportTool() {
             )}
 
             {viewMode === "mobile" && selectedTotal > 0 ? (
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/88 px-4 pt-3 shadow-[0_-12px_48px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72 dark:shadow-[0_-16px_56px_-28px_rgb(0_0_0/0.85)] sm:hidden">
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/94 px-4 pt-3 shadow-[0_-10px_34px_-26px_rgba(0,0,0,0.55)] backdrop-blur-sm supports-[backdrop-filter]:bg-background/86 dark:shadow-[0_-12px_40px_-30px_rgb(0_0_0/0.75)] sm:hidden">
                 <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
                   <div className="min-w-0 flex-1 truncate">
                     <p className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground tabular-nums">

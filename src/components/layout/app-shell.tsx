@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
@@ -15,7 +15,6 @@ import {
   Layers2,
   Link2,
   LockKeyhole,
-  PencilLine,
   Settings2,
   Sparkles,
   X,
@@ -84,12 +83,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Settings",
         description: "Theme, data, and workspace controls",
         icon: Settings2,
-      },
-      {
-        href: "/backend/blog",
-        label: "Blog Backend",
-        description: "Write and publish articles",
-        icon: PencilLine,
       },
     ],
   },
@@ -224,7 +217,7 @@ function SidebarNavButton({
   return (
     <Link
       href={item.href}
-      prefetch={false}
+      prefetch
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
@@ -474,7 +467,13 @@ function SidebarChrome({
               pathname={pathname}
               collapsed={navCollapsed}
               comfortTouch={variant === "mobile"}
-              onNavigate={onNavNavigate}
+              onNavigate={
+                variant === "mobile"
+                  ? () => {
+                      window.setTimeout(() => onNavNavigate?.(), 80);
+                    }
+                  : onNavNavigate
+              }
             />
           </Suspense>
         </nav>
@@ -492,7 +491,7 @@ function SidebarChrome({
         {navCollapsed && variant === "desktop" ? (
           <Link
             href="/account"
-            prefetch={false}
+            prefetch
             title={user ? "Account" : "Sign in to sync"}
             className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-sidebar-accent/65 text-sidebar-foreground/70 ring-1 ring-sidebar-border/35 transition-colors hover:text-sidebar-foreground"
           >
@@ -505,7 +504,7 @@ function SidebarChrome({
               openOptionalSignIn();
               onNavNavigate?.();
             }}
-            className="group flex min-h-12 w-full items-center gap-3 rounded-2xl bg-sidebar-primary/12 px-3 text-left text-[13px] font-semibold text-sidebar-primary ring-1 ring-sidebar-primary/18 transition-[background-color,box-shadow] hover:bg-sidebar-primary/16 hover:shadow-[0_14px_32px_-24px_rgb(59_130_246/0.75)]"
+            className="group flex min-h-12 w-full items-center gap-3 rounded-2xl bg-sidebar-primary/12 px-3 text-left text-[13px] font-semibold text-sidebar-primary ring-1 ring-sidebar-primary/18 transition-colors hover:bg-sidebar-primary/16"
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_24px_-16px_rgb(59_130_246/0.95)]">
               <CircleUserRound className="size-[17px]" strokeWidth={1.7} aria-hidden />
@@ -520,7 +519,7 @@ function SidebarChrome({
         ) : authReady && user ? (
           <Link
             href="/account"
-            prefetch={false}
+            prefetch
             onClick={onNavNavigate}
             className="flex min-h-12 items-center gap-3 rounded-2xl px-2.5 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"
           >
@@ -550,6 +549,7 @@ function SidebarChrome({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const hydrated = useHydrated();
   const persistedCollapsed = useMeeshoStore((s) => s.sidebarCollapsed);
   const setCollapsed = useMeeshoStore((s) => s.setSidebarCollapsed);
@@ -562,6 +562,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const prefetchCoreRoutes = () => {
+      for (const href of ["/export-labels", "/mapping", "/blog", "/settings", "/account"]) {
+        router.prefetch(href);
+      }
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(prefetchCoreRoutes, { timeout: 1600 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(prefetchCoreRoutes, 700);
+    return () => window.clearTimeout(id);
+  }, [router]);
 
   React.useEffect(() => {
     const onTourMobileNav = (event: Event) => {
@@ -584,8 +599,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "hidden lg:flex lg:translate-x-0",
           "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
-          "bg-sidebar-rail backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/86",
-          "shadow-sidebar-panel transition-[width] duration-[320ms] ease-panel motion-reduce:transition-none",
+          "bg-sidebar-rail backdrop-blur-md supports-[backdrop-filter]:bg-sidebar/88",
+          "shadow-sidebar-panel transition-[width] duration-300 ease-panel motion-reduce:transition-none",
           collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[17.5rem]"
         )}
       >
@@ -606,8 +621,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className={cn(
             "relative flex h-full min-h-0 w-full flex-col rounded-r-[22px] border-r border-white/[0.06] bg-sidebar-rail",
-            "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_56px_-28px_rgb(0_0_0/0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sidebar/90",
-            "outline-none animate-in slide-in-from-left duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none motion-reduce:duration-0"
+            "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_44px_-30px_rgb(0_0_0/0.42)] backdrop-blur-md supports-[backdrop-filter]:bg-sidebar/92",
+            "outline-none animate-in slide-in-from-left duration-300 ease-panel motion-reduce:animate-none motion-reduce:duration-0"
           )}
         >
           <SidebarChrome
@@ -624,7 +639,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
-          "transition-[padding] duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "transition-[padding] duration-300 ease-panel motion-reduce:transition-none",
           collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[17.5rem]"
         )}
       >

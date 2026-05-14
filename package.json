@@ -5,9 +5,10 @@
   "scripts": {
     "clean": "rm -rf .next node_modules/.cache",
     "predev": "node scripts/print-lan-dev-hint.mjs",
-    "dev": "next dev --turbo --hostname 0.0.0.0",
-    "dev:localhost": "next dev --turbo --hostname localhost",
-    "dev:webpack": "next dev --hostname 0.0.0.0",
+    "dev": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' next dev --webpack --hostname 0.0.0.0",
+    "dev:localhost": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' next dev --webpack --hostname localhost",
+    "dev:turbo": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' next dev --turbo --hostname 0.0.0.0",
+    "dev:webpack": "NODE_OPTIONS='--disable-warning=ExperimentalWarning' next dev --webpack --hostname 0.0.0.0",
     "build": "next build",
     "android:sync": "TULMIN_STATIC_EXPORT=1 next build && npx cap sync android",
     "android:open": "npx cap open android",

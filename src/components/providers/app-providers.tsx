@@ -11,35 +11,6 @@ import { AuthProvider } from "@/lib/supabase/auth-context";
 import { AnalyticsTracker } from "@/components/providers/analytics-tracker";
 import { AppTourProvider } from "@/components/providers/app-tour";
 
-/** Tooltips rarely matter on cold load; hydrate after idle to shrink first-paint blocking work. */
-function DeferredTooltipProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    if (typeof window.requestIdleCallback !== "undefined") {
-      const id = window.requestIdleCallback(
-        () => setMounted(true),
-        { timeout: 3200 },
-      );
-      return () => window.cancelIdleCallback(id);
-    }
-    const t = window.setTimeout(() => setMounted(true), 450);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  if (!mounted) {
-    return children;
-  }
-  return (
-    <TooltipProvider delay={260}>{children}</TooltipProvider>
-  );
-}
-
 export function AppProviders({ children }: { children: React.ReactNode }) {
   // Sonner (max-width 600px) stretches toasts full width; mobileOffset.left clears the bottom-left export FAB.
   return (
@@ -47,7 +18,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <ValueFirstAuthProvider>
           <AnalyticsTracker />
-          <DeferredTooltipProvider>
+          <TooltipProvider delay={220}>
             <AppTourProvider>
               {children}
             </AppTourProvider>
@@ -73,7 +44,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                 },
               }}
             />
-          </DeferredTooltipProvider>
+          </TooltipProvider>
         </ValueFirstAuthProvider>
       </AuthProvider>
     </ThemeProvider>

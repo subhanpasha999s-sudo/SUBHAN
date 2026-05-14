@@ -89,6 +89,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -148,7 +151,12 @@ export default function RootLayout({
   )};var p=localStorage.getItem(k)||"system";var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
 
   return (
-    <html lang="en" className={cn("font-sans", geistSans.variable)} suppressHydrationWarning>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={cn("font-sans", geistSans.variable)}
+      suppressHydrationWarning
+    >
       <body
         className={cn(geistMono.variable, "min-h-screen font-sans antialiased")}
         suppressHydrationWarning

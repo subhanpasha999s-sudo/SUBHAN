@@ -200,10 +200,10 @@ export function SkuMappingTable({
               return (
                 <div
                   key={row.listing_sku}
-                  className="absolute left-0 top-0 w-full"
+                  className="virtual-row absolute left-0 top-0 w-full"
                   style={{
                     height: `${vi.size}px`,
-                    transform: `translateY(${vi.start}px)`,
+                    transform: `translate3d(0, ${vi.start}px, 0)`,
                   }}
                 >
                   <MappingRow

@@ -99,9 +99,9 @@ export function WorkspaceSurfaceCard({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03] backdrop-blur-[1px] transition-[box-shadow,border-color,background-color] duration-200 ease-smooth",
+        "rounded-2xl border border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03] transition-[border-color,background-color] duration-150 ease-smooth [content-visibility:auto] [contain-intrinsic-size:1px_360px]",
         "dark:border-border/40 dark:bg-card/80 dark:ring-white/[0.05]",
-        "hover:border-border/45 hover:shadow-elevate-md dark:hover:border-border/50",
+        "hover:border-border/45 dark:hover:border-border/50",
         padding,
         className
       )}

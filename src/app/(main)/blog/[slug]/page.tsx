@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import {
   BLOG_GLOBAL_CTA,
@@ -11,6 +13,8 @@ import {
   getRelatedBlogPosts,
 } from "@/lib/blog/posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
+
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return getAllBlogPosts().map((post) => ({ slug: post.slug }));
@@ -27,8 +31,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
 
   const canonical = blogCanonical(post.slug);
   return {
-    title: `${post.title} | Tulmin Blog`,
-    description: post.description,
+    title: post.seoTitle || post.metaTitle || `${post.title} | Tulmin Blog`,
+    description: post.metaDescription || post.description,
     alternates: { canonical },
     keywords: post.keywords,
     openGraph: {
@@ -37,13 +41,112 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       description: post.description,
       url: canonical,
       siteName: "Tulmin",
+      images: post.ogImage || post.featuredImage || post.coverImage ? [{ url: post.ogImage || post.featuredImage || post.coverImage || "" }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.description,
+      images: post.ogImage || post.featuredImage || post.coverImage ? [post.ogImage || post.featuredImage || post.coverImage || ""] : undefined,
     },
   };
+}
+
+function isSafeContentUrl(value: string) {
+  return value.startsWith("/") || value.startsWith("https://") || value.startsWith("http://") || value.startsWith("data:image/");
+}
+
+function renderInlineLinks(text: string, keyPrefix: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const linkPattern = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(text))) {
+    const [raw, label, href] = match;
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    if (isSafeContentUrl(href)) {
+      parts.push(
+        <Link key={`${keyPrefix}-${match.index}`} href={href} className="font-medium text-primary hover:underline">
+          {label}
+        </Link>,
+      );
+    } else {
+      parts.push(raw);
+    }
+    lastIndex = match.index + raw.length;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
+
+function renderSectionBody(body: string, keyPrefix: string) {
+  const lines = body.split(/\r?\n/);
+  const nodes: ReactNode[] = [];
+  let listItems: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+
+  function flushList(index: number) {
+    if (!listItems.length || !listType) return;
+    const Tag = listType;
+    nodes.push(
+      <Tag key={`${keyPrefix}-list-${index}`} className="my-3 space-y-1 pl-5 text-[15px] leading-relaxed text-muted-foreground">
+        {listItems.map((item, itemIndex) => (
+          <li key={`${keyPrefix}-list-${index}-${itemIndex}`}>
+            {renderInlineLinks(item, `${keyPrefix}-li-${index}-${itemIndex}`)}
+          </li>
+        ))}
+      </Tag>,
+    );
+    listItems = [];
+    listType = null;
+  }
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList(index);
+      return;
+    }
+
+    const image = trimmed.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/);
+    if (image && isSafeContentUrl(image[2])) {
+      flushList(index);
+      nodes.push(
+        <Image
+          key={`${keyPrefix}-image-${index}`}
+          src={image[2]}
+          alt={image[1]}
+          width={1200}
+          height={675}
+          unoptimized
+          className="my-4 aspect-[16/9] w-full rounded-2xl border border-border/60 object-cover"
+        />,
+      );
+      return;
+    }
+
+    const unordered = trimmed.match(/^[-*]\s+(.+)$/);
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (unordered || ordered) {
+      const nextType = unordered ? "ul" : "ol";
+      if (listType && listType !== nextType) flushList(index);
+      listType = nextType;
+      listItems.push((unordered ?? ordered)?.[1] ?? trimmed);
+      return;
+    }
+
+    flushList(index);
+    nodes.push(
+      <p key={`${keyPrefix}-p-${index}`} className="text-[15px] leading-relaxed text-muted-foreground">
+        {renderInlineLinks(trimmed, `${keyPrefix}-p-${index}`)}
+      </p>,
+    );
+  });
+
+  flushList(lines.length);
+  return nodes;
 }
 
 export default function BlogDetailPage({ params }: { params: { slug: string } }) {
@@ -60,6 +163,7 @@ export default function BlogDetailPage({ params }: { params: { slug: string } })
     author: { "@type": "Organization", name: "Tulmin" },
     publisher: { "@type": "Organization", name: "Tulmin" },
     mainEntityOfPage: blogCanonical(post.slug),
+    image: post.ogImage || post.featuredImage || post.coverImage || undefined,
   };
   const faqLd = {
     "@context": "https://schema.org",
@@ -100,10 +204,10 @@ export default function BlogDetailPage({ params }: { params: { slug: string } })
       </nav>
 
       <header className="rounded-2xl border border-border/60 bg-card/90 p-6 shadow-elevate-sm sm:p-8">
-        {post.coverImage ? (
+        {post.featuredImage || post.coverImage ? (
           <div
             className="mb-6 aspect-[16/7] rounded-2xl bg-cover bg-center ring-1 ring-border/60"
-            style={{ backgroundImage: `url(${post.coverImage})` }}
+            style={{ backgroundImage: `url(${post.featuredImage || post.coverImage})` }}
             aria-hidden
           />
         ) : null}
@@ -135,7 +239,7 @@ export default function BlogDetailPage({ params }: { params: { slug: string } })
             <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {idx + 1}. {section.heading}
             </h2>
-            <p className="text-[15px] leading-relaxed text-muted-foreground">{section.body}</p>
+            <div className="space-y-2">{renderSectionBody(section.body, `${post.slug}-${idx}`)}</div>
           </section>
         ))}
       </section>

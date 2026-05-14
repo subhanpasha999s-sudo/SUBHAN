@@ -4,6 +4,8 @@ import { BlogIndexClient } from "@/components/blog/blog-index-client";
 import { getAllBlogPosts } from "@/lib/blog/posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Tulmin Blog · Meesho seller guides for SKU, QTY, and courier label filtering",
   description:

@@ -58,7 +58,7 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
-      <div className="border-b border-white/[0.05] bg-background/80 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72 dark:bg-background/76 dark:border-white/[0.04] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
+      <div className="border-b border-white/[0.05] bg-background/88 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-md supports-[backdrop-filter]:bg-background/78 dark:bg-background/84 dark:border-white/[0.04] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
         <div
           className={cn(
             "mx-auto flex w-full max-w-[100vw] items-center gap-3 sm:gap-4",
@@ -156,7 +156,7 @@ export function AppTopbar({
             ) : authReady && user ? (
               <Link
                 href="/account"
-                prefetch={false}
+                prefetch
                 aria-label="Tulmin account"
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "icon" }),

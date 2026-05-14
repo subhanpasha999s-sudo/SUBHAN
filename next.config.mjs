@@ -2,6 +2,9 @@ const staticExport = process.env.TULMIN_STATIC_EXPORT === "1";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    root: import.meta.dirname,
+  },
   /** Static bundle for Capacitor / APK (`out/` → `capacitor.config` webDir). */
   ...(staticExport ? { output: "export" } : {}),
   images: { unoptimized: true },
@@ -23,14 +26,6 @@ const nextConfig = {
     "172.*.*.*",
   ],
 
-  experimental: {
-    /** Tree-shake icon + table helpers from package barrels. */
-    optimizePackageImports: [
-      "lucide-react",
-      "@tanstack/react-virtual",
-      "@supabase/supabase-js",
-    ],
-  },
 };
 
 export default nextConfig;

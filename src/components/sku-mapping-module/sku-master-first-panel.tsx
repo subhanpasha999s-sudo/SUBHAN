@@ -431,9 +431,9 @@ export function SkuMasterFirstPanel({
                 {unmappedVirtualizer.getVirtualItems().map((v) => (
                   <div
                     key={v.key}
-                    className="absolute left-0 top-0 w-full px-2"
+                    className="virtual-row absolute left-0 top-0 w-full px-2"
                     style={{
-                      transform: `translateY(${v.start}px)`,
+                      transform: `translate3d(0, ${v.start}px, 0)`,
                     }}
                   >
                     <div
@@ -518,9 +518,9 @@ export function SkuMasterFirstPanel({
                   return (
                     <div
                       key={v.key}
-                      className="absolute left-0 top-0 min-w-[min(100%,880px)] px-2"
+                      className="virtual-row absolute left-0 top-0 min-w-[min(100%,880px)] px-2"
                       style={{
-                        transform: `translateY(${v.start}px)`,
+                        transform: `translate3d(0, ${v.start}px, 0)`,
                       }}
                     >
                       {renderRow(row, v.index)}

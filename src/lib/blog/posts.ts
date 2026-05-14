@@ -27,14 +27,26 @@ type BlogFaq = {
 };
 
 export type BlogPost = {
+  id?: string;
   slug: string;
   title: string;
   description: string;
+  seoTitle?: string;
   category: BlogCategory;
   readTime: string;
   publishedOn: string;
   status?: "draft" | "published";
+  featuredImage?: string;
   coverImage?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  author?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  scheduledFor?: string;
+  tagSlugs?: string[];
   trending?: boolean;
   featured?: boolean;
   keywords: string[];
@@ -588,7 +600,7 @@ export const BLOG_POSTS: BlogPost[] = [
 
 export function getAllBlogPosts() {
   const managed = (managedBlogPosts as BlogPost[]).filter(
-    (post) => post.slug && post.title && post.status !== "draft",
+    (post) => post.slug && post.title && post.status === "published",
   );
   const managedSlugs = new Set(managed.map((post) => post.slug));
   const deleted = new Set(deletedBlogSlugs as string[]);

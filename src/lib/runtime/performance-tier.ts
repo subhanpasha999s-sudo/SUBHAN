@@ -87,18 +87,18 @@ export function virtualListTuningForTier(
   if (kind === "label-mobile-cards") {
     if (tier === "low") return { overscan: 4, useAnimationFrameWithResizeObserver: false };
     if (tier === "medium")
-      return { overscan: 7, useAnimationFrameWithResizeObserver: true };
-    return { overscan: 13, useAnimationFrameWithResizeObserver: true };
+      return { overscan: 6, useAnimationFrameWithResizeObserver: true };
+    return { overscan: 9, useAnimationFrameWithResizeObserver: true };
   }
   if (kind === "label-grid") {
     if (tier === "low") return { overscan: 5, useAnimationFrameWithResizeObserver: false };
     if (tier === "medium")
-      return { overscan: 10, useAnimationFrameWithResizeObserver: true };
-    return { overscan: 17, useAnimationFrameWithResizeObserver: true };
+      return { overscan: 8, useAnimationFrameWithResizeObserver: true };
+    return { overscan: 12, useAnimationFrameWithResizeObserver: true };
   }
   /** sku-table */
   if (tier === "low") return { overscan: 6, useAnimationFrameWithResizeObserver: false };
   if (tier === "medium")
-    return { overscan: 11, useAnimationFrameWithResizeObserver: true };
-  return { overscan: 22, useAnimationFrameWithResizeObserver: true };
+    return { overscan: 9, useAnimationFrameWithResizeObserver: true };
+  return { overscan: 14, useAnimationFrameWithResizeObserver: true };
 }
