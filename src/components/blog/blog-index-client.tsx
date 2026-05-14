@@ -7,7 +7,6 @@ import {
   BLOG_CATEGORIES,
   type BlogPost,
   blogUrlPath,
-  getFeaturedBlogPost,
 } from "@/lib/blog/posts";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -24,7 +23,10 @@ function matchesSearch(post: BlogPost, q: string) {
 }
 
 export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
-  const featured = React.useMemo(() => getFeaturedBlogPost(), []);
+  const featured = React.useMemo(
+    () => posts.find((post) => post.featured) ?? posts[0],
+    [posts],
+  );
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState<string>("All");
   const [page, setPage] = React.useState(1);
@@ -114,28 +116,30 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
 
       <section className="rounded-2xl border border-border/60 bg-card/90 p-5 shadow-elevate-sm sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Featured article</p>
-        <Link
-          href={blogUrlPath(featured.slug)}
-          className="mt-3 block rounded-xl border border-border/65 bg-background/70 p-5 transition hover:border-primary/45 hover:shadow-elevate-sm"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-primary/12 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-              {featured.category}
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">{featured.readTime}</span>
-            {featured.trending ? (
-              <span className="rounded-full bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-orange-600 dark:text-orange-300">
-                Trending
+        {featured ? (
+          <Link
+            href={blogUrlPath(featured.slug)}
+            className="mt-3 block rounded-xl border border-border/65 bg-background/70 p-5 transition hover:border-primary/45 hover:shadow-elevate-sm"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-primary/12 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                {featured.category}
               </span>
-            ) : null}
-          </div>
-          <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {featured.title}
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
-            {featured.description}
-          </p>
-        </Link>
+              <span className="text-xs font-medium text-muted-foreground">{featured.readTime}</span>
+              {featured.trending ? (
+                <span className="rounded-full bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-orange-600 dark:text-orange-300">
+                  Trending
+                </span>
+              ) : null}
+            </div>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              {featured.title}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+              {featured.description}
+            </p>
+          </Link>
+        ) : null}
       </section>
 
       <section className="space-y-4 rounded-2xl border border-border/60 bg-card/90 p-5 shadow-elevate-sm sm:p-6">

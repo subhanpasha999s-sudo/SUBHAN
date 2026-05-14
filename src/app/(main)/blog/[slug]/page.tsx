@@ -9,9 +9,8 @@ import {
   blogCanonical,
   blogUrlPath,
   getAllBlogPosts,
-  getBlogPostBySlug,
-  getRelatedBlogPosts,
 } from "@/lib/blog/posts";
+import { getLiveBlogPostBySlug, getLiveRelatedBlogPosts } from "@/lib/blog/live-posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +19,8 @@ export function generateStaticParams() {
   return getAllBlogPosts().map((post) => ({ slug: post.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const post = getBlogPostBySlug(params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const post = await getLiveBlogPostBySlug(params.slug);
   if (!post) {
     return {
       title: "Blog article not found",
@@ -149,11 +148,11 @@ function renderSectionBody(body: string, keyPrefix: string) {
   return nodes;
 }
 
-export default function BlogDetailPage({ params }: { params: { slug: string } }) {
-  const post = getBlogPostBySlug(params.slug);
+export default async function BlogDetailPage({ params }: { params: { slug: string } }) {
+  const post = await getLiveBlogPostBySlug(params.slug);
   if (!post) notFound();
 
-  const related = getRelatedBlogPosts(post.slug, post.category, 3);
+  const related = await getLiveRelatedBlogPosts(post.slug, post.category, 3);
   const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",

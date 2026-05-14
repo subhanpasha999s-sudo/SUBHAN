@@ -49,6 +49,20 @@ create table if not exists public.blogs (
 comment on table public.blogs is
   'Admin blog CMS table. App fields map as: seoTitle -> seo_title, metaDescription -> meta_description, featuredImage -> featured_image, createdAt -> created_at, updatedAt -> updated_at, publishedAt -> published_at.';
 
+alter table public.blogs add column if not exists seo_title text;
+alter table public.blogs add column if not exists meta_description text;
+alter table public.blogs add column if not exists featured_image text;
+alter table public.blogs add column if not exists author text;
+alter table public.blogs add column if not exists subtitle text;
+alter table public.blogs add column if not exists feature_image_url text;
+alter table public.blogs add column if not exists scheduled_for timestamptz;
+alter table public.blogs add column if not exists published_at timestamptz;
+alter table public.blogs add column if not exists created_at timestamptz not null default now();
+alter table public.blogs add column if not exists updated_at timestamptz not null default now();
+
+create index if not exists blogs_status_updated_at_idx on public.blogs(status, updated_at desc);
+create index if not exists blogs_slug_idx on public.blogs(slug);
+
 create table if not exists public.blog_seo (
   blog_id uuid primary key references public.blogs(id) on delete cascade,
   meta_title text,

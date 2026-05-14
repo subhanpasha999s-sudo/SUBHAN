@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { BlogIndexClient } from "@/components/blog/blog-index-client";
-import { getAllBlogPosts } from "@/lib/blog/posts";
+import { getLiveBlogPosts } from "@/lib/blog/live-posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,6 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function BlogIndexPage() {
-  return <BlogIndexClient posts={getAllBlogPosts()} />;
+export default async function BlogIndexPage() {
+  return <BlogIndexClient posts={await getLiveBlogPosts()} />;
 }

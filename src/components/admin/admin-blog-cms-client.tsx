@@ -8,10 +8,10 @@ import {
   CalendarDays,
   CheckCircle2,
   FileText,
-  GitBranch,
   Eye,
   ImagePlus,
   Loader2,
+  LogOut,
   Plus,
   Save,
   Search,
@@ -124,8 +124,7 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
   const [managedSlugs, setManagedSlugs] = React.useState<Set<string>>(new Set());
   const [keywordText, setKeywordText] = React.useState("");
   const [tagText, setTagText] = React.useState("");
-  const [busy, setBusy] = React.useState<"save" | "delete" | "push" | null>(null);
-  const [gitOutput, setGitOutput] = React.useState("");
+  const [busy, setBusy] = React.useState<"save" | "delete" | null>(null);
   const [auditCount, setAuditCount] = React.useState(0);
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "draft" | "published">("all");
@@ -302,20 +301,13 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
     }
   }
 
-  async function pushChanges() {
-    setBusy("push");
-    setGitOutput("");
+  async function logout() {
     try {
-      const data = await requestLocalBackend<{ output: string }>({
-        action: "push",
-        message: "Update blog content",
-      });
-      setGitOutput(data.output || "GitHub is already up to date.");
-      notify.success("Blog changes pushed to GitHub. Vercel will deploy from main.");
+      await supabase?.auth.signOut();
+      notify.success("Admin logged out.");
+      router.replace("/admin/login");
     } catch (error) {
-      notify.error(error instanceof Error ? error.message : "Git push failed.");
-    } finally {
-      setBusy(null);
+      notify.error(error instanceof Error ? error.message : "Logout failed.");
     }
   }
 
@@ -401,10 +393,19 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-[15px]">
               Separate from the customer SaaS. Create drafts, manage SEO, schedule
-              publishing, review analytics, and push approved content to production.
+              publishing, review analytics, and send approved content live instantly.
             </p>
           </div>
           <div className="border-t border-white/10 bg-black/20 p-5 sm:p-6 lg:border-l lg:border-t-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="mb-4 h-10 w-full rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+              onClick={() => void logout()}
+            >
+              <LogOut className="size-4" />
+              Logout admin
+            </Button>
             <div className="grid gap-3 text-sm">
               {[
                 ["Read-only users", "Normal SaaS users can only read blogs."],
@@ -709,6 +710,9 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
               <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Local to live flow</h2>
             </div>
             <div className="grid gap-2">
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-200">
+                Publish, edit, unpublish, and delete actions update the live website immediately.
+              </div>
               <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/55 px-3 py-2 text-xs">
                 <span className="font-semibold text-foreground">Autosave</span>
                 <span className={cn(
@@ -741,10 +745,6 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
                 {busy === "delete" ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Delete selected blog
               </Button>
-              <Button type="button" variant="outline" className="min-h-11 rounded-xl border-primary/35 py-2 text-primary hover:bg-primary/10" disabled={busy !== null} onClick={pushChanges}>
-                {busy === "push" ? <Loader2 className="size-4 animate-spin" /> : <GitBranch className="size-4" />}
-                Push GitHub to Vercel
-              </Button>
             </div>
             <div className="rounded-xl border border-border/60 bg-background/55 p-3 text-xs leading-relaxed text-muted-foreground">
               <p className="font-semibold text-foreground">Selected blog</p>
@@ -753,11 +753,6 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
                 {selectedIsManaged ? "Editable managed post." : "Static/template post until saved."}
               </p>
             </div>
-            {gitOutput ? (
-              <pre className="max-h-40 overflow-auto rounded-xl bg-foreground/95 p-3 text-xs text-background">
-                {gitOutput}
-              </pre>
-            ) : null}
           </section>
 
           <section className="rounded-2xl border border-border/60 bg-card/92 p-4 shadow-elevate-sm sm:p-5">
@@ -825,7 +820,7 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
               <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
               <p className="text-sm leading-relaxed text-muted-foreground">
                 For best SaaS polish, write a focused title, one practical subtitle, 5-7 useful
-                sections, 2-4 FAQs, then publish locally before pushing.
+                sections, 2-4 FAQs, then publish to update the live website instantly.
               </p>
             </div>
           </section>
