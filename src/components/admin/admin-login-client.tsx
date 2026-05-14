@@ -11,15 +11,6 @@ import { EMAIL_OTP_LENGTH } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
-function adminDashboardUrl() {
-  if (typeof window === "undefined") return "/admin/blogs";
-  return `${window.location.origin}/admin/blogs`;
-}
-
-function openAdminDashboard() {
-  window.location.assign(adminDashboardUrl());
-}
-
 async function waitForAdminSession() {
   const supabase = getSupabaseBrowser();
   for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -136,17 +127,10 @@ export function AdminLoginClient() {
       }
       setLoginComplete(true);
       notify.success("Admin session started.");
-      window.setTimeout(() => {
-        try {
-          openAdminDashboard();
-        } catch {
-          // Keep the success state visible with the manual link below.
-        }
-      }, 150);
     } catch (error) {
       const message =
         error instanceof Error && error.message.includes("expected pattern")
-          ? "Admin session started. Use the Open Admin CMS button."
+          ? "Browser blocked the final login step. Refresh this page and try once more."
           : error instanceof Error
             ? error.message
             : "Admin verification failed.";
