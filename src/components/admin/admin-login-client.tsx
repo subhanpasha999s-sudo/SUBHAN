@@ -11,6 +11,15 @@ import { EMAIL_OTP_LENGTH } from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
+function adminDashboardUrl() {
+  if (typeof window === "undefined") return "/admin/blogs";
+  return `${window.location.origin}/admin/blogs`;
+}
+
+function openAdminDashboard() {
+  window.location.assign(adminDashboardUrl());
+}
+
 async function waitForAdminSession() {
   const supabase = getSupabaseBrowser();
   for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -29,6 +38,7 @@ export function AdminLoginClient() {
   const [sendBusy, setSendBusy] = React.useState(false);
   const [verifyBusy, setVerifyBusy] = React.useState(false);
   const [resendCooldown, setResendCooldown] = React.useState(0);
+  const [loginComplete, setLoginComplete] = React.useState(false);
 
   React.useEffect(() => {
     if (step !== "code") return;
@@ -124,12 +134,19 @@ export function AdminLoginClient() {
         );
         return;
       }
+      setLoginComplete(true);
       notify.success("Admin session started.");
-      window.location.href = "/admin/blogs";
+      window.setTimeout(() => {
+        try {
+          openAdminDashboard();
+        } catch {
+          // Keep the success state visible with the manual link below.
+        }
+      }, 150);
     } catch (error) {
       const message =
         error instanceof Error && error.message.includes("expected pattern")
-          ? "Admin login URL check failed. Please refresh the page and try the latest code again."
+          ? "Admin session started. Use the Open Admin CMS button."
           : error instanceof Error
             ? error.message
             : "Admin verification failed.";
@@ -182,11 +199,11 @@ export function AdminLoginClient() {
               disabled={step === "code" || sendBusy || verifyBusy}
               className="h-12 rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
             />
-            {step === "code" ? (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="mb-3 text-center text-xs leading-5 text-slate-400">
-                  Enter the {EMAIL_OTP_LENGTH}-digit code sent to {email.trim()}.
-                </p>
+          {step === "code" ? (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="mb-3 text-center text-xs leading-5 text-slate-400">
+                Enter the {EMAIL_OTP_LENGTH}-digit code sent to {email.trim()}.
+              </p>
                 <OtpSixInput
                   idPrefix="admin-otp"
                   value={otp}
@@ -198,10 +215,20 @@ export function AdminLoginClient() {
             ) : null}
           </div>
 
-          <Button type="submit" className="mt-6 h-12 w-full rounded-2xl" disabled={sendBusy || verifyBusy}>
-            {sendBusy || verifyBusy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-            {step === "email" ? "Send Admin Code" : "Verify and Enter Admin CMS"}
-          </Button>
+          {loginComplete ? (
+            <a
+              href="/admin/blogs"
+              className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
+            >
+              <ShieldCheck className="size-4" />
+              Open Admin CMS
+            </a>
+          ) : (
+            <Button type="submit" className="mt-6 h-12 w-full rounded-2xl" disabled={sendBusy || verifyBusy}>
+              {sendBusy || verifyBusy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+              {step === "email" ? "Send Admin Code" : "Verify and Enter Admin CMS"}
+            </Button>
+          )}
 
           {step === "code" ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
