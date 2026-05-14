@@ -703,7 +703,7 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
         </section>
 
         <aside className="space-y-5">
-          <section className="sticky top-[72px] space-y-4 rounded-2xl border border-border/60 bg-card/92 p-4 shadow-elevate-sm sm:p-5">
+          <section className="space-y-4 rounded-2xl border border-border/60 bg-card/92 p-4 shadow-elevate-sm sm:p-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Publish controls</p>
               <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Local to live flow</h2>
@@ -721,27 +721,27 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
                   {autoSaveState === "saving" ? "Saving..." : autoSaveState === "saved" ? "Saved" : autoSaveState === "error" ? "Needs manual save" : "Ready"}
                 </span>
               </div>
-              <Button type="button" className="h-11 rounded-xl" disabled={busy !== null} onClick={() => savePost("draft")}>
+              <Button type="button" className="min-h-11 rounded-xl py-2" disabled={busy !== null} onClick={() => savePost("draft")}>
                 {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 Save draft
               </Button>
-              <Button type="button" variant="secondary" className="h-11 rounded-xl" disabled={busy !== null} onClick={() => savePost("published")}>
+              <Button type="button" variant="secondary" className="min-h-11 rounded-xl py-2" disabled={busy !== null} onClick={() => savePost("published")}>
                 {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 Publish locally
               </Button>
               <Link
                 href={post.slug ? `/blog/${post.slug}` : "/blog"}
                 target="_blank"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition hover:bg-muted"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-center text-sm font-semibold text-foreground transition hover:bg-muted"
               >
                 <Eye className="size-4" />
                 Preview public page
               </Link>
-              <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={busy !== null || !post.slug} onClick={() => deletePost()}>
+              <Button type="button" variant="outline" className="min-h-11 rounded-xl py-2" disabled={busy !== null || !post.slug} onClick={() => deletePost()}>
                 {busy === "delete" ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Delete selected blog
               </Button>
-              <Button type="button" variant="outline" className="h-11 rounded-xl border-primary/35 text-primary hover:bg-primary/10" disabled={busy !== null} onClick={pushChanges}>
+              <Button type="button" variant="outline" className="min-h-11 rounded-xl border-primary/35 py-2 text-primary hover:bg-primary/10" disabled={busy !== null} onClick={pushChanges}>
                 {busy === "push" ? <Loader2 className="size-4 animate-spin" /> : <GitBranch className="size-4" />}
                 Push GitHub to Vercel
               </Button>
