@@ -30,6 +30,7 @@ export function AdminLoginClient() {
   const [verifyBusy, setVerifyBusy] = React.useState(false);
   const [resendCooldown, setResendCooldown] = React.useState(0);
   const [loginComplete, setLoginComplete] = React.useState(false);
+  const [statusMessage, setStatusMessage] = React.useState("");
 
   React.useEffect(() => {
     if (step !== "code") return;
@@ -50,6 +51,8 @@ export function AdminLoginClient() {
   async function sendOtp(event?: React.FormEvent, isResend = false) {
     event?.preventDefault();
     const trimmed = email.trim();
+    setLoginComplete(false);
+    setStatusMessage("");
     if (!trimmed) {
       notify.error("Enter your admin email.");
       return;
@@ -125,12 +128,21 @@ export function AdminLoginClient() {
         );
         return;
       }
+      const sessionResponse = await fetch("/api/admin/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const sessionData = (await sessionResponse.json().catch(() => ({}))) as { error?: string };
+      if (!sessionResponse.ok) {
+        notify.error(sessionData.error || "Could not create admin session.");
+        return;
+      }
       setLoginComplete(true);
-      notify.success("Admin session started.");
+      setStatusMessage(`Admin session started for ${adminCheck.email ?? trimmed}.`);
     } catch (error) {
       const message =
         error instanceof Error && error.message.includes("expected pattern")
-          ? "Browser blocked the final login step. Refresh this page and try once more."
+          ? "Browser blocked a login helper. Your OTP may still be valid; refresh and try once more."
           : error instanceof Error
             ? error.message
             : "Admin verification failed.";
@@ -200,13 +212,18 @@ export function AdminLoginClient() {
           </div>
 
           {loginComplete ? (
-            <a
-              href="/admin/blogs"
-              className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
-            >
-              <ShieldCheck className="size-4" />
-              Open Admin CMS
-            </a>
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                {statusMessage || "Admin session started."}
+              </div>
+              <a
+                href="/admin/blogs"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
+              >
+                <ShieldCheck className="size-4" />
+                Open Admin CMS
+              </a>
+            </div>
           ) : (
             <Button type="submit" className="mt-6 h-12 w-full rounded-2xl" disabled={sendBusy || verifyBusy}>
               {sendBusy || verifyBusy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
@@ -222,6 +239,8 @@ export function AdminLoginClient() {
                 onClick={() => {
                   setStep("email");
                   setOtp("");
+                  setLoginComplete(false);
+                  setStatusMessage("");
                 }}
               >
                 Use another email

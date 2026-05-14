@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { getSupabaseRouteHandler } from "@/lib/supabase/server-admin";
 
+export const ADMIN_SESSION_COOKIE = "tulmin_admin_token";
+
 export type AdminRole = "super_admin" | "editor";
 
 export type AdminPrincipal = {
@@ -44,18 +46,44 @@ export function adminForbidden(message = "This account is not allowed to access 
   return NextResponse.json({ error: message }, { status: 403 });
 }
 
+function readCookie(request: Request, name: string) {
+  const cookie = request.headers.get("cookie");
+  if (!cookie) return "";
+  return cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1) ?? "";
+}
+
+function logAdminAuthFailure(reason: string, detail?: Record<string, unknown>) {
+  console.warn("[admin-auth]", reason, detail ?? {});
+}
+
 export async function requireAdmin(request: Request): Promise<AdminPrincipal | NextResponse> {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (!token) return adminUnauthorized();
+  const token =
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    decodeURIComponent(readCookie(request, ADMIN_SESSION_COOKIE));
+  if (!token) {
+    logAdminAuthFailure("missing-token", { path: new URL(request.url).pathname });
+    return adminUnauthorized();
+  }
 
   const supabase = getSupabaseRouteHandler();
-  if (!supabase) return adminForbidden("Admin auth is not configured on this server.");
+  if (!supabase) {
+    logAdminAuthFailure("missing-supabase-config");
+    return adminForbidden("Admin auth is not configured on this server.");
+  }
 
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user?.email) return adminUnauthorized("Invalid or expired admin session.");
+  if (error || !data.user?.email) {
+    logAdminAuthFailure("invalid-session", { error: error?.message });
+    return adminUnauthorized("Invalid or expired admin session.");
+  }
 
   const role = getConfiguredAdminRole(data.user.email);
   if (!role) {
+    logAdminAuthFailure("email-not-allowlisted", { email: data.user.email });
     return adminForbidden(`This email is not allowed to access Tulmin Admin: ${data.user.email}`);
   }
 

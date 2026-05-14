@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CheckCircle2,
@@ -103,11 +102,10 @@ async function requestLocalBackend<T>(payload?: unknown): Promise<T> {
       if (token) break;
     }
   }
-  if (!token) throw new Error("Admin session required.");
   const response = await fetch("/api/admin/blogs", {
     method: payload ? "POST" : "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(payload ? { "Content-Type": "application/json" } : {}),
     },
     body: payload ? JSON.stringify(payload) : undefined,
@@ -122,7 +120,6 @@ function fieldLabel(text: string) {
 }
 
 export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
-  const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
   const [authState, setAuthState] = React.useState<"checking" | "ready" | "blocked">("checking");
   const [adminRole, setAdminRole] = React.useState<"super_admin" | "editor" | null>(null);
@@ -310,9 +307,10 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
 
   async function logout() {
     try {
+      await fetch("/api/admin/session", { method: "DELETE" });
       await supabase?.auth.signOut();
       notify.success("Admin logged out.");
-      router.replace("/admin/login");
+      window.location.href = "/admin/login";
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Logout failed.");
     }
@@ -376,9 +374,12 @@ export function AdminBlogCmsClient({ publicPosts }: AdminBlogCmsClientProps) {
             This CMS is separate from the Tulmin customer SaaS. Only allowlisted
             super admins and editors can manage blogs.
           </p>
-          <Button className="mt-6 w-full rounded-2xl" onClick={() => router.push("/admin/login")}>
+          <a
+            href="/admin/login"
+            className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          >
             Go to Admin Login
-          </Button>
+          </a>
           <Link href="/blog" className="mt-4 block text-xs font-semibold text-slate-500 hover:text-slate-300">
             Return to public blogs
           </Link>
