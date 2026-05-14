@@ -111,12 +111,20 @@ export function AdminLoginClient() {
         notify.error("OTP verified, but the browser session was not created. Please resend the code and try again.");
         return;
       }
-      const response = await fetch("/api/admin/blogs", {
+      const response = await fetch("/api/admin/whoami", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const adminCheck = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) {
-        notify.error(adminCheck.error || "This email is not allowed to access Tulmin Admin.");
+      const adminCheck = (await response.json().catch(() => ({}))) as {
+        allowed?: boolean;
+        email?: string;
+        error?: string;
+        expectedOwner?: string;
+      };
+      if (!response.ok || !adminCheck.allowed) {
+        notify.error(
+          adminCheck.error ||
+            `This email is not allowed to access Tulmin Admin. Use ${adminCheck.expectedOwner ?? "info@tulmin.com"}.`,
+        );
         return;
       }
       notify.success("Admin session started.");
