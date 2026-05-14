@@ -7,26 +7,90 @@ import { toast as notify } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OtpSixInput } from "@/components/auth/otp-six-input";
+import { EMAIL_OTP_LENGTH } from "@/lib/auth/constants";
+import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
 export function AdminLoginClient() {
   const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
   const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const [otp, setOtp] = React.useState("");
+  const [step, setStep] = React.useState<"email" | "code">("email");
+  const [sendBusy, setSendBusy] = React.useState(false);
+  const [verifyBusy, setVerifyBusy] = React.useState(false);
+  const [resendCooldown, setResendCooldown] = React.useState(0);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
+  React.useEffect(() => {
+    if (step !== "code") return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("admin-otp-0")?.focus();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [step]);
+
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => (current <= 1 ? 0 : current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  async function sendOtp(event?: React.FormEvent, isResend = false) {
+    event?.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) {
+      notify.error("Enter your admin email.");
+      return;
+    }
     if (!supabase) {
       notify.error("Admin auth is not configured.");
       return;
     }
-    setBusy(true);
+    setSendBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const emailRedirectTo =
+        typeof window === "undefined" ? undefined : `${window.location.origin}/admin/blogs`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          shouldCreateUser: false,
+          ...(emailRedirectTo ? { emailRedirectTo } : {}),
+        },
+      });
+      if (error) {
+        notify.error(getOtpSendErrorMessage(error.message));
+        return;
+      }
+      setStep("code");
+      setOtp("");
+      setResendCooldown(30);
+      notify.success(isResend ? "New admin code sent." : "Check your email for the admin code.");
+    } finally {
+      setSendBusy(false);
+    }
+  }
+
+  async function verifyOtp(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = email.trim();
+    const code = otp.replace(/\D/g, "");
+    if (code.length !== EMAIL_OTP_LENGTH) {
+      notify.error(`Enter the ${EMAIL_OTP_LENGTH}-digit code.`);
+      return;
+    }
+    if (!supabase) {
+      notify.error("Admin auth is not configured.");
+      return;
+    }
+    setVerifyBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: trimmed,
+        token: code,
+        type: "email",
       });
       if (error) {
         notify.error(error.message);
@@ -35,7 +99,7 @@ export function AdminLoginClient() {
       notify.success("Admin session started.");
       router.replace("/admin/blogs");
     } finally {
-      setBusy(false);
+      setVerifyBusy(false);
     }
   }
 
@@ -60,7 +124,7 @@ export function AdminLoginClient() {
         </section>
 
         <form
-          onSubmit={submit}
+          onSubmit={step === "email" ? (event) => void sendOtp(event, false) : verifyOtp}
           className="rounded-3xl border border-white/10 bg-white/[0.055] p-6 shadow-[0_24px_80px_-40px_rgba(37,99,235,0.8)] backdrop-blur-xl"
         >
           <div className="mb-6 flex items-center gap-3">
@@ -79,21 +143,52 @@ export function AdminLoginClient() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="admin@tulmin.com"
+              disabled={step === "code" || sendBusy || verifyBusy}
               className="h-12 rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
             />
-            <Input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              className="h-12 rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
-            />
+            {step === "code" ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="mb-3 text-center text-xs leading-5 text-slate-400">
+                  Enter the {EMAIL_OTP_LENGTH}-digit code sent to {email.trim()}.
+                </p>
+                <OtpSixInput
+                  idPrefix="admin-otp"
+                  value={otp}
+                  onChange={setOtp}
+                  disabled={verifyBusy}
+                  length={EMAIL_OTP_LENGTH}
+                />
+              </div>
+            ) : null}
           </div>
 
-          <Button type="submit" className="mt-6 h-12 w-full rounded-2xl" disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-            Enter Admin CMS
+          <Button type="submit" className="mt-6 h-12 w-full rounded-2xl" disabled={sendBusy || verifyBusy}>
+            {sendBusy || verifyBusy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+            {step === "email" ? "Send Admin Code" : "Verify and Enter Admin CMS"}
           </Button>
+
+          {step === "code" ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <button
+                type="button"
+                className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  setStep("email");
+                  setOtp("");
+                }}
+              >
+                Use another email
+              </button>
+              <button
+                type="button"
+                className="rounded-lg px-2 py-1 font-semibold text-blue-200 transition hover:bg-white/10 disabled:text-slate-600"
+                disabled={sendBusy || resendCooldown > 0}
+                onClick={() => void sendOtp(undefined, true)}
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+              </button>
+            </div>
+          ) : null}
 
           <p className="mt-5 text-xs leading-6 text-slate-500">
             Access is verified again on every admin API request. If your email is
