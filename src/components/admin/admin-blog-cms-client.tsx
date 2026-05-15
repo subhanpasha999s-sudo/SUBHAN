@@ -92,16 +92,24 @@ function textToKeywords(value: string) {
     .filter(Boolean);
 }
 
-async function requestLocalBackend<T>(payload?: unknown): Promise<T> {
+async function getAdminBrowserToken() {
   const supabase = getSupabaseBrowser();
-  let token = (await supabase?.auth.getSession())?.data.session?.access_token;
-  if (!token) {
+  if (!supabase) return null;
+
+  try {
     for (let attempt = 0; attempt < 10; attempt += 1) {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (token) return token;
       await new Promise((resolve) => window.setTimeout(resolve, 150));
-      token = (await supabase?.auth.getSession())?.data.session?.access_token;
-      if (token) break;
     }
+  } catch (error) {
+    console.warn("[admin-cms]", "supabase-session-read-failed", error);
   }
+
+  return null;
+}
+
+async function fetchAdminBlogs<T>(payload?: unknown, token?: string | null) {
   const response = await fetch("/api/admin/blogs", {
     method: payload ? "POST" : "GET",
     headers: {
@@ -113,6 +121,23 @@ async function requestLocalBackend<T>(payload?: unknown): Promise<T> {
   const data = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new Error(data.error || "Blog backend request failed.");
   return data;
+}
+
+async function requestLocalBackend<T>(payload?: unknown): Promise<T> {
+  try {
+    return await fetchAdminBlogs<T>(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const shouldRetryWithBrowserSession =
+      message.toLowerCase().includes("admin authentication required") ||
+      message.toLowerCase().includes("invalid or expired admin session");
+    if (!shouldRetryWithBrowserSession) {
+      throw error;
+    }
+  }
+
+  const token = await getAdminBrowserToken();
+  return fetchAdminBlogs<T>(payload, token);
 }
 
 function fieldLabel(text: string) {
