@@ -103,27 +103,27 @@ function renderPreview(content: string) {
     if (!trimmed) return null;
     if (trimmed.startsWith("## ")) {
       return (
-        <h3 key={index} className="mt-5 text-lg font-semibold text-slate-100">
+        <h3 key={index} className="mt-6 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
           {trimmed.slice(3)}
         </h3>
       );
     }
     if (trimmed.startsWith("# ")) {
       return (
-        <h2 key={index} className="mt-6 text-xl font-semibold text-white">
+        <h2 key={index} className="mt-7 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
           {trimmed.slice(2)}
         </h2>
       );
     }
     if (/^[-*]\s+/.test(trimmed)) {
       return (
-        <p key={index} className="pl-4 text-sm leading-7 text-slate-300 before:mr-2 before:content-['•']">
+        <p key={index} className="pl-4 text-[15px] leading-8 text-slate-600 before:mr-2 before:text-[#335cff] before:content-['•'] dark:text-slate-300">
           {trimmed.replace(/^[-*]\s+/, "")}
         </p>
       );
     }
     return (
-      <p key={index} className="text-sm leading-7 text-slate-300">
+      <p key={index} className="text-[15px] leading-8 text-slate-600 dark:text-slate-300">
         {trimmed}
       </p>
     );
@@ -300,9 +300,9 @@ export function BlogCmsWorkspace() {
 
   if (authState === "checking") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#070b12] text-white">
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-5 py-4">
-          <Loader2 className="size-5 animate-spin text-sky-200" />
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+          <Loader2 className="size-5 animate-spin text-[#335cff]" />
           <span className="text-sm font-medium">Verifying admin access...</span>
         </div>
       </main>
@@ -311,16 +311,18 @@ export function BlogCmsWorkspace() {
 
   if (authState === "blocked") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#070b12] px-4 text-white">
-        <section className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.06] p-6 text-center">
-          <FileText className="mx-auto size-10 text-sky-200" />
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
+        <section className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#335cff]/10 text-[#335cff] ring-1 ring-[#335cff]/20">
+            <FileText className="size-6" />
+          </span>
           <h1 className="mt-4 text-2xl font-semibold">Blog admin only</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
             Sign in with an allowlisted Tulmin admin email to manage drafts and published blogs.
           </p>
           <a
             href="/admin/login"
-            className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-sky-400 text-sm font-semibold text-slate-950"
+            className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#335cff] text-sm font-semibold text-white shadow-[0_16px_36px_-22px_rgb(51_92_255/0.9)]"
           >
             Go to Admin Login
           </a>
@@ -331,22 +333,24 @@ export function BlogCmsWorkspace() {
 
   if (authState === "setup") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#070b12] px-4 text-white">
-        <section className="w-full max-w-xl rounded-2xl border border-amber-300/20 bg-white/[0.06] p-6 shadow-[0_24px_80px_-42px_rgba(245,158,11,0.45)]">
-          <FileText className="size-10 text-amber-200" />
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
+        <section className="w-full max-w-xl rounded-[1.75rem] border border-amber-300/35 bg-white p-6 shadow-sm dark:border-amber-300/20 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_-42px_rgba(245,158,11,0.45)]">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+            <FileText className="size-6" />
+          </span>
           <h1 className="mt-4 text-2xl font-semibold">Blog database setup required</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
+          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
             Admin login worked, but the backend still needs one Supabase setup
             step before it can load, save, or publish blogs.
           </p>
-          <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-amber-100">Required setup</p>
-            <code className="mt-2 block break-words text-xs text-slate-300">
+          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-black/30 dark:text-slate-200">
+            <p className="font-semibold text-amber-800 dark:text-amber-100">Required setup</p>
+            <code className="mt-2 block break-words text-xs text-slate-600 dark:text-slate-300">
               Run supabase/migrations/006_blog_cms.sql and set SUPABASE_SERVICE_ROLE_KEY in deployment env.
             </code>
           </div>
           {setupError ? (
-            <p className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-100">
+            <p className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-700 dark:text-red-100">
               {setupError}
             </p>
           ) : null}
@@ -357,7 +361,7 @@ export function BlogCmsWorkspace() {
             <Button
               type="button"
               variant="outline"
-              className="h-11 rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+              className="h-11 rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
               onClick={() => void logout()}
             >
               Logout
@@ -369,23 +373,26 @@ export function BlogCmsWorkspace() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070b12] text-slate-100">
-      <header className="border-b border-white/10 bg-[#0b111d] px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+    <main className="min-h-screen bg-[#f5f8fd] text-slate-950 dark:bg-[#07101f] dark:text-white">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f8fd]/86 px-4 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/84 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200/75">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#335cff]">
               Tulmin Admin
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Blog CMS</h1>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Blog publishing desk</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Edit articles in the same premium system used by the public blog.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="rounded-full bg-sky-400/12 px-3 py-1 text-sky-100 hover:bg-sky-400/12">
+            <Badge className="rounded-full bg-[#335cff]/10 px-3 py-1 text-[#335cff] hover:bg-[#335cff]/10">
               {admin?.role} · {admin?.email}
             </Badge>
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+              className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
               onClick={() => void logout()}
               disabled={busy === "logout"}
             >
@@ -396,9 +403,9 @@ export function BlogCmsWorkspace() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-8">
+      <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:px-8">
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
             <Button type="button" className="h-11 w-full rounded-xl" onClick={createNew}>
               <Plus className="size-4" />
               Create blog
@@ -410,7 +417,7 @@ export function BlogCmsWorkspace() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search blogs"
-                  className="h-10 rounded-xl border-white/10 bg-black/20 pl-9 text-white"
+                  className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-9 text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -422,8 +429,8 @@ export function BlogCmsWorkspace() {
                     className={cn(
                       "h-9 rounded-lg text-xs font-semibold capitalize ring-1 transition",
                       statusFilter === status
-                        ? "bg-sky-400 text-slate-950 ring-sky-300"
-                        : "bg-white/[0.04] text-slate-300 ring-white/10 hover:bg-white/[0.08]",
+                        ? "bg-[#335cff] text-white ring-[#335cff]"
+                        : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-white/[0.08]",
                     )}
                   >
                     {status}
@@ -433,11 +440,11 @@ export function BlogCmsWorkspace() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055]">
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10">
               <div>
                 <p className="text-sm font-semibold">All CMS blogs</p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   Showing {filteredPosts.length} of {posts.length}
                 </p>
               </div>
@@ -446,7 +453,7 @@ export function BlogCmsWorkspace() {
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="text-slate-300 hover:bg-white/10 hover:text-white"
+                  className="text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
                   onClick={() => {
                     setQuery("");
                     setStatusFilter("all");
@@ -456,100 +463,111 @@ export function BlogCmsWorkspace() {
                 </Button>
               ) : null}
             </div>
-            <div className="max-h-[65vh] overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-[#101827] text-xs uppercase tracking-wide text-slate-400">
-                  <tr>
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPosts.map((post) => (
-                    <tr
-                      key={post.slug}
+            <div className="max-h-[68vh] space-y-2 overflow-auto p-3">
+              {filteredPosts.map((post) => (
+                <button
+                  key={post.slug}
+                  type="button"
+                  className={cn(
+                    "w-full rounded-2xl border p-3 text-left transition",
+                    selectedSlug === post.slug
+                      ? "border-[#335cff]/45 bg-[#335cff]/10 shadow-sm"
+                      : "border-slate-200 bg-slate-50 hover:border-[#335cff]/30 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]",
+                  )}
+                  onClick={() => loadPost(post)}
+                >
+                  <div className="flex gap-3">
+                    <div
                       className={cn(
-                        "cursor-pointer border-t border-white/10 hover:bg-white/[0.06]",
-                        selectedSlug === post.slug && "bg-sky-400/10",
+                        "size-14 shrink-0 overflow-hidden rounded-xl bg-[linear-gradient(135deg,rgb(51_92_255/0.18),rgb(16_185_129/0.10))] ring-1 ring-slate-200 dark:ring-white/10",
+                        post.featuredImage && "bg-cover bg-center"
                       )}
-                      onClick={() => loadPost(post)}
-                    >
-                      <td className="px-4 py-3">
-                        <p className="line-clamp-1 font-medium text-white">{post.title}</p>
-                        <p className="line-clamp-1 text-xs text-slate-500">{post.slug}</p>
-                      </td>
-                      <td className="px-4 py-3">
+                      style={
+                        post.featuredImage
+                          ? { backgroundImage: `url(${post.featuredImage})` }
+                          : undefined
+                      }
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         <span
                           className={cn(
-                            "rounded-full px-2 py-1 text-[11px] font-semibold",
+                            "rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
                             post.status === "published"
-                              ? "bg-emerald-400/15 text-emerald-200"
-                              : "bg-amber-400/15 text-amber-200",
+                              ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-200"
+                              : "bg-amber-500/14 text-amber-700 dark:text-amber-200",
                           )}
                         >
                           {post.status}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1.5">
-                          <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            title="Edit blog"
-                            aria-label={`Edit ${post.title}`}
-                            className="text-slate-300 hover:bg-white/10 hover:text-white"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              loadPost(post);
-                            }}
-                          >
-                            <Edit3 className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            title={admin?.role === "super_admin" ? "Delete blog" : "Only super admins can delete"}
-                            aria-label={`Delete ${post.title}`}
-                            disabled={Boolean(busy) || admin?.role !== "super_admin"}
-                            className="text-red-200 hover:bg-red-400/10 hover:text-red-100 disabled:text-slate-600"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void deleteSelected(post.slug);
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {!filteredPosts.length ? (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-10 text-center text-sm text-slate-500">
-                        No blogs found.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+                        {post.trending ? (
+                          <span className="rounded-full bg-orange-500/12 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:text-orange-200">
+                            Trending
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-slate-950 dark:text-white">
+                        {post.title}
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                        {post.slug}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      title="Edit blog"
+                      aria-label={`Edit ${post.title}`}
+                      className="text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        loadPost(post);
+                      }}
+                    >
+                      <Edit3 className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      title={admin?.role === "super_admin" ? "Delete blog" : "Only super admins can delete"}
+                      aria-label={`Delete ${post.title}`}
+                      disabled={Boolean(busy) || admin?.role !== "super_admin"}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-400 dark:text-red-200 dark:hover:bg-red-400/10 dark:hover:text-red-100 dark:disabled:text-slate-600"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void deleteSelected(post.slug);
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </button>
+              ))}
+              {!filteredPosts.length ? (
+                <div className="px-4 py-10 text-center text-sm text-slate-500">
+                  No blogs found.
+                </div>
+              ) : null}
             </div>
           </div>
         </aside>
 
-        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.055] p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.045] sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-white/10">
             <div>
               <h2 className="text-lg font-semibold">Editor</h2>
-              <p className="text-xs text-slate-500">Drafts stay private. Published blogs sync to `/blog`.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Drafts stay private. Published blogs sync to `/blog`.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+                className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
                 onClick={() => setPreview((value) => !value)}
               >
                 {preview ? <Edit3 className="size-4" /> : <Eye className="size-4" />}
@@ -559,7 +577,7 @@ export function BlogCmsWorkspace() {
                 {busy === "save" ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 Save draft
               </Button>
-              <Button type="button" className="rounded-xl bg-emerald-500 hover:bg-emerald-400" onClick={() => void save("published")} disabled={Boolean(busy)}>
+              <Button type="button" className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400" onClick={() => void save("published")} disabled={Boolean(busy)}>
                 {busy === "publish" ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
                 Publish
               </Button>
@@ -577,62 +595,94 @@ export function BlogCmsWorkspace() {
           </div>
 
           {preview ? (
-            <article className="min-h-[680px] rounded-2xl border border-white/10 bg-black/20 p-5">
-              {form.featuredImage ? (
-                <div
-                  className="mb-5 aspect-[16/7] rounded-xl bg-cover bg-center ring-1 ring-white/10"
-                  style={{ backgroundImage: `url(${form.featuredImage})` }}
-                />
-              ) : null}
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">{form.category}</p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{form.title || "Untitled blog"}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">{form.description}</p>
-              <div className="mt-6 space-y-2">{renderPreview(form.richContent ?? "")}</div>
+            <article className="min-h-[680px] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-50 shadow-sm dark:border-white/10 dark:bg-[#07101f]">
+              <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="p-5 sm:p-7">
+                  <p className="inline-flex rounded-full bg-[#335cff]/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[#335cff] ring-1 ring-[#335cff]/20">
+                    {form.category}
+                  </p>
+                  <h1 className="mt-5 max-w-4xl text-[clamp(2rem,5vw,3.25rem)] font-semibold leading-[1.04] tracking-tight text-slate-950 dark:text-white">
+                    {form.title || "Untitled blog"}
+                  </h1>
+                  <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300">
+                    {form.description}
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+                      {form.readTime || "5 min read"}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+                      {form.status || "draft"}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5 pt-0 xl:pl-0 xl:pt-5">
+                  <div
+                    className={cn(
+                      "aspect-[16/10] rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgb(51_92_255/0.18),rgb(16_185_129/0.10))] bg-cover bg-center shadow-sm dark:border-white/10",
+                      !form.featuredImage && "flex items-center justify-center"
+                    )}
+                    style={form.featuredImage ? { backgroundImage: `url(${form.featuredImage})` } : undefined}
+                  >
+                    {!form.featuredImage ? (
+                      <div className="text-center">
+                        <ImagePlus className="mx-auto size-10 text-[#335cff]" />
+                        <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                          Add featured image
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.025] sm:p-7">
+                <div className="mx-auto max-w-3xl space-y-2">{renderPreview(form.richContent ?? "")}</div>
+              </div>
             </article>
           ) : (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="space-y-2">
-                    <Label className="text-slate-300">Title</Label>
+                    <Label className="text-slate-600 dark:text-slate-300">Title</Label>
                     <Input
                       value={form.title ?? ""}
                       onChange={(event) => patchForm({ title: event.target.value, slug: form.slug || slugify(event.target.value) })}
-                      className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50 text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                     />
                   </label>
                   <label className="space-y-2">
-                    <Label className="text-slate-300">Slug</Label>
+                    <Label className="text-slate-600 dark:text-slate-300">Slug</Label>
                     <Input
                       value={form.slug ?? ""}
                       onChange={(event) => patchForm({ slug: slugify(event.target.value) })}
-                      className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50 text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                     />
                   </label>
                 </div>
 
                 <label className="space-y-2 block">
-                  <Label className="text-slate-300">Description</Label>
+                  <Label className="text-slate-600 dark:text-slate-300">Description</Label>
                   <textarea
                     value={form.description ?? ""}
                     onChange={(event) => patchForm({ description: event.target.value })}
                     rows={3}
-                    className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none ring-sky-400/30 placeholder:text-slate-600 focus:ring-2"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-950 outline-none ring-[#335cff]/30 placeholder:text-slate-400 focus:ring-2 dark:border-white/10 dark:bg-black/20 dark:text-white dark:placeholder:text-slate-600"
                   />
                 </label>
 
-                <div className="rounded-xl border border-white/10 bg-black/20">
-                  <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-2">
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-200 hover:bg-white/10" onClick={() => insertMarkup("**Bold text**")}>
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-black/20">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/[0.03]">
+                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("**Bold text**")}>
                       <Bold className="size-4" />
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-200 hover:bg-white/10" onClick={() => insertMarkup("_Italic text_")}>
+                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("_Italic text_")}>
                       <Italic className="size-4" />
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-200 hover:bg-white/10" onClick={() => insertMarkup("## Section heading\n\nWrite the section body here.")}>
+                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("## Section heading\n\nWrite the section body here.")}>
                       Heading
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-200 hover:bg-white/10" onClick={() => insertMarkup("- Bullet point")}>
+                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("- Bullet point")}>
                       List
                     </Button>
                   </div>
@@ -641,21 +691,21 @@ export function BlogCmsWorkspace() {
                     onChange={(event) => patchForm({ richContent: event.target.value })}
                     rows={18}
                     placeholder="Write the blog body. Use headings, bullets, links, and paragraphs."
-                    className="min-h-[420px] w-full resize-y bg-transparent px-4 py-4 text-sm leading-7 text-white outline-none placeholder:text-slate-600"
+                    className="min-h-[420px] w-full resize-y bg-transparent px-4 py-4 text-sm leading-7 text-slate-950 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-600"
                   />
                 </div>
               </div>
 
               <aside className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 className="text-sm font-semibold text-white">Publishing</h3>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20">
+                  <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Publishing</h3>
                   <div className="mt-4 grid gap-3">
                     <label className="space-y-2">
-                      <Label className="text-slate-300">Category</Label>
+                      <Label className="text-slate-600 dark:text-slate-300">Category</Label>
                       <select
                         value={form.category ?? "Label Management"}
                         onChange={(event) => patchForm({ category: event.target.value as BlogCategory })}
-                        className="h-11 w-full rounded-xl border border-white/10 bg-[#0b111d] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-sky-400/30"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/10 dark:bg-[#0b111d] dark:text-white"
                       >
                         {BLOG_CATEGORIES.map((category) => (
                           <option key={category} value={category}>
@@ -665,60 +715,60 @@ export function BlogCmsWorkspace() {
                       </select>
                     </label>
                     <label className="space-y-2">
-                      <Label className="text-slate-300">Read time</Label>
+                      <Label className="text-slate-600 dark:text-slate-300">Read time</Label>
                       <Input
                         value={form.readTime ?? ""}
                         onChange={(event) => patchForm({ readTime: event.target.value })}
-                        className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                        className="h-11 rounded-xl border-slate-200 bg-white text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                       />
                     </label>
-                    <div className="flex items-center gap-3 rounded-xl border border-white/10 p-3">
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-transparent">
                       <Checkbox checked={Boolean(form.featured)} onCheckedChange={(value) => patchForm({ featured: Boolean(value) })} />
-                      <Label className="text-sm text-slate-300">Featured article</Label>
+                      <Label className="text-sm text-slate-600 dark:text-slate-300">Featured article</Label>
                     </div>
-                    <div className="flex items-center gap-3 rounded-xl border border-white/10 p-3">
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-transparent">
                       <Checkbox checked={Boolean(form.trending)} onCheckedChange={(value) => patchForm({ trending: Boolean(value) })} />
-                      <Label className="text-sm text-slate-300">Trending badge</Label>
+                      <Label className="text-sm text-slate-600 dark:text-slate-300">Trending badge</Label>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 className="text-sm font-semibold text-white">SEO</h3>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20">
+                  <h3 className="text-sm font-semibold text-slate-950 dark:text-white">SEO</h3>
                   <div className="mt-4 space-y-3">
                     <label className="space-y-2 block">
-                      <Label className="text-slate-300">Meta title</Label>
+                      <Label className="text-slate-600 dark:text-slate-300">Meta title</Label>
                       <Input
                         value={form.metaTitle ?? ""}
                         onChange={(event) => patchForm({ metaTitle: event.target.value })}
-                        className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                        className="h-11 rounded-xl border-slate-200 bg-white text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                       />
                     </label>
                     <label className="space-y-2 block">
-                      <Label className="text-slate-300">Meta description</Label>
+                      <Label className="text-slate-600 dark:text-slate-300">Meta description</Label>
                       <textarea
                         value={form.metaDescription ?? ""}
                         onChange={(event) => patchForm({ metaDescription: event.target.value })}
                         rows={3}
-                        className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-sky-400/30"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-950 outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/10 dark:bg-black/20 dark:text-white"
                       />
                     </label>
                     <label className="space-y-2 block">
-                      <Label className="text-slate-300">Keywords</Label>
+                      <Label className="text-slate-600 dark:text-slate-300">Keywords</Label>
                       <textarea
                         value={form.keywordsText}
                         onChange={(event) => patchForm({ keywordsText: event.target.value })}
                         rows={3}
                         placeholder="meesho labels, sku mapping"
-                        className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:ring-2 focus:ring-sky-400/30"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/10 dark:bg-black/20 dark:text-white dark:placeholder:text-slate-600"
                       />
                     </label>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
-                    <ImagePlus className="size-4 text-sky-200" />
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
+                    <ImagePlus className="size-4 text-[#335cff]" />
                     Featured image
                   </h3>
                   <input
@@ -732,7 +782,7 @@ export function BlogCmsWorkspace() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+                      className="h-11 rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
                       disabled={Boolean(busy)}
                       onClick={() => imageInputRef.current?.click()}
                     >
@@ -753,15 +803,15 @@ export function BlogCmsWorkspace() {
                         })
                       }
                       placeholder="Or paste https://..."
-                      className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
                     />
                   </div>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                  <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     Uploads set the public featured image URL. Publish the blog to show it on `/blog`.
                   </p>
                   {form.featuredImage ? (
                     <div
-                      className="mt-3 aspect-video rounded-xl bg-cover bg-center ring-1 ring-white/10"
+                      className="mt-3 aspect-video rounded-xl bg-cover bg-center ring-1 ring-slate-200 dark:ring-white/10"
                       style={{ backgroundImage: `url(${form.featuredImage})` }}
                     />
                   ) : null}

@@ -8,11 +8,13 @@ import {
   Check,
   ChevronRight,
   CircleX,
+  Clock3,
   Cloud,
   FileDown,
   Layers2,
   Link2,
   LockKeyhole,
+  PackageCheck,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -57,6 +59,25 @@ const outcomes = [
 const beforeAfter = [
   ["Before Tulmin", "Mixed PDF, manual search, wrong print batches", CircleX],
   ["With Tulmin", "Filter, select, export, print", BadgeCheck],
+];
+
+const operatorFit = [
+  ["Bulk Meesho sellers", "Daily label PDFs, many SKUs, repeated dispatch pressure."],
+  ["Small warehouse teams", "Packers need clean batches, not one giant mixed file."],
+  ["Owner-operators", "Less manual checking before pickup cut-off time."],
+];
+
+const platformPoints = [
+  ["Local-first start", "Use the label workflow immediately in the browser."],
+  ["Mapping memory", "Save listing-to-master SKU logic for repeat work."],
+  ["Export control", "Selected PDF, SKU-wise PDFs, or ZIP for the team."],
+  ["Optional sync", "Sign in when you want mappings backed up across browsers."],
+];
+
+const faqItems = [
+  ["Do I need setup before trying Tulmin?", "No. Open the label workspace, upload a PDF, filter, and export."],
+  ["Will it help if my team packs by courier?", "Yes. Courier-aware filtering keeps handoff and scanning cleaner."],
+  ["Can Tulmin remember SKU names?", "Yes. SKU Mapping links listing SKUs to the master names your team uses."],
 ];
 
 const productRows = [
@@ -198,6 +219,9 @@ export default async function HomePage() {
             <a href="#workflow" className="hover:text-slate-950 dark:hover:text-white">
               Workflow
             </a>
+            <a href="#operators" className="hover:text-slate-950 dark:hover:text-white">
+              Operators
+            </a>
             <a href="#trust" className="hover:text-slate-950 dark:hover:text-white">
               Trust
             </a>
@@ -328,7 +352,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="workflow" className="border-y border-slate-200 bg-white py-16 dark:border-white/10 dark:bg-white/[0.025]">
+        <section id="workflow" className="scroll-mt-20 border-y border-slate-200 bg-white py-16 dark:border-white/10 dark:bg-white/[0.025]">
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
               <div>
@@ -365,7 +389,109 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="trust" className="py-16 sm:py-20">
+        <section id="operators" className="scroll-mt-20 py-16 sm:py-20">
+          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.88fr_1.12fr] lg:px-8">
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <p className="text-sm font-semibold text-[#335cff]">Built for real dispatch rooms</p>
+              <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+                Use it when speed and accuracy both matter.
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
+                Tulmin is for teams who cannot afford to print the wrong label, miss a SKU, or waste pickup time sorting PDFs by hand.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/export-labels"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "h-11 rounded-full px-5 text-sm"
+                  )}
+                >
+                  Test a PDF
+                  <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
+                </Link>
+                <Link
+                  href="/blog"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "h-11 rounded-full border-slate-300 bg-white px-5 text-sm dark:border-white/15 dark:bg-white/[0.04]"
+                  )}
+                >
+                  Read guides
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                {operatorFit.map(([title, copy]) => (
+                  <div
+                    key={title}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]"
+                  >
+                    <p className="text-base font-semibold tracking-tight text-slate-950 dark:text-white">
+                      {title}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                      {copy}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0c1728]">
+                <div className="grid gap-0 lg:grid-cols-[0.82fr_1.18fr]">
+                  <div className="border-b border-slate-200 p-5 dark:border-white/10 lg:border-b-0 lg:border-r">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-11 items-center justify-center rounded-2xl bg-[#335cff] text-white">
+                        <PackageCheck className="size-5" strokeWidth={1.8} aria-hidden />
+                      </span>
+                      <div>
+                        <p className="font-semibold tracking-tight">Dispatch control</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Upload to export in minutes
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-5 grid gap-3">
+                      {["Upload PDF", "Filter batch", "Export clean file"].map((step, index) => (
+                        <div
+                          key={step}
+                          className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.035] dark:ring-white/10"
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-sm font-bold text-[#335cff]">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm font-semibold">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-3 p-5 sm:grid-cols-2">
+                    {platformPoints.map(([title, copy], index) => {
+                      const icons = [Clock3, Layers2, FileDown, Cloud];
+                      const PointIcon = icons[index] ?? Check;
+                      return (
+                        <div
+                          key={title}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.035]"
+                        >
+                          <PointIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
+                          <p className="mt-3 font-semibold tracking-tight">{title}</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                            {copy}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="trust" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
             <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
               <div className="flex items-center gap-3">
@@ -410,6 +536,35 @@ export default async function HomePage() {
           </div>
         </section>
 
+        <section className="border-y border-slate-200 bg-white py-16 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.74fr_1.26fr] lg:px-8">
+            <div>
+              <p className="text-sm font-semibold text-[#335cff]">Questions before trying it</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+                Simple enough for today. Useful enough for every dispatch.
+              </h2>
+            </div>
+            <div className="grid gap-3">
+              {faqItems.map(([question, answer]) => (
+                <details
+                  key={question}
+                  className="group rounded-2xl border border-slate-200 bg-[#f7f9fc] p-5 dark:border-white/10 dark:bg-[#0c1728]"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold tracking-tight">
+                    {question}
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#335cff]/10 text-[#335cff] transition-transform group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                    {answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_28px_90px_-46px_rgb(15_23_42/0.8)] sm:p-8 lg:flex-row lg:items-center lg:justify-between dark:bg-white dark:text-slate-950">
             <div>
@@ -434,6 +589,28 @@ export default async function HomePage() {
           </div>
         </section>
       </main>
+      <footer className="border-t border-slate-200 bg-white/70 py-8 dark:border-white/10 dark:bg-white/[0.025]">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8 dark:text-slate-400">
+          <div>
+            <p className="font-semibold text-slate-950 dark:text-white">Tulmin</p>
+            <p className="mt-1">Meesho label workflow for dispatch teams.</p>
+          </div>
+          <nav className="flex flex-wrap gap-4">
+            <Link href="/blog" className="hover:text-slate-950 dark:hover:text-white">
+              Blog
+            </Link>
+            <Link href="/privacy" className="hover:text-slate-950 dark:hover:text-white">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-slate-950 dark:hover:text-white">
+              Terms
+            </Link>
+            <Link href="/export-labels" className="font-semibold text-[#335cff]">
+              Open workspace
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
