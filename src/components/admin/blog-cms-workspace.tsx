@@ -210,7 +210,11 @@ export function BlogCmsWorkspace() {
       });
       if (!data.post) throw new Error("Blog save did not return a post.");
       setPosts((current) => [data.post, ...current.filter((item) => item.slug !== data.post.slug)]);
-      setForm(formFromPost(data.post));
+      if (status === "published") {
+        createNew();
+      } else {
+        setForm(formFromPost(data.post));
+      }
       notify.success(status === "published" ? "Blog published to frontend." : "Draft saved.");
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Could not save blog.");
@@ -219,8 +223,8 @@ export function BlogCmsWorkspace() {
     }
   }
 
-  async function deleteSelected() {
-    const slug = form.slug?.trim();
+  async function deleteSelected(slugOverride?: string) {
+    const slug = slugOverride ?? form.slug?.trim();
     if (!slug) {
       notify.error("Select a blog first.");
       return;
@@ -233,7 +237,7 @@ export function BlogCmsWorkspace() {
         body: JSON.stringify({ slug }),
       });
       setPosts((current) => current.filter((post) => post.slug !== slug));
-      createNew();
+      if (selectedSlug === slug) createNew();
       notify.success("Blog deleted.");
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Could not delete blog.");
@@ -397,6 +401,7 @@ export function BlogCmsWorkspace() {
                   <tr>
                     <th className="px-4 py-3">Title</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -425,11 +430,44 @@ export function BlogCmsWorkspace() {
                           {post.status}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            title="Edit blog"
+                            aria-label={`Edit ${post.title}`}
+                            className="text-slate-300 hover:bg-white/10 hover:text-white"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              loadPost(post);
+                            }}
+                          >
+                            <Edit3 className="size-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            title={admin?.role === "super_admin" ? "Delete blog" : "Only super admins can delete"}
+                            aria-label={`Delete ${post.title}`}
+                            disabled={Boolean(busy) || admin?.role !== "super_admin"}
+                            className="text-red-200 hover:bg-red-400/10 hover:text-red-100 disabled:text-slate-600"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void deleteSelected(post.slug);
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                   {!filteredPosts.length ? (
                     <tr>
-                      <td colSpan={2} className="px-4 py-10 text-center text-sm text-slate-500">
+                      <td colSpan={3} className="px-4 py-10 text-center text-sm text-slate-500">
                         No blogs found.
                       </td>
                     </tr>
