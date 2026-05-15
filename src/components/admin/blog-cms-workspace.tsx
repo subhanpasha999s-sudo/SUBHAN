@@ -36,6 +36,16 @@ type BlogForm = Partial<BlogCmsPost> & {
   keywordsText: string;
 };
 
+class AdminRequestError extends Error {
+  setupRequired: boolean;
+
+  constructor(message: string, setupRequired = false) {
+    super(message);
+    this.name = "AdminRequestError";
+    this.setupRequired = setupRequired;
+  }
+}
+
 const emptyForm = (): BlogForm => ({
   title: "",
   slug: "",
@@ -76,8 +86,13 @@ async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error || "Admin request failed.");
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+    setupRequired?: boolean;
+  };
+  if (!response.ok) {
+    throw new AdminRequestError(data.error || "Admin request failed.", Boolean(data.setupRequired));
+  }
   return data;
 }
 
@@ -116,8 +131,9 @@ function renderPreview(content: string) {
 }
 
 export function BlogCmsWorkspace() {
-  const [authState, setAuthState] = React.useState<"checking" | "ready" | "blocked">("checking");
+  const [authState, setAuthState] = React.useState<"checking" | "ready" | "blocked" | "setup">("checking");
   const [admin, setAdmin] = React.useState<AdminUser | null>(null);
+  const [setupError, setSetupError] = React.useState("");
   const [posts, setPosts] = React.useState<BlogCmsPost[]>([]);
   const [form, setForm] = React.useState<BlogForm>(() => emptyForm());
   const [query, setQuery] = React.useState("");
@@ -146,8 +162,14 @@ export function BlogCmsWorkspace() {
       setPosts(data.posts);
       setAuthState("ready");
     } catch (error) {
-      setAuthState("blocked");
-      notify.error(error instanceof Error ? error.message : "Admin access required.");
+      const message = error instanceof Error ? error.message : "Admin access required.";
+      if (error instanceof AdminRequestError && error.setupRequired) {
+        setSetupError(message);
+        setAuthState("setup");
+      } else {
+        setAuthState("blocked");
+      }
+      notify.error(message);
     }
   }, []);
 
@@ -256,6 +278,45 @@ export function BlogCmsWorkspace() {
           >
             Go to Admin Login
           </a>
+        </section>
+      </main>
+    );
+  }
+
+  if (authState === "setup") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#070b12] px-4 text-white">
+        <section className="w-full max-w-xl rounded-2xl border border-amber-300/20 bg-white/[0.06] p-6 shadow-[0_24px_80px_-42px_rgba(245,158,11,0.45)]">
+          <FileText className="size-10 text-amber-200" />
+          <h1 className="mt-4 text-2xl font-semibold">Blog database setup required</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            Admin login worked, but Supabase does not have the `public.blogs`
+            table yet. Run the blog CMS migration, then refresh this page.
+          </p>
+          <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-slate-200">
+            <p className="font-semibold text-amber-100">Migration to run</p>
+            <code className="mt-2 block break-words text-xs text-slate-300">
+              supabase/migrations/006_blog_cms.sql
+            </code>
+          </div>
+          {setupError ? (
+            <p className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-100">
+              {setupError}
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button type="button" className="h-11 rounded-xl" onClick={() => window.location.reload()}>
+              Refresh after migration
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+              onClick={() => void logout()}
+            >
+              Logout
+            </Button>
+          </div>
         </section>
       </main>
     );

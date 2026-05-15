@@ -5,6 +5,33 @@ import { deleteCmsBlog, listCmsBlogs, saveCmsBlog } from "@/lib/admin/blog-cms";
 
 export const dynamic = "force-dynamic";
 
+function isMissingBlogTable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("public.blogs") ||
+    message.includes("schema cache") ||
+    message.includes("Could not find the table") ||
+    message.includes("relation \"blogs\"") ||
+    message.includes("relation \"public.blogs\"")
+  );
+}
+
+function cmsErrorResponse(error: unknown, status = 500) {
+  const message = error instanceof Error ? error.message : "Blog CMS request failed.";
+  if (isMissingBlogTable(error)) {
+    return NextResponse.json(
+      {
+        error: message,
+        setupRequired: true,
+        setupHint: "Run supabase/migrations/006_blog_cms.sql in Supabase SQL Editor, then refresh this page.",
+      },
+      { status: 503 },
+    );
+  }
+
+  return NextResponse.json({ error: message }, { status });
+}
+
 export async function GET(request: Request) {
   const admin = await requireAdmin(request);
   if (admin instanceof NextResponse) return admin;
@@ -12,10 +39,7 @@ export async function GET(request: Request) {
   try {
     return NextResponse.json({ admin, posts: await listCmsBlogs() });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not load blogs." },
-      { status: 500 },
-    );
+    return cmsErrorResponse(error);
   }
 }
 
@@ -27,10 +51,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { post?: unknown };
     return NextResponse.json({ ok: true, post: await saveCmsBlog(body.post ?? {}, admin) });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not save blog." },
-      { status: 400 },
-    );
+    return cmsErrorResponse(error, 400);
   }
 }
 
@@ -46,9 +67,6 @@ export async function DELETE(request: Request) {
     await deleteCmsBlog(slug ?? "");
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not delete blog." },
-      { status: 400 },
-    );
+    return cmsErrorResponse(error, 400);
   }
 }
