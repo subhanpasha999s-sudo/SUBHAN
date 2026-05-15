@@ -1,5 +1,5 @@
 import { BLOG_CATEGORIES, type BlogCategory, type BlogPost } from "@/lib/blog/posts";
-import { getSupabaseRouteHandler } from "@/lib/supabase/server-admin";
+import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 import type { AdminPrincipal } from "@/lib/admin/auth";
 
 export type BlogStatus = "draft" | "published";
@@ -97,8 +97,12 @@ function rowToCmsPost(row: BlogRow): BlogCmsPost | null {
 }
 
 function getClient() {
-  const supabase = getSupabaseRouteHandler();
-  if (!supabase) throw new Error("Supabase is required for the admin blog CMS.");
+  const supabase = getSupabaseServiceRole();
+  if (!supabase) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is required on the server to publish blogs. Add it to your deployment environment variables and redeploy.",
+    );
+  }
   return supabase;
 }
 

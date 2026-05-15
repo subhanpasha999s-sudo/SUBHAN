@@ -16,8 +16,24 @@ function isMissingBlogTable(error: unknown) {
   );
 }
 
+function isMissingServiceRole(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("SUPABASE_SERVICE_ROLE_KEY");
+}
+
 function cmsErrorResponse(error: unknown, status = 500) {
   const message = error instanceof Error ? error.message : "Blog CMS request failed.";
+  if (isMissingServiceRole(error)) {
+    return NextResponse.json(
+      {
+        error: message,
+        setupRequired: true,
+        setupHint: "Add SUPABASE_SERVICE_ROLE_KEY in your deployment environment variables, then redeploy.",
+      },
+      { status: 503 },
+    );
+  }
+
   if (isMissingBlogTable(error)) {
     return NextResponse.json(
       {

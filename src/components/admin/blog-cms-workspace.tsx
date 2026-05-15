@@ -290,13 +290,13 @@ export function BlogCmsWorkspace() {
           <FileText className="size-10 text-amber-200" />
           <h1 className="mt-4 text-2xl font-semibold">Blog database setup required</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            Admin login worked, but Supabase does not have the `public.blogs`
-            table yet. Run the blog CMS migration, then refresh this page.
+            Admin login worked, but the backend still needs one Supabase setup
+            step before it can load, save, or publish blogs.
           </p>
           <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-amber-100">Migration to run</p>
+            <p className="font-semibold text-amber-100">Required setup</p>
             <code className="mt-2 block break-words text-xs text-slate-300">
-              supabase/migrations/006_blog_cms.sql
+              Run supabase/migrations/006_blog_cms.sql and set SUPABASE_SERVICE_ROLE_KEY in deployment env.
             </code>
           </div>
           {setupError ? (
