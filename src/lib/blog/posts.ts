@@ -637,7 +637,7 @@ export function blogCanonical(slug: string) {
 }
 
 export function blogUrlPath(slug: string) {
-  return `/blog/${slug}`;
+  return `/blog/${encodeURIComponent(slug)}`;
 }
 
 export const BLOG_GLOBAL_CTA = CTA_DEFAULT;

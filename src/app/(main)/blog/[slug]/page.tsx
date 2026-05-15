@@ -19,8 +19,16 @@ export function generateStaticParams() {
   return getAllBlogPosts().map((post) => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const post = await getLiveBlogPostBySlug(params.slug);
+type BlogSlugParams = { slug: string } | Promise<{ slug: string }>;
+
+async function readSlug(params: BlogSlugParams) {
+  const resolved = await params;
+  return decodeURIComponent(resolved.slug ?? "").trim();
+}
+
+export async function generateMetadata({ params }: { params: BlogSlugParams }): Promise<Metadata> {
+  const slug = await readSlug(params);
+  const post = await getLiveBlogPostBySlug(slug);
   if (!post) {
     return {
       title: "Blog article not found",
@@ -148,8 +156,9 @@ function renderSectionBody(body: string, keyPrefix: string) {
   return nodes;
 }
 
-export default async function BlogDetailPage({ params }: { params: { slug: string } }) {
-  const post = await getLiveBlogPostBySlug(params.slug);
+export default async function BlogDetailPage({ params }: { params: BlogSlugParams }) {
+  const slug = await readSlug(params);
+  const post = await getLiveBlogPostBySlug(slug);
   if (!post) notFound();
 
   const related = await getLiveRelatedBlogPosts(post.slug, post.category, 3);

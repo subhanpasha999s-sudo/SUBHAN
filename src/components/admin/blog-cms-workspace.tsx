@@ -138,8 +138,9 @@ export function BlogCmsWorkspace() {
   const [form, setForm] = React.useState<BlogForm>(() => emptyForm());
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "draft" | "published">("all");
-  const [busy, setBusy] = React.useState<"save" | "publish" | "delete" | "logout" | null>(null);
+  const [busy, setBusy] = React.useState<"save" | "publish" | "delete" | "logout" | "image" | null>(null);
   const [preview, setPreview] = React.useState(false);
+  const imageInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const selectedSlug = form.slug?.trim() ?? "";
   const filteredPosts = React.useMemo(() => {
@@ -247,6 +248,43 @@ export function BlogCmsWorkspace() {
       notify.error(error instanceof Error ? error.message : "Could not delete blog.");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function uploadFeaturedImage(file: File | null | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify.error("Choose an image file.");
+      return;
+    }
+    setBusy("image");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("slug", form.slug?.trim() || slugify(form.title ?? "blog"));
+      const response = await fetch("/api/admin/blogs/upload", {
+        method: "POST",
+        body,
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        url?: string;
+        localOnly?: boolean;
+      };
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Image upload failed.");
+      }
+      patchForm({ featuredImage: data.url, coverImage: data.url, ogImage: data.url });
+      notify.success(
+        data.localOnly
+          ? "Image uploaded locally. Publish will show it on this app instance."
+          : "Image uploaded. Publish the blog to make it live.",
+      );
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Could not upload image.");
+    } finally {
+      setBusy(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   }
 
@@ -683,12 +721,44 @@ export function BlogCmsWorkspace() {
                     <ImagePlus className="size-4 text-sky-200" />
                     Featured image
                   </h3>
-                  <Input
-                    value={form.featuredImage ?? ""}
-                    onChange={(event) => patchForm({ featuredImage: event.target.value })}
-                    placeholder="https://..."
-                    className="mt-4 h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={(event) => void uploadFeaturedImage(event.target.files?.[0])}
                   />
+                  <div className="mt-4 grid gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 rounded-xl border-white/15 bg-white/[0.04] text-white hover:bg-white/10"
+                      disabled={Boolean(busy)}
+                      onClick={() => imageInputRef.current?.click()}
+                    >
+                      {busy === "image" ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <UploadCloud className="size-4" />
+                      )}
+                      Upload image
+                    </Button>
+                    <Input
+                      value={form.featuredImage ?? ""}
+                      onChange={(event) =>
+                        patchForm({
+                          featuredImage: event.target.value,
+                          coverImage: event.target.value,
+                          ogImage: event.target.value,
+                        })
+                      }
+                      placeholder="Or paste https://..."
+                      className="h-11 rounded-xl border-white/10 bg-black/20 text-white"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Uploads set the public featured image URL. Publish the blog to show it on `/blog`.
+                  </p>
                   {form.featuredImage ? (
                     <div
                       className="mt-3 aspect-video rounded-xl bg-cover bg-center ring-1 ring-white/10"

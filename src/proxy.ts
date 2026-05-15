@@ -30,10 +30,6 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/export-labels", request.url));
-  }
-
   if (
     pathname.startsWith("/admin") &&
     PUBLIC_APP_HOSTS.has(hostname) &&

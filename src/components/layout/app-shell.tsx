@@ -574,6 +574,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const drawerOpen = mobileNavOpen;
 
+  if (pathname === "/" || pathname === "") {
+    return (
+      <div className="min-h-app-screen bg-background font-sans text-foreground antialiased dark:bg-background">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-app-screen w-full bg-background font-sans text-foreground antialiased dark:bg-background">
       <aside
