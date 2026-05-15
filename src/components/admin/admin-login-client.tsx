@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { toast as notify } from "sonner";
 
@@ -22,6 +23,7 @@ async function waitForAdminSession() {
 }
 
 export function AdminLoginClient() {
+  const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowser(), []);
   const [email, setEmail] = React.useState("");
   const [otp, setOtp] = React.useState("");
@@ -63,10 +65,28 @@ export function AdminLoginClient() {
     }
     setSendBusy(true);
     try {
+      const eligibilityResponse = await fetch("/api/admin/eligibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const eligibility = (await eligibilityResponse.json().catch(() => ({}))) as {
+        allowed?: boolean;
+        error?: string;
+        expectedOwner?: string;
+      };
+      if (!eligibilityResponse.ok || !eligibility.allowed) {
+        notify.error(
+          eligibility.error ||
+            `This email is not allowed to access Tulmin Admin. Use ${eligibility.expectedOwner ?? "info@tulmin.com"}.`,
+        );
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
         options: {
-          shouldCreateUser: false,
+          shouldCreateUser: true,
         },
       });
       if (error) {
@@ -139,6 +159,7 @@ export function AdminLoginClient() {
       }
       setLoginComplete(true);
       setStatusMessage(`Admin session started for ${adminCheck.email ?? trimmed}.`);
+      router.replace("/admin/blogs");
     } catch (error) {
       const message =
         error instanceof Error && error.message.includes("expected pattern")
