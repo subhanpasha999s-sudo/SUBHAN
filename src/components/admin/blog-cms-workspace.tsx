@@ -398,7 +398,7 @@ export function BlogCmsWorkspace() {
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055]">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
               <div>
-                <p className="text-sm font-semibold">Uploaded blogs</p>
+                <p className="text-sm font-semibold">All CMS blogs</p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   Showing {filteredPosts.length} of {posts.length}
                 </p>

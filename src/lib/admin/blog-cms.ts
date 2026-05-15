@@ -1,4 +1,4 @@
-import { BLOG_CATEGORIES, type BlogCategory, type BlogPost } from "@/lib/blog/posts";
+import { BLOG_CATEGORIES, BLOG_POSTS, type BlogCategory, type BlogPost } from "@/lib/blog/posts";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 import type { AdminPrincipal } from "@/lib/admin/auth";
 
@@ -96,6 +96,32 @@ function rowToCmsPost(row: BlogRow): BlogCmsPost | null {
   };
 }
 
+function staticPostToCmsPost(post: BlogPost): BlogCmsPost {
+  const richContent = post.sections
+    .map((section) => `## ${section.heading}\n\n${section.body}`)
+    .join("\n\n");
+
+  return {
+    ...post,
+    status: post.status === "draft" ? "draft" : "published",
+    featuredImage: post.featuredImage ?? post.coverImage ?? "",
+    coverImage: post.coverImage ?? post.featuredImage ?? "",
+    metaTitle: post.metaTitle ?? post.seoTitle ?? post.title,
+    metaDescription: post.metaDescription ?? post.description,
+    ogImage: post.ogImage ?? post.featuredImage ?? post.coverImage ?? "",
+    author: post.author ?? "Tulmin",
+    createdAt: post.createdAt ?? "",
+    updatedAt: post.updatedAt ?? post.publishedOn,
+    publishedAt: post.publishedAt ?? post.publishedOn,
+    scheduledFor: post.scheduledFor ?? "",
+    tagSlugs: post.tagSlugs ?? [],
+    trending: Boolean(post.trending),
+    featured: Boolean(post.featured),
+    ctaLabel: post.ctaLabel ?? "Start Using Tulmin",
+    richContent,
+  };
+}
+
 function getClient() {
   const supabase = getSupabaseServiceRole();
   if (!supabase) {
@@ -113,7 +139,21 @@ export async function listCmsBlogs() {
     .order("updated_at", { ascending: false });
 
   if (error) throw new Error(`Could not load blogs: ${error.message}`);
-  return ((data ?? []) as BlogRow[]).map(rowToCmsPost).filter(Boolean) as BlogCmsPost[];
+  const rows = (data ?? []) as BlogRow[];
+  const deletedSlugs = new Set(
+    rows
+      .filter((row) => ((row.content ?? {}) as { deleted?: boolean }).deleted)
+      .map((row) => row.slug),
+  );
+  const uploadedPosts = rows.map(rowToCmsPost).filter(Boolean) as BlogCmsPost[];
+  const uploadedSlugs = new Set(uploadedPosts.map((post) => post.slug));
+  const hardcodedPosts = BLOG_POSTS.filter(
+    (post) => !uploadedSlugs.has(post.slug) && !deletedSlugs.has(post.slug),
+  ).map(staticPostToCmsPost);
+
+  return [...uploadedPosts, ...hardcodedPosts].sort((a, b) =>
+    (b.updatedAt || b.publishedOn || "").localeCompare(a.updatedAt || a.publishedOn || ""),
+  );
 }
 
 export function cleanBlogInput(input: BlogInput, admin: AdminPrincipal): BlogCmsPost {
