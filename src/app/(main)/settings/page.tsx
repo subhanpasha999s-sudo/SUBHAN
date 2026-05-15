@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
 import { getSiteUrl } from "@/lib/seo/site-url";
-
-import SettingsPage from "./settings-dynamic";
+import { SettingsPageClient } from "./settings-page-client";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -12,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsRoutePage() {
-  return <SettingsPage />;
+  return <SettingsPageClient />;
 }

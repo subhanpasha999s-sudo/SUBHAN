@@ -156,7 +156,7 @@ export function AppTopbar({
             ) : authReady && user ? (
               <Link
                 href="/account"
-                prefetch
+                prefetch={false}
                 aria-label="Tulmin account"
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "icon" }),

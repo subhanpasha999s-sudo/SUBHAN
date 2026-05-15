@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
@@ -23,7 +23,6 @@ import {
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
-import { WorkspaceFlowerBg } from "@/components/layout/workspace-flower-bg";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileNavDrawerPortal } from "@/components/layout/mobile-nav-drawer-portal";
 import {
@@ -217,7 +216,7 @@ function SidebarNavButton({
   return (
     <Link
       href={item.href}
-      prefetch
+      prefetch={false}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
@@ -491,7 +490,7 @@ function SidebarChrome({
         {navCollapsed && variant === "desktop" ? (
           <Link
             href="/account"
-            prefetch
+            prefetch={false}
             title={user ? "Account" : "Sign in to sync"}
             className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-sidebar-accent/65 text-sidebar-foreground/70 ring-1 ring-sidebar-border/35 transition-colors hover:text-sidebar-foreground"
           >
@@ -519,7 +518,7 @@ function SidebarChrome({
         ) : authReady && user ? (
           <Link
             href="/account"
-            prefetch
+            prefetch={false}
             onClick={onNavNavigate}
             className="flex min-h-12 items-center gap-3 rounded-2xl px-2.5 text-[13px] font-semibold text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent"
           >
@@ -549,7 +548,6 @@ function SidebarChrome({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const hydrated = useHydrated();
   const persistedCollapsed = useMeeshoStore((s) => s.sidebarCollapsed);
   const setCollapsed = useMeeshoStore((s) => s.setSidebarCollapsed);
@@ -562,21 +560,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const prefetchCoreRoutes = () => {
-      for (const href of ["/export-labels", "/mapping", "/blog", "/settings", "/account"]) {
-        router.prefetch(href);
-      }
-    };
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(prefetchCoreRoutes, { timeout: 1600 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = window.setTimeout(prefetchCoreRoutes, 700);
-    return () => window.clearTimeout(id);
-  }, [router]);
 
   React.useEffect(() => {
     const onTourMobileNav = (event: Event) => {
@@ -644,7 +627,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_82%_52%_at_50%_-14%,rgb(59_130_246/0.045),transparent_56%)] dark:bg-[radial-gradient(ellipse_78%_46%_at_50%_-10%,rgb(96_165_250/0.05),transparent_55%)]" />
-        <WorkspaceFlowerBg />
         <AppTopbar
           mobileNavOpen={drawerOpen}
           onMobileMenuToggle={() => setMobileNavOpen((o) => !o)}

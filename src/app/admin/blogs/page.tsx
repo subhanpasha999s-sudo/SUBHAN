@@ -1,13 +1,7 @@
-import type { Metadata } from "next";
+import { BlogCmsWorkspace } from "@/components/admin/blog-cms-workspace";
 
-import { AdminBlogCmsClient } from "@/components/admin/admin-blog-cms-client";
-import { getAllBlogPosts } from "@/lib/blog/posts";
-
-export const metadata: Metadata = {
-  title: "Admin Blogs | Tulmin CMS",
-  robots: { index: false, follow: false },
-};
+export const dynamic = "force-dynamic";
 
 export default function AdminBlogsPage() {
-  return <AdminBlogCmsClient publicPosts={getAllBlogPosts()} />;
+  return <BlogCmsWorkspace />;
 }

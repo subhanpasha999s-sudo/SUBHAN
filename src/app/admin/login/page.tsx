@@ -1,5 +1,5 @@
-import { AdminLoginClient } from "@/components/admin/admin-login-client";
+import { AdminOtpLogin } from "@/components/admin/admin-otp-login";
 
 export default function AdminLoginPage() {
-  return <AdminLoginClient />;
+  return <AdminOtpLogin />;
 }
