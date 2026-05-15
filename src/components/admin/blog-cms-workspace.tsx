@@ -210,6 +210,8 @@ export function BlogCmsWorkspace() {
       });
       if (!data.post) throw new Error("Blog save did not return a post.");
       setPosts((current) => [data.post, ...current.filter((item) => item.slug !== data.post.slug)]);
+      setQuery("");
+      setStatusFilter("all");
       if (status === "published") {
         createNew();
       } else {
@@ -237,6 +239,8 @@ export function BlogCmsWorkspace() {
         body: JSON.stringify({ slug }),
       });
       setPosts((current) => current.filter((post) => post.slug !== slug));
+      setQuery("");
+      setStatusFilter("all");
       if (selectedSlug === slug) createNew();
       notify.success("Blog deleted.");
     } catch (error) {
@@ -392,8 +396,27 @@ export function BlogCmsWorkspace() {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055]">
-            <div className="border-b border-white/10 px-4 py-3 text-sm font-semibold">
-              Blog list table
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold">Uploaded blogs</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Showing {filteredPosts.length} of {posts.length}
+                </p>
+              </div>
+              {(query || statusFilter !== "all") ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-slate-300 hover:bg-white/10 hover:text-white"
+                  onClick={() => {
+                    setQuery("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Show all
+                </Button>
+              ) : null}
             </div>
             <div className="max-h-[65vh] overflow-auto">
               <table className="w-full text-left text-sm">
