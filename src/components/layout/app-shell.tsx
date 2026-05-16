@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowRight,
   BadgeCheck,
   BookOpenText,
   ChevronsLeft,
@@ -41,6 +42,7 @@ type NavDef = {
   description: string;
   icon: LucideIcon;
   badge?: string;
+  step?: string;
   soon?: boolean;
   /** Same-path shortcuts (e.g. Filters) — never show active rail */
   quickLink?: boolean;
@@ -50,32 +52,35 @@ type NavGroup = { id: string; label: string; items: NavDef[] };
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    id: "workspace",
-    label: "Workspace",
+    id: "flow",
+    label: "Dispatch Flow",
     items: [
-      {
-        href: "/export-labels",
-        label: "Labels",
-        description: "Filter and export dispatch PDFs",
-        icon: FileDown,
-      },
       {
         href: "/mapping",
         label: "SKU Mapping",
-        description: "Remember listing to master SKUs",
+        description: "Link listings to master SKUs",
         icon: Link2,
+        step: "01",
+      },
+      {
+        href: "/export-labels",
+        label: "Run Labels",
+        description: "Upload, filter, and export PDFs",
+        icon: FileDown,
+        step: "02",
       },
       {
         href: "/blog",
-        label: "Blog",
-        description: "Operator guides and workflows",
+        label: "Playbooks",
+        description: "Guides for faster dispatch",
         icon: BookOpenText,
+        step: "03",
       },
     ],
   },
   {
-    id: "system",
-    label: "System",
+    id: "workspace",
+    label: "Workspace",
     items: [
       {
         href: "/settings",
@@ -158,6 +163,11 @@ function SidebarNavButton({
             <span className="min-w-0 truncate text-[13px] font-semibold text-sidebar-foreground">
               {item.label}
             </span>
+            {item.step ? (
+              <span className="rounded-md bg-sidebar-foreground/[0.055] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-sidebar-foreground/48 ring-1 ring-sidebar-foreground/10">
+                {item.step}
+              </span>
+            ) : null}
           </span>
           <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/45">
             {item.description}
@@ -326,6 +336,7 @@ function SidebarChrome({
   const { openOptionalSignIn } = useValueFirstAuth();
   const guestSignedOut = authReady && !user;
   const userEmail = user?.email ?? "";
+  const showExpandedChrome = !(navCollapsed && variant === "desktop");
 
   return (
     <>
@@ -445,6 +456,42 @@ function SidebarChrome({
           </>
         )}
       </header>
+
+      {showExpandedChrome ? (
+        <div className={cn("border-b border-sidebar-border/20 py-4", SIDEBAR_PAD_X)}>
+          <Link
+            href="/mapping"
+            prefetch={false}
+            onClick={onNavNavigate}
+            className={cn(
+              "group relative overflow-hidden rounded-2xl border border-sidebar-primary/20",
+              "flex min-h-[4.75rem] items-center gap-3 bg-sidebar-primary px-3.5 text-sidebar-primary-foreground",
+              "shadow-[0_22px_54px_-34px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.18)]",
+              "transition-[transform,box-shadow,background-color] duration-200 ease-smooth hover:shadow-[0_26px_64px_-36px_rgb(59_130_246/1)] active:scale-[0.99]"
+            )}
+            data-tour="sku-map-link"
+          >
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/35" aria-hidden />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/16 ring-1 ring-white/20">
+              <Link2 className="size-5" strokeWidth={1.8} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold">Start SKU mapping</span>
+              <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-primary-foreground/72">
+                Set the rules once
+              </span>
+            </span>
+            <ArrowRight className="size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={1.8} aria-hidden />
+          </Link>
+          <div className="mt-3 flex items-center gap-2 px-1 text-[10.5px] font-semibold text-sidebar-foreground/42">
+            <span className="text-sidebar-primary">Map</span>
+            <span className="h-px flex-1 bg-sidebar-border/35" />
+            <span>Run</span>
+            <span className="h-px flex-1 bg-sidebar-border/35" />
+            <span>Export</span>
+          </div>
+        </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
         <nav

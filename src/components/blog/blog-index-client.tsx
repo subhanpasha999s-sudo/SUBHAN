@@ -66,13 +66,13 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/export-labels"
+              href="/mapping"
               className={buttonVariants({
                 size: "lg",
                 className: "min-h-11 rounded-xl px-5 font-semibold",
               })}
             >
-              Start Using Tulmin
+              Start SKU Mapping
             </Link>
             <a
               href="#blog-grid"
@@ -92,13 +92,13 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Navigation</p>
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { label: "Home", href: "/export-labels" },
-            { label: "Features", href: "/export-labels#features" },
-            { label: "Pricing", href: "/export-labels#pricing" },
+            { label: "Home", href: "/" },
+            { label: "Features", href: "/#workflow" },
+            { label: "Trust", href: "/#trust" },
             { label: "Blog", href: "/blog" },
             { label: "Contact", href: "mailto:info@tulmin.com" },
             { label: "Login", href: "/login" },
-            { label: "Start Free", href: "/export-labels" },
+            { label: "Start Free", href: "/mapping" },
           ].map((item) => (
             <Link
               key={item.label}

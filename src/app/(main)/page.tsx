@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Boxes,
+  BookOpenText,
   Check,
   ChevronRight,
   CircleX,
@@ -28,32 +29,37 @@ import { cn } from "@/lib/utils";
 
 const workflow = [
   {
+    icon: Link2,
+    title: "Map SKUs once",
+    copy: "Connect listing SKUs to the master names your team actually uses.",
+  },
+  {
     icon: Upload,
-    title: "Upload label PDFs",
-    copy: "Drop in a Meesho PDF and start filtering in seconds.",
+    title: "Upload the Meesho PDF",
+    copy: "Bring in the mixed label file after your mapping rules are ready.",
   },
   {
     icon: SlidersHorizontal,
-    title: "Filter the dispatch batch",
-    copy: "Narrow labels by SKU, QTY, courier, mapped SKU, or search.",
+    title: "Filter the batch",
+    copy: "Narrow labels by mapped SKU, QTY, courier partner, or search.",
   },
   {
     icon: FileDown,
-    title: "Export what ships",
-    copy: "Download selected pages, SKU-wise PDFs, or a ready ZIP.",
+    title: "Export clean labels",
+    copy: "Download selected pages, SKU-wise PDFs, or a ready ZIP for print.",
   },
 ];
 
 const metrics = [
-  ["No", "manual PDF sorting"],
-  ["Fast", "SKU and courier batches"],
-  ["Clean", "exports for printing"],
+  ["Map", "SKUs once"],
+  ["Run", "clean label batches"],
+  ["Print", "with fewer checks"],
 ];
 
 const outcomes = [
-  "Find the right labels without opening the PDF again and again.",
-  "Split work by SKU, QTY, and courier before the packing table waits.",
-  "Keep listing SKUs mapped to the master names your team actually uses.",
+  "Start with SKU mapping so every future label run has cleaner groups.",
+  "Split work by mapped SKU, QTY, and courier before the packing table waits.",
+  "Export dispatch-ready files without opening the same mixed PDF again and again.",
 ];
 
 const beforeAfter = [
@@ -68,14 +74,27 @@ const operatorFit = [
 ];
 
 const platformPoints = [
-  ["Local-first start", "Use the label workflow immediately in the browser."],
-  ["Mapping memory", "Save listing-to-master SKU logic for repeat work."],
+  ["Mapping first", "Save listing-to-master SKU logic before the daily label run."],
   ["Export control", "Selected PDF, SKU-wise PDFs, or ZIP for the team."],
+  ["Courier and QTY filters", "Segment by partner and quantity without manual scanning."],
   ["Optional sync", "Sign in when you want mappings backed up across browsers."],
 ];
 
+const painPoints = [
+  ["Manual sorting", "Teams lose time searching one mixed PDF for the right product."],
+  ["Wrong dispatch", "Similar SKUs get packed in parallel and labels can get swapped."],
+  ["Courier chaos", "Pickup batches slow down when partners are mixed together."],
+  ["Repeated setup", "Listing SKU logic is rebuilt every day instead of reused."],
+];
+
+const playbooks = [
+  ["SKU filtering", "How mapped SKUs reduce daily label sorting."],
+  ["4x6 printing", "Crop and export cleaner thermal label batches."],
+  ["Bulk dispatch", "Daily checks for Meesho warehouse teams."],
+];
+
 const faqItems = [
-  ["Do I need setup before trying Tulmin?", "No. Open the label workspace, upload a PDF, filter, and export."],
+  ["Should I map SKUs before running labels?", "Yes. Mapping first gives the cleanest workflow because filters can use your team-level SKU names."],
   ["Will it help if my team packs by courier?", "Yes. Courier-aware filtering keeps handoff and scanning cleaner."],
   ["Can Tulmin remember SKU names?", "Yes. SKU Mapping links listing SKUs to the master names your team uses."],
 ];
@@ -98,16 +117,16 @@ function ProductPreview() {
             </span>
             <div>
               <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
-                Labels
+                SKU Mapping
               </p>
               <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                SKU, QTY, courier partner
+                Map first, export faster
               </p>
             </div>
           </div>
           <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-600/15 dark:text-emerald-200">
-            <span className="sm:hidden">Ready</span>
-            <span className="hidden sm:inline">Ready to export</span>
+            <span className="sm:hidden">Mapped</span>
+            <span className="hidden sm:inline">Rules ready</span>
           </span>
         </div>
       </div>
@@ -116,7 +135,7 @@ function ProductPreview() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_.8fr_.75fr]">
           <div className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-400">
             <Search className="size-4 text-slate-400" strokeWidth={1.8} aria-hidden />
-            Search SKU or order
+            Search listing or master SKU
           </div>
           <div className="flex h-11 items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-200">
             All couriers
@@ -170,8 +189,8 @@ function ProductPreview() {
 
         <div className="grid gap-3 sm:grid-cols-3">
           {[
-            ["Selected", "128 labels"],
-            ["Grouped", "24 SKUs"],
+            ["Mapped", "24 SKUs"],
+            ["Filtered", "128 labels"],
             ["Export", "ZIP + PDF"],
           ].map(([label, value]) => (
             <div
@@ -230,13 +249,13 @@ export default async function HomePage() {
             </Link>
           </nav>
           <Link
-            href="/export-labels"
+            href="/mapping"
             className={cn(
               buttonVariants({ size: "lg" }),
               "h-10 rounded-full px-4 text-sm"
             )}
           >
-            Start workspace
+            Start SKU Mapping
             <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
           </Link>
         </div>
@@ -244,43 +263,42 @@ export default async function HomePage() {
 
       <main>
         <section className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#335cff]/40 to-transparent" aria-hidden />
-          <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-12 px-4 pb-14 pt-14 sm:px-6 sm:pb-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:pb-20 lg:pt-16">
+          <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300">
                 <Sparkles className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                Stop sorting labels by hand
+                Meesho dispatch, cleaned up
               </div>
-              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl dark:text-white">
-                Tulmin
+              <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-[1.02] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl dark:text-white">
+                Map once. Print the right labels every time.
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-300">
-                Turn one mixed Meesho PDF into SKU, QTY, and courier-ready exports your team can print with confidence.
+                Tulmin turns SKU mapping, label filtering, and dispatch export into one calm workflow for teams shipping Meesho orders at speed.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href="/export-labels"
+                  href="/mapping"
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "h-12 rounded-full px-6 text-[15px]"
                   )}
                 >
-                  Try with today&apos;s PDF
+                  Start SKU Mapping
                   <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
                 </Link>
                 <Link
-                  href="/mapping"
+                  href="/export-labels"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "h-12 rounded-full border-slate-300 bg-white px-6 text-[15px] dark:border-white/15 dark:bg-white/[0.04]"
                   )}
                 >
-                  Set up SKU mapping
+                  Run labels
                 </Link>
               </div>
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <div className="mt-10 grid max-w-xl gap-6 border-t border-slate-200 pt-6 sm:grid-cols-3 dark:border-white/10">
                 {metrics.map(([value, label]) => (
-                  <div key={label} className="border-l border-slate-300 pl-4 dark:border-white/15">
+                  <div key={label}>
                     <p className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
                       {value}
                     </p>
@@ -292,239 +310,61 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="relative">
-              <div className="absolute -inset-6 rounded-[2.5rem] border border-[#335cff]/10 bg-[linear-gradient(135deg,rgb(51_92_255/0.10),rgb(16_185_129/0.08)_48%,rgb(245_158_11/0.10))] blur-2xl" aria-hidden />
+              <div className="absolute -inset-4 rounded-[2.5rem] border border-slate-200/70 bg-white/45 shadow-[0_34px_110px_-70px_rgb(15_23_42/0.9)] dark:border-white/10 dark:bg-white/[0.03]" aria-hidden />
               <ProductPreview />
             </div>
           </div>
         </section>
 
-        <section className="border-y border-slate-200 bg-white py-12 dark:border-white/10 dark:bg-white/[0.025]">
-          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-            <div>
-              <p className="text-sm font-semibold text-[#335cff]">Why sellers use it</p>
-              <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                Less label chaos before dispatch.
-              </h2>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
-                Tulmin removes the repetitive work between downloading a Meesho PDF and handing labels to packers.
-              </p>
-            </div>
-
-            <div className="grid gap-3">
-              {outcomes.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-[#f7f9fc] p-4 dark:border-white/10 dark:bg-[#0c1728]"
-                >
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-600/15 dark:text-emerald-200">
-                    <Check className="size-4" strokeWidth={2} aria-hidden />
-                  </span>
-                  <p className="text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
-                    {item}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="mx-auto mt-8 grid w-full max-w-7xl gap-4 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
-            {beforeAfter.map(([label, text, Icon], index) => {
-              const StatusIcon = Icon as typeof CircleX;
-              return (
-                <div
-                  key={label as string}
-                  className={cn(
-                    "rounded-2xl border p-5",
-                    index === 0
-                      ? "border-rose-200 bg-rose-50/70 text-rose-950 dark:border-rose-400/15 dark:bg-rose-400/5 dark:text-rose-100"
-                      : "border-emerald-200 bg-emerald-50/80 text-emerald-950 dark:border-emerald-400/15 dark:bg-emerald-400/5 dark:text-emerald-100"
-                  )}
-                >
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <StatusIcon className="size-4" strokeWidth={1.9} aria-hidden />
-                    {label as string}
-                  </div>
-                  <p className="mt-2 text-xl font-semibold tracking-tight">
-                    {text as string}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section id="workflow" className="scroll-mt-20 border-y border-slate-200 bg-white py-16 dark:border-white/10 dark:bg-white/[0.025]">
+        <section id="workflow" className="border-y border-slate-200 bg-white py-14 dark:border-white/10 dark:bg-white/[0.025]">
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
+            <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
               <div>
-                <p className="text-sm font-semibold text-[#335cff]">Operator workflow</p>
+                <p className="text-sm font-semibold text-[#335cff]">Workflow</p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                  From PDF to print-ready batches.
+                  Built for the way dispatch actually moves.
                 </h2>
               </div>
-              <p className="max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300">
-                Upload once, filter precisely, export the exact labels your team needs.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {workflow.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.title}
-                    className="rounded-2xl border border-slate-200 bg-[#f7f9fc] p-5 shadow-sm dark:border-white/10 dark:bg-[#0c1728]"
-                  >
-                    <span className="flex size-11 items-center justify-center rounded-2xl bg-white text-[#335cff] shadow-sm ring-1 ring-slate-200 dark:bg-white/[0.055] dark:ring-white/10">
-                      <Icon className="size-5" strokeWidth={1.8} aria-hidden />
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-                      {item.title}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                      {item.copy}
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["01", "Map SKUs"],
+                  ["02", "Run labels"],
+                  ["03", "Export batches"],
+                ].map(([step, label]) => (
+                  <div key={label} className="rounded-2xl border border-slate-200 bg-[#f7f9fc] p-4 dark:border-white/10 dark:bg-[#0c1728]">
+                    <p className="text-xs font-bold text-[#335cff]">{step}</p>
+                    <p className="mt-2 text-base font-semibold tracking-tight text-slate-950 dark:text-white">
+                      {label}
                     </p>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        <section id="operators" className="scroll-mt-20 py-16 sm:py-20">
-          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.88fr_1.12fr] lg:px-8">
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              <p className="text-sm font-semibold text-[#335cff]">Built for real dispatch rooms</p>
+        <section id="trust" className="py-16 sm:py-20">
+          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+            <div>
+              <p className="text-sm font-semibold text-[#335cff]">Impact</p>
               <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                Use it when speed and accuracy both matter.
+                Less manual scanning. Fewer wrong batches. Faster print handoff.
               </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
-                Tulmin is for teams who cannot afford to print the wrong label, miss a SKU, or waste pickup time sorting PDFs by hand.
+                The interface stays quiet so operators can focus on the next decision: map, filter, export.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/export-labels"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "h-11 rounded-full px-5 text-sm"
-                  )}
-                >
-                  Test a PDF
-                  <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
-                </Link>
-                <Link
-                  href="/blog"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "h-11 rounded-full border-slate-300 bg-white px-5 text-sm dark:border-white/15 dark:bg-white/[0.04]"
-                  )}
-                >
-                  Read guides
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                {operatorFit.map(([title, copy]) => (
-                  <div
-                    key={title}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]"
-                  >
-                    <p className="text-base font-semibold tracking-tight text-slate-950 dark:text-white">
-                      {title}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                      {copy}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0c1728]">
-                <div className="grid gap-0 lg:grid-cols-[0.82fr_1.18fr]">
-                  <div className="border-b border-slate-200 p-5 dark:border-white/10 lg:border-b-0 lg:border-r">
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-11 items-center justify-center rounded-2xl bg-[#335cff] text-white">
-                        <PackageCheck className="size-5" strokeWidth={1.8} aria-hidden />
-                      </span>
-                      <div>
-                        <p className="font-semibold tracking-tight">Dispatch control</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Upload to export in minutes
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-5 grid gap-3">
-                      {["Upload PDF", "Filter batch", "Export clean file"].map((step, index) => (
-                        <div
-                          key={step}
-                          className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.035] dark:ring-white/10"
-                        >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-sm font-bold text-[#335cff]">
-                            {index + 1}
-                          </span>
-                          <span className="text-sm font-semibold">{step}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid gap-3 p-5 sm:grid-cols-2">
-                    {platformPoints.map(([title, copy], index) => {
-                      const icons = [Clock3, Layers2, FileDown, Cloud];
-                      const PointIcon = icons[index] ?? Check;
-                      return (
-                        <div
-                          key={title}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.035]"
-                        >
-                          <PointIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                          <p className="mt-3 font-semibold tracking-tight">{title}</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                            {copy}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="trust" className="scroll-mt-20 py-16 sm:py-20">
-          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="size-6 text-emerald-600 dark:text-emerald-300" strokeWidth={1.8} aria-hidden />
-                <h2 className="text-2xl font-semibold tracking-tight">Built for work, not demos</h2>
-              </div>
-              <div className="mt-6 grid gap-3">
-                {[
-                  "Use it directly inside the browser.",
-                  "Sync SKU mappings when your team signs in.",
-                  "Reduce reprints, missed labels, and sorting time.",
-                ].map((item) => (
-                  <div key={item} className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    <Check className="mt-1 size-4 shrink-0 text-emerald-600 dark:text-emerald-300" strokeWidth={2} aria-hidden />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                [Truck, "Courier-aware", "Bundle labels by delivery partner."],
-                [Boxes, "SKU-wise", "Group labels by master SKU."],
-                [Cloud, "Sync-ready", "Back up mappings after sign-in."],
-                [LockKeyhole, "Local-first", "Use Tulmin without cloud sync."],
+                [Link2, "SKU memory", "Save listing-to-master rules for repeat work."],
+                [SlidersHorizontal, "Precise filters", "Narrow labels by SKU, QTY, and courier."],
+                [FileDown, "Clean export", "Download selected PDFs or grouped ZIP files."],
+                [ShieldCheck, "Local-first", "Start in-browser, sync when your team is ready."],
               ].map(([Icon, title, copy]) => {
-                const TrustIcon = Icon as typeof Truck;
+                const FeatureIcon = Icon as typeof Link2;
                 return (
-                  <div
-                    key={title as string}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.035]"
-                  >
-                    <TrustIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
+                  <div key={title as string} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                    <FeatureIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
                     <p className="mt-4 font-semibold tracking-tight">{title as string}</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
                       {copy as string}
@@ -536,55 +376,26 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="border-y border-slate-200 bg-white py-16 dark:border-white/10 dark:bg-white/[0.025]">
-          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.74fr_1.26fr] lg:px-8">
-            <div>
-              <p className="text-sm font-semibold text-[#335cff]">Questions before trying it</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                Simple enough for today. Useful enough for every dispatch.
-              </h2>
-            </div>
-            <div className="grid gap-3">
-              {faqItems.map(([question, answer]) => (
-                <details
-                  key={question}
-                  className="group rounded-2xl border border-slate-200 bg-[#f7f9fc] p-5 dark:border-white/10 dark:bg-[#0c1728]"
-                >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold tracking-tight">
-                    {question}
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#335cff]/10 text-[#335cff] transition-transform group-open:rotate-45">
-                      +
-                    </span>
-                  </summary>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                    {answer}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_28px_90px_-46px_rgb(15_23_42/0.8)] sm:p-8 lg:flex-row lg:items-center lg:justify-between dark:bg-white dark:text-slate-950">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-sky-200 dark:text-[#335cff]">
                 <BadgeCheck className="size-4" strokeWidth={1.8} aria-hidden />
-                Ready for your next dispatch batch
+                Ready for today&apos;s dispatch
               </div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Try it on today&apos;s labels.
+                Start with the SKU map.
               </h2>
             </div>
             <Link
-              href="/export-labels"
+              href="/mapping"
               className={cn(
                 buttonVariants({ size: "lg" }),
                 "h-12 rounded-full bg-white px-6 text-slate-950 hover:bg-slate-100 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
               )}
             >
-              Launch Tulmin
-              <Link2 className="size-4" strokeWidth={1.8} aria-hidden />
+              Start SKU Mapping
+              <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
             </Link>
           </div>
         </section>
@@ -605,7 +416,7 @@ export default async function HomePage() {
             <Link href="/terms" className="hover:text-slate-950 dark:hover:text-white">
               Terms
             </Link>
-            <Link href="/export-labels" className="font-semibold text-[#335cff]">
+            <Link href="/mapping" className="font-semibold text-[#335cff]">
               Open workspace
             </Link>
           </nav>

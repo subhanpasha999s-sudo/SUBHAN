@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 /**
  * Full-page `/login` is only for OAuth / magic-link return paths and forced
  * `?signin=1`. Workspace entry is modal-based — plain `/login` and `/login?next=`
- * bounce into the app so users never hit this gate by default.
+ * bounce to the public landing page so users see the product first by default.
  */
 function shouldStayOnLoginPage(searchParams: URLSearchParams): boolean {
   const signin = searchParams.get(SIGNIN_FLOW_QUERY_PARAM);
@@ -158,7 +158,7 @@ export function LoginView() {
               href={AUTH_DASHBOARD_PATH}
               className={cn(buttonVariants({ variant: "outline" }), "w-full")}
             >
-              Continue to workspace
+              Continue to Tulmin
             </Link>
           </CardFooter>
         </Card>

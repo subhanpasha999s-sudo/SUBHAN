@@ -76,10 +76,7 @@ export function ValueFirstOtpModal(props: {
 
   const copyIntent: ValueFirstGateIntent = intent ?? "optional-signin";
   const copy = COPY[copyIntent];
-  const authRedirectTo = React.useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/export-labels`;
-  }, []);
+  const authRedirectTo = React.useMemo(() => getOtpEmailRedirectUrl() ?? "", []);
 
   React.useEffect(() => {
     if (!open) {

@@ -62,6 +62,9 @@ const emptyForm = (): BlogForm => ({
   trending: false,
 });
 
+const BLOG_FEATURED_IMAGE_SIZE = "1600 x 1000 px";
+const BLOG_FEATURED_IMAGE_RATIO = "16:10";
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -771,6 +774,10 @@ export function BlogCmsWorkspace() {
                     <ImagePlus className="size-4 text-[#335cff]" />
                     Featured image
                   </h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Best upload size: {BLOG_FEATURED_IMAGE_SIZE} ({BLOG_FEATURED_IMAGE_RATIO}). Images keep
+                    their proportions and crop from the center in blog previews.
+                  </p>
                   <input
                     ref={imageInputRef}
                     type="file"

@@ -191,7 +191,7 @@ function ArticleVisual({
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border border-border/55 bg-muted shadow-elevate-sm",
-          "aspect-[16/10] sm:aspect-[16/8] xl:aspect-auto xl:min-h-[420px]",
+          "aspect-[16/10]",
           className
         )}
       >
@@ -213,7 +213,7 @@ function ArticleVisual({
     <div
       className={cn(
         "overflow-hidden rounded-2xl border border-border/55 bg-card shadow-elevate-sm",
-          "aspect-[16/10] sm:aspect-[16/8] xl:aspect-auto xl:min-h-[420px]",
+        "aspect-[16/10]",
         className
       )}
       aria-hidden
@@ -379,7 +379,7 @@ export default async function BlogDetailPage({ params }: { params: BlogSlugParam
             </div>
           </div>
           <div className="p-4 pt-0 xl:p-5 xl:pl-0">
-            <ArticleVisual src={mediaUrl} title={post.title} className="xl:h-full" />
+            <ArticleVisual src={mediaUrl} title={post.title} className="xl:my-auto" />
           </div>
         </div>
       </header>

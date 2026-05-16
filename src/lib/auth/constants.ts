@@ -1,5 +1,5 @@
-/** Post-login landing route (dashboard); also the default anonymous entry route. */
-export const AUTH_DASHBOARD_PATH = "/export-labels";
+/** Default entry route after generic auth or anonymous visits. */
+export const AUTH_DASHBOARD_PATH = "/";
 
 /**
  * Visiting `/login?signin=1` shows the legacy full-page sign-in form.

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CircleUserRound, Cloud, MenuIcon } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpenText,
+  CircleUserRound,
+  FileDown,
+  Link2,
+  MenuIcon,
+} from "lucide-react";
 
 import {
   WORKSPACE_GUTTERS,
@@ -16,30 +23,85 @@ import { useAuth } from "@/lib/supabase/auth-context";
 function pageChrome(pathname: string) {
   const p = pathname || "";
   if (p === "/" || p === "") {
-    return { title: "Tulmin", subtitle: "Smart label filtering for Meesho sellers" };
+    return {
+      title: "Tulmin",
+      subtitle: "Smart label filtering for Meesho sellers",
+      ctaHref: "/mapping",
+      ctaLabel: "Map SKUs",
+    };
   }
   if (p.startsWith("/export-labels")) {
-    return { title: "Labels", subtitle: "Filter by SKU · QTY · courier partner" };
+    return {
+      title: "Run Labels",
+      subtitle: "Upload, filter, and export dispatch-ready PDFs",
+      ctaHref: "/mapping",
+      ctaLabel: "Map SKUs",
+    };
   }
   if (p.startsWith("/mapping")) {
-    return { title: "SKU Mapping", subtitle: "Link listings to master SKUs" };
+    return {
+      title: "SKU Mapping",
+      subtitle: "Link listings to master SKUs once, reuse forever",
+      ctaHref: "/export-labels",
+      ctaLabel: "Run labels",
+    };
   }
   if (p.startsWith("/blog")) {
-    return { title: "Blog", subtitle: "Meesho seller guides · Tulmin" };
+    return {
+      title: "Playbooks",
+      subtitle: "Meesho seller workflows and operating guides",
+      ctaHref: "/export-labels",
+      ctaLabel: "Try workflow",
+    };
   }
   if (p.startsWith("/settings")) {
-    return { title: "Settings", subtitle: "Theme · data · Tulmin" };
+    return {
+      title: "Settings",
+      subtitle: "Workspace, theme, and data controls",
+      ctaHref: "/export-labels",
+      ctaLabel: "Back to work",
+    };
   }
   if (p.startsWith("/account")) {
-    return { title: "Account", subtitle: "Profile · Tulmin" };
+    return {
+      title: "Account",
+      subtitle: "Profile and cloud sync",
+      ctaHref: "/export-labels",
+      ctaLabel: "Back to work",
+    };
   }
   if (p.startsWith("/privacy")) {
-    return { title: "Privacy", subtitle: "Tulmin policy" };
+    return {
+      title: "Privacy",
+      subtitle: "Tulmin policy",
+      ctaHref: "/export-labels",
+      ctaLabel: "Back to app",
+    };
   }
   if (p.startsWith("/terms")) {
-    return { title: "Terms", subtitle: "Tulmin legal" };
+    return {
+      title: "Terms",
+      subtitle: "Tulmin legal",
+      ctaHref: "/export-labels",
+      ctaLabel: "Back to app",
+    };
   }
-  return { title: "Tulmin", subtitle: "Meesho dispatch · labels" };
+  return {
+    title: "Tulmin",
+    subtitle: "Meesho dispatch · labels",
+    ctaHref: "/export-labels",
+    ctaLabel: "Start run",
+  };
+}
+
+const TOPBAR_FLOW = [
+  { href: "/mapping", label: "Map", icon: Link2 },
+  { href: "/export-labels", label: "Run", icon: FileDown },
+  { href: "/blog", label: "Learn", icon: BookOpenText },
+];
+
+function flowItemActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AppTopbar({
@@ -54,15 +116,15 @@ export function AppTopbar({
   const { openOptionalSignIn } = useValueFirstAuth();
 
   const guestSignedOut = authReady && !user;
-  const { title, subtitle } = pageChrome(pathname);
+  const { title, subtitle, ctaHref, ctaLabel } = pageChrome(pathname);
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
-      <div className="border-b border-white/[0.05] bg-background/88 shadow-[inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-md supports-[backdrop-filter]:bg-background/78 dark:bg-background/84 dark:border-white/[0.04] dark:shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
+      <div className="border-b border-white/[0.05] bg-background/90 shadow-[0_12px_34px_-30px_rgb(15_23_42/0.5),inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 dark:bg-background/84 dark:border-white/[0.04] dark:shadow-[0_16px_40px_-34px_rgb(0_0_0/0.8),inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
         <div
           className={cn(
             "mx-auto flex w-full max-w-[100vw] items-center gap-3 sm:gap-4",
-            "min-h-[56px] py-2.5",
+            "min-h-[60px] py-2.5",
             WORKSPACE_MAX_W,
             WORKSPACE_GUTTERS
           )}
@@ -93,14 +155,40 @@ export function AppTopbar({
             </div>
 
             <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
-              <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
-                {title}
-              </h1>
-              {subtitle ? (
-                <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground/90">
-                  {subtitle}
-                </p>
-              ) : null}
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="min-w-0">
+                  <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                    {title}
+                  </h1>
+                  {subtitle ? (
+                    <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground/90">
+                      {subtitle}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="hidden items-center gap-1 rounded-full border border-border/45 bg-card/70 p-1 shadow-elevate-xs xl:flex">
+                  {TOPBAR_FLOW.map((item) => {
+                    const active = flowItemActive(pathname, item.href);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        prefetch={false}
+                        className={cn(
+                          "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-[background-color,color,box-shadow] duration-200 ease-smooth",
+                          active
+                            ? "bg-primary text-primary-foreground shadow-[0_10px_24px_-16px_rgb(63_108_255/0.9)]"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        )}
+                      >
+                        <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -108,35 +196,17 @@ export function AppTopbar({
             className="flex shrink-0 items-center gap-1 sm:gap-2"
             data-tour="login-cloud"
           >
-            <div
-              className="hidden items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground ring-1 ring-white/[0.05] sm:flex dark:bg-muted/22"
-              title={
-                user
-                  ? "Workspace synced — Tulmin can keep your map in the cloud"
-                  : "Tulmin Ready — working on this device"
-              }
+            <Link
+              href={ctaHref}
+              prefetch={false}
+              className={cn(
+                buttonVariants({ variant: "default", size: "lg" }),
+                "hidden h-10 rounded-full px-4 text-[13px] font-semibold sm:inline-flex"
+              )}
             >
-              <Cloud
-                className={cn(
-                  "size-3.5 shrink-0",
-                  user ? "text-primary" : "text-muted-foreground/70"
-                )}
-                aria-hidden
-                strokeWidth={1.75}
-              />
-              <span className="tabular-nums">{user ? "Workspace synced" : "Tulmin Ready"}</span>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled
-              title="Notifications (coming soon)"
-              aria-label="Notifications — coming soon"
-              className="hidden size-10 text-muted-foreground opacity-35 sm:inline-flex"
-            >
-              <Bell className="size-[18px]" strokeWidth={1.65} aria-hidden />
-            </Button>
+              {ctaLabel}
+              <ArrowRight className="size-4" strokeWidth={1.75} aria-hidden />
+            </Link>
 
             {guestSignedOut ? (
               <Button
