@@ -73,6 +73,24 @@ const BLOG_FEATURED_IMAGE_RATIO = "16:10";
 const FONT_SIZES = ["14px", "16px", "18px", "20px", "24px", "28px"];
 const TEXT_COLORS = ["#0f172a", "#335cff", "#047857", "#b45309", "#be123c", "#ffffff"];
 
+type ToolbarState = {
+  style: "h1" | "h2" | "h3" | "p";
+  size: string;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  list: boolean;
+};
+
+const DEFAULT_TOOLBAR_STATE: ToolbarState = {
+  style: "p",
+  size: "16px",
+  color: "",
+  bold: false,
+  italic: false,
+  list: false,
+};
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -116,6 +134,28 @@ function renderPreview(content: string) {
   );
 }
 
+function hexToRgb(value: string) {
+  const hex = value.replace("#", "");
+  if (hex.length !== 6) return "";
+  const parts = [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map((part) => parseInt(part, 16));
+  return `rgb(${parts.join(", ")})`;
+}
+
+function colorsMatch(a: string, b: string) {
+  const left = a.trim().toLowerCase();
+  const right = b.trim().toLowerCase();
+  return left === right || left === hexToRgb(right).toLowerCase() || hexToRgb(left).toLowerCase() === right;
+}
+
+function isEditorHtmlEmpty(html: string) {
+  const withoutFillers = html
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/<\/?(p|div|span)[^>]*>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  return withoutFillers.length === 0;
+}
+
 export function BlogCmsWorkspace() {
   const [authState, setAuthState] = React.useState<"checking" | "ready" | "blocked" | "setup">("checking");
   const [admin, setAdmin] = React.useState<AdminUser | null>(null);
@@ -126,6 +166,8 @@ export function BlogCmsWorkspace() {
   const [statusFilter, setStatusFilter] = React.useState<"all" | "draft" | "published">("all");
   const [busy, setBusy] = React.useState<"save" | "publish" | "delete" | "logout" | "image" | null>(null);
   const [preview, setPreview] = React.useState(false);
+  const [toolbarState, setToolbarState] = React.useState<ToolbarState>(DEFAULT_TOOLBAR_STATE);
+  const [editorIsEmpty, setEditorIsEmpty] = React.useState(true);
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
   const editorRef = React.useRef<HTMLDivElement | null>(null);
   const editorHtmlRef = React.useRef("");
@@ -188,12 +230,46 @@ export function BlogCmsWorkspace() {
     if (editorHtmlRef.current === nextHtml) return;
     editor.innerHTML = nextHtml;
     editorHtmlRef.current = nextHtml;
+    setEditorIsEmpty(isEditorHtmlEmpty(nextHtml));
   }, [form.richContent]);
 
   function syncEditorContent() {
-    const html = sanitizeRichHtml(editorRef.current?.innerHTML ?? "");
+    const rawHtml = editorRef.current?.innerHTML ?? "";
+    const html = isEditorHtmlEmpty(rawHtml) ? "" : sanitizeRichHtml(rawHtml);
     editorHtmlRef.current = html;
+    setEditorIsEmpty(!html);
     patchForm({ richContent: html });
+  }
+
+  function readCurrentToolbarState(): ToolbarState {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || !selection.rangeCount) return toolbarState;
+
+    let node: Node | null = selection.anchorNode;
+    if (!node) return toolbarState;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!(node instanceof HTMLElement) || !editor.contains(node)) return toolbarState;
+
+    const block = node.closest("h1,h2,h3,p,li") as HTMLElement | null;
+    const inline = node.closest("[style]") as HTMLElement | null;
+    const computed = window.getComputedStyle(node);
+    const color = inline?.style.color || computed.color || toolbarState.color;
+    const size = inline?.style.fontSize || computed.fontSize || toolbarState.size;
+    const tag = block?.tagName.toLowerCase();
+
+    return {
+      style: tag === "h1" || tag === "h2" || tag === "h3" ? tag : "p",
+      size: FONT_SIZES.includes(size) ? size : toolbarState.size,
+      color,
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      list: document.queryCommandState("insertUnorderedList"),
+    };
+  }
+
+  function updateToolbarState(patch?: Partial<ToolbarState>) {
+    setToolbarState((current) => ({ ...current, ...readCurrentToolbarState(), ...patch }));
   }
 
   function saveEditorSelection() {
@@ -203,6 +279,7 @@ export function BlogCmsWorkspace() {
     const range = selection.getRangeAt(0);
     if (editor.contains(range.commonAncestorContainer)) {
       selectionRef.current = range.cloneRange();
+      updateToolbarState();
     }
   }
 
@@ -219,6 +296,11 @@ export function BlogCmsWorkspace() {
     document.execCommand(command, false, value);
     syncEditorContent();
     saveEditorSelection();
+    updateToolbarState(
+      command === "formatBlock" && (value === "h1" || value === "h2" || value === "h3" || value === "p")
+        ? { style: value }
+        : undefined
+    );
   }
 
   function applyFontSize(size: string) {
@@ -232,6 +314,7 @@ export function BlogCmsWorkspace() {
       node.replaceWith(span);
     });
     syncEditorContent();
+    updateToolbarState({ size });
   }
 
   function insertStarterSection() {
@@ -242,6 +325,7 @@ export function BlogCmsWorkspace() {
       '<h3>Section heading</h3><p>Write the section body here.</p>'
     );
     syncEditorContent();
+    updateToolbarState({ style: "h3" });
   }
 
   async function save(status: "draft" | "published") {
@@ -722,15 +806,13 @@ export function BlogCmsWorkspace() {
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/[0.03]">
                     <select
                       aria-label="Text style"
+                      value={toolbarState.style}
                       onChange={(event) => {
                         if (!event.target.value) return;
                         runEditorCommand("formatBlock", event.target.value);
-                        event.target.value = "";
                       }}
-                      defaultValue=""
-                      className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-[#335cff]/25 dark:border-white/10 dark:bg-[#0b111d] dark:text-slate-100"
+                      className="h-8 rounded-xl border border-[#335cff]/60 bg-[#335cff]/10 px-2 text-xs font-semibold text-slate-900 outline-none ring-1 ring-[#335cff]/25 focus:ring-2 focus:ring-[#335cff]/35 dark:border-[#5f86ff]/60 dark:bg-[#335cff]/20 dark:text-white"
                     >
-                      <option value="">Style</option>
                       <option value="h1">Title</option>
                       <option value="h2">Sub title</option>
                       <option value="h3">Body sub heading</option>
@@ -738,15 +820,13 @@ export function BlogCmsWorkspace() {
                     </select>
                     <select
                       aria-label="Font size"
+                      value={toolbarState.size}
                       onChange={(event) => {
                         if (!event.target.value) return;
                         applyFontSize(event.target.value);
-                        event.target.value = "";
                       }}
-                      defaultValue=""
-                      className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-[#335cff]/25 dark:border-white/10 dark:bg-[#0b111d] dark:text-slate-100"
+                      className="h-8 rounded-xl border border-[#335cff]/60 bg-[#335cff]/10 px-2 text-xs font-semibold text-slate-900 outline-none ring-1 ring-[#335cff]/25 focus:ring-2 focus:ring-[#335cff]/35 dark:border-[#5f86ff]/60 dark:bg-[#335cff]/20 dark:text-white"
                     >
-                      <option value="">Size</option>
                       {FONT_SIZES.map((size) => (
                         <option key={size} value={size}>
                           {size}
@@ -759,28 +839,35 @@ export function BlogCmsWorkspace() {
                           key={color}
                           type="button"
                           aria-label={`Text color ${color}`}
-                          onClick={() => runEditorCommand("foreColor", color)}
-                          className="size-5 rounded-full border border-slate-300 ring-offset-2 transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/20 dark:ring-offset-[#0b111d]"
+                          aria-pressed={colorsMatch(toolbarState.color, color)}
+                          onClick={() => {
+                            runEditorCommand("foreColor", color);
+                            updateToolbarState({ color });
+                          }}
+                          className={cn(
+                            "size-5 rounded-full border border-slate-300 ring-offset-2 transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/20 dark:ring-offset-[#0b111d]",
+                            colorsMatch(toolbarState.color, color) && "scale-110 ring-2 ring-[#335cff] ring-offset-2 dark:ring-[#8fa8ff]"
+                          )}
                           style={{ backgroundColor: color }}
                         />
                       ))}
                     </div>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Bold" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("bold")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Bold" aria-pressed={toolbarState.bold} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.bold && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("bold")}>
                       <Bold className="size-4" />
                     </Button>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Italic" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("italic")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Italic" aria-pressed={toolbarState.italic} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.italic && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("italic")}>
                       <Italic className="size-4" />
                     </Button>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Main title" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h1")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Main title" aria-pressed={toolbarState.style === "h1"} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.style === "h1" && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("formatBlock", "h1")}>
                       <Heading1 className="size-4" />
                     </Button>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Sub title" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h2")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Sub title" aria-pressed={toolbarState.style === "h2"} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.style === "h2" && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("formatBlock", "h2")}>
                       <Heading2 className="size-4" />
                     </Button>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Body sub heading" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h3")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Body sub heading" aria-pressed={toolbarState.style === "h3"} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.style === "h3" && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("formatBlock", "h3")}>
                       <Heading3 className="size-4" />
                     </Button>
-                    <Button type="button" size="icon-sm" variant="ghost" title="Bullet list" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("insertUnorderedList")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Bullet list" aria-pressed={toolbarState.list} className={cn("text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10", toolbarState.list && "bg-[#335cff]/15 text-[#335cff] ring-1 ring-[#335cff]/35 dark:bg-[#5f86ff]/20 dark:text-white")} onClick={() => runEditorCommand("insertUnorderedList")}>
                       <List className="size-4" />
                     </Button>
                     <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={insertStarterSection}>
@@ -795,6 +882,7 @@ export function BlogCmsWorkspace() {
                     role="textbox"
                     aria-label="Blog body editor"
                     data-placeholder="Write the blog body. Select text to adjust title, sub-title, body sub heading, font size, colour, bold, italic, and lists."
+                    data-empty={editorIsEmpty}
                     onInput={() => {
                       syncEditorContent();
                       saveEditorSelection();
@@ -805,7 +893,7 @@ export function BlogCmsWorkspace() {
                       syncEditorContent();
                       saveEditorSelection();
                     }}
-                    className="blog-rich-content min-h-[420px] w-full bg-transparent px-4 py-4 text-slate-950 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] dark:text-white dark:empty:before:text-slate-600"
+                    className="blog-rich-content min-h-[420px] w-full bg-transparent px-4 py-4 text-slate-950 outline-none data-[empty=true]:before:text-slate-400 data-[empty=true]:before:content-[attr(data-placeholder)] dark:text-white dark:data-[empty=true]:before:text-slate-600"
                   />
                 </div>
               </div>
