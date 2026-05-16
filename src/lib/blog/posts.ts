@@ -49,6 +49,7 @@ export type BlogPost = {
   tagSlugs?: string[];
   trending?: boolean;
   featured?: boolean;
+  richContent?: string;
   keywords: string[];
   sections: BlogSection[];
   faqs: BlogFaq[];

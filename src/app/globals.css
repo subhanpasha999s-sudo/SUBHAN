@@ -2,6 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .blog-rich-content {
+    overflow-wrap: anywhere;
+  }
+
+  .blog-rich-content > * + * {
+    margin-top: 1rem;
+  }
+
+  .blog-rich-content h1 {
+    font-size: 2rem;
+    line-height: 1.12;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .blog-rich-content h2 {
+    font-size: 1.65rem;
+    line-height: 1.18;
+    font-weight: 650;
+    color: var(--foreground);
+  }
+
+  .blog-rich-content h3 {
+    font-size: 1.35rem;
+    line-height: 1.25;
+    font-weight: 650;
+    color: var(--foreground);
+  }
+
+  .blog-rich-content h4 {
+    font-size: 1.08rem;
+    line-height: 1.35;
+    font-weight: 650;
+    color: var(--foreground);
+  }
+
+  .blog-rich-content p,
+  .blog-rich-content li {
+    font-size: 1rem;
+    line-height: 1.85;
+    color: var(--muted-foreground);
+  }
+
+  .blog-rich-content ul,
+  .blog-rich-content ol {
+    padding-left: 1.35rem;
+    color: var(--muted-foreground);
+  }
+
+  .blog-rich-content ul {
+    list-style: disc;
+  }
+
+  .blog-rich-content ol {
+    list-style: decimal;
+  }
+
+  .blog-rich-content a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .blog-rich-content blockquote {
+    border-left: 3px solid var(--primary);
+    padding-left: 1rem;
+    color: var(--foreground);
+  }
+}
+
 @layer utilities {
   /** Reliable full-viewport stacks on mobile (address bar). Falls back from dvh → vh. */
   .min-h-app-screen {

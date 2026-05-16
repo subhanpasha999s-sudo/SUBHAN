@@ -3,16 +3,21 @@
 import * as React from "react";
 import {
   Bold,
+  Heading1,
+  Heading2,
+  Heading3,
   Edit3,
   Eye,
   FileText,
   ImagePlus,
   Italic,
+  List,
   Loader2,
   LogOut,
   Plus,
   Save,
   Search,
+  Type,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -24,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BLOG_CATEGORIES, type BlogCategory } from "@/lib/blog/posts";
+import { contentToRichHtml, sanitizeRichHtml } from "@/lib/blog/rich-content";
 import type { BlogCmsPost } from "@/lib/admin/blog-cms";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +70,8 @@ const emptyForm = (): BlogForm => ({
 
 const BLOG_FEATURED_IMAGE_SIZE = "1600 x 1000 px";
 const BLOG_FEATURED_IMAGE_RATIO = "16:10";
+const FONT_SIZES = ["14px", "16px", "18px", "20px", "24px", "28px"];
+const TEXT_COLORS = ["#0f172a", "#335cff", "#047857", "#b45309", "#be123c", "#ffffff"];
 
 function slugify(value: string) {
   return value
@@ -100,37 +108,12 @@ async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function renderPreview(content: string) {
-  const lines = content.split(/\r?\n/);
-  return lines.map((line, index) => {
-    const trimmed = line.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith("## ")) {
-      return (
-        <h3 key={index} className="mt-6 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-          {trimmed.slice(3)}
-        </h3>
-      );
-    }
-    if (trimmed.startsWith("# ")) {
-      return (
-        <h2 key={index} className="mt-7 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-          {trimmed.slice(2)}
-        </h2>
-      );
-    }
-    if (/^[-*]\s+/.test(trimmed)) {
-      return (
-        <p key={index} className="pl-4 text-[15px] leading-8 text-slate-600 before:mr-2 before:text-[#335cff] before:content-['•'] dark:text-slate-300">
-          {trimmed.replace(/^[-*]\s+/, "")}
-        </p>
-      );
-    }
-    return (
-      <p key={index} className="text-[15px] leading-8 text-slate-600 dark:text-slate-300">
-        {trimmed}
-      </p>
-    );
-  });
+  return (
+    <div
+      className="blog-rich-content"
+      dangerouslySetInnerHTML={{ __html: contentToRichHtml(content) }}
+    />
+  );
 }
 
 export function BlogCmsWorkspace() {
@@ -144,6 +127,9 @@ export function BlogCmsWorkspace() {
   const [busy, setBusy] = React.useState<"save" | "publish" | "delete" | "logout" | "image" | null>(null);
   const [preview, setPreview] = React.useState(false);
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
+  const editorRef = React.useRef<HTMLDivElement | null>(null);
+  const editorHtmlRef = React.useRef("");
+  const selectionRef = React.useRef<Range | null>(null);
 
   const selectedSlug = form.slug?.trim() ?? "";
   const filteredPosts = React.useMemo(() => {
@@ -195,9 +181,67 @@ export function BlogCmsWorkspace() {
     setPreview(false);
   }
 
-  function insertMarkup(before: string, after = "") {
-    const current = form.richContent ?? "";
-    patchForm({ richContent: `${current}${current ? "\n" : ""}${before}${after}` });
+  React.useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const nextHtml = contentToRichHtml(form.richContent ?? "");
+    if (editorHtmlRef.current === nextHtml) return;
+    editor.innerHTML = nextHtml;
+    editorHtmlRef.current = nextHtml;
+  }, [form.richContent]);
+
+  function syncEditorContent() {
+    const html = sanitizeRichHtml(editorRef.current?.innerHTML ?? "");
+    editorHtmlRef.current = html;
+    patchForm({ richContent: html });
+  }
+
+  function saveEditorSelection() {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || !selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (editor.contains(range.commonAncestorContainer)) {
+      selectionRef.current = range.cloneRange();
+    }
+  }
+
+  function restoreEditorSelection() {
+    const selection = window.getSelection();
+    if (!selection || !selectionRef.current) return;
+    selection.removeAllRanges();
+    selection.addRange(selectionRef.current);
+  }
+
+  function runEditorCommand(command: string, value?: string) {
+    editorRef.current?.focus();
+    restoreEditorSelection();
+    document.execCommand(command, false, value);
+    syncEditorContent();
+    saveEditorSelection();
+  }
+
+  function applyFontSize(size: string) {
+    runEditorCommand("fontSize", "7");
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll("font[size='7']").forEach((node) => {
+      const span = document.createElement("span");
+      span.setAttribute("style", `font-size: ${size}`);
+      span.innerHTML = node.innerHTML;
+      node.replaceWith(span);
+    });
+    syncEditorContent();
+  }
+
+  function insertStarterSection() {
+    editorRef.current?.focus();
+    document.execCommand(
+      "insertHTML",
+      false,
+      '<h3>Section heading</h3><p>Write the section body here.</p>'
+    );
+    syncEditorContent();
   }
 
   async function save(status: "draft" | "published") {
@@ -676,25 +720,92 @@ export function BlogCmsWorkspace() {
 
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-black/20">
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/[0.03]">
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("**Bold text**")}>
+                    <select
+                      aria-label="Text style"
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        runEditorCommand("formatBlock", event.target.value);
+                        event.target.value = "";
+                      }}
+                      defaultValue=""
+                      className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-[#335cff]/25 dark:border-white/10 dark:bg-[#0b111d] dark:text-slate-100"
+                    >
+                      <option value="">Style</option>
+                      <option value="h1">Title</option>
+                      <option value="h2">Sub title</option>
+                      <option value="h3">Body sub heading</option>
+                      <option value="p">Body text</option>
+                    </select>
+                    <select
+                      aria-label="Font size"
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        applyFontSize(event.target.value);
+                        event.target.value = "";
+                      }}
+                      defaultValue=""
+                      className="h-8 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-[#335cff]/25 dark:border-white/10 dark:bg-[#0b111d] dark:text-slate-100"
+                    >
+                      <option value="">Size</option>
+                      {FONT_SIZES.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-1.5 py-1 dark:border-white/10 dark:bg-black/20">
+                      {TEXT_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          aria-label={`Text color ${color}`}
+                          onClick={() => runEditorCommand("foreColor", color)}
+                          className="size-5 rounded-full border border-slate-300 ring-offset-2 transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/20 dark:ring-offset-[#0b111d]"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Bold" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("bold")}>
                       <Bold className="size-4" />
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("_Italic text_")}>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Italic" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("italic")}>
                       <Italic className="size-4" />
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("## Section heading\n\nWrite the section body here.")}>
-                      Heading
+                    <Button type="button" size="icon-sm" variant="ghost" title="Main title" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h1")}>
+                      <Heading1 className="size-4" />
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => insertMarkup("- Bullet point")}>
-                      List
+                    <Button type="button" size="icon-sm" variant="ghost" title="Sub title" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h2")}>
+                      <Heading2 className="size-4" />
+                    </Button>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Body sub heading" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("formatBlock", "h3")}>
+                      <Heading3 className="size-4" />
+                    </Button>
+                    <Button type="button" size="icon-sm" variant="ghost" title="Bullet list" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => runEditorCommand("insertUnorderedList")}>
+                      <List className="size-4" />
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" className="text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10" onClick={insertStarterSection}>
+                      <Type className="size-4" />
+                      Section
                     </Button>
                   </div>
-                  <textarea
-                    value={form.richContent ?? ""}
-                    onChange={(event) => patchForm({ richContent: event.target.value })}
-                    rows={18}
-                    placeholder="Write the blog body. Use headings, bullets, links, and paragraphs."
-                    className="min-h-[420px] w-full resize-y bg-transparent px-4 py-4 text-sm leading-7 text-slate-950 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-600"
+                  <div
+                    ref={editorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    role="textbox"
+                    aria-label="Blog body editor"
+                    data-placeholder="Write the blog body. Select text to adjust title, sub-title, body sub heading, font size, colour, bold, italic, and lists."
+                    onInput={() => {
+                      syncEditorContent();
+                      saveEditorSelection();
+                    }}
+                    onKeyUp={saveEditorSelection}
+                    onMouseUp={saveEditorSelection}
+                    onBlur={() => {
+                      syncEditorContent();
+                      saveEditorSelection();
+                    }}
+                    className="blog-rich-content min-h-[420px] w-full bg-transparent px-4 py-4 text-slate-950 outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] dark:text-white dark:empty:before:text-slate-600"
                   />
                 </div>
               </div>

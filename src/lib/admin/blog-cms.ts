@@ -1,4 +1,5 @@
 import { BLOG_CATEGORIES, BLOG_POSTS, type BlogCategory, type BlogPost } from "@/lib/blog/posts";
+import { contentToRichHtml } from "@/lib/blog/rich-content";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 import type { AdminPrincipal } from "@/lib/admin/auth";
 
@@ -166,7 +167,7 @@ export function cleanBlogInput(input: BlogInput, admin: AdminPrincipal): BlogCms
   const description = String(input.description ?? "").trim();
   if (!description) throw new Error("Description is required.");
 
-  const richContent = String(input.richContent ?? "").trim();
+  const richContent = contentToRichHtml(String(input.richContent ?? "").trim());
   if (!richContent) throw new Error("Article content is required.");
 
   const now = new Date().toISOString();

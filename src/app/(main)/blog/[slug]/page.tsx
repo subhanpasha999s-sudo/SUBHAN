@@ -22,6 +22,7 @@ import {
   getAllBlogPosts,
 } from "@/lib/blog/posts";
 import { getLiveBlogPostBySlug, getLiveRelatedBlogPosts } from "@/lib/blog/live-posts";
+import { contentToRichHtml } from "@/lib/blog/rich-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
@@ -282,6 +283,7 @@ export default async function BlogDetailPage({ params }: { params: BlogSlugParam
 
   const related = await getLiveRelatedBlogPosts(post.slug, post.category, 3);
   const mediaUrl = post.featuredImage || post.coverImage || post.ogImage || "";
+  const richContent = post.richContent ? contentToRichHtml(post.richContent) : "";
   const sections = post.sections.map((section, index) => ({
     ...section,
     index,
@@ -428,27 +430,36 @@ export default async function BlogDetailPage({ params }: { params: BlogSlugParam
             </p>
           </section>
 
-          {sections.map((section) => (
-            <section
-              key={section.anchor}
-              id={section.anchor}
-              className="scroll-mt-28 rounded-2xl border border-border/55 bg-card/88 p-4 shadow-elevate-xs sm:p-6 lg:p-7"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/20 sm:size-10 sm:rounded-2xl">
-                  {section.index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl lg:text-[1.7rem]">
-                    {section.heading}
-                  </h2>
-                  <div className="mt-4 space-y-4">
-                    {renderSectionBody(section.body, `${post.slug}-${section.index}`)}
+          {richContent ? (
+            <section className="scroll-mt-28 rounded-2xl border border-border/55 bg-card/88 p-4 shadow-elevate-xs sm:p-6 lg:p-7">
+              <div
+                className="blog-rich-content"
+                dangerouslySetInnerHTML={{ __html: richContent }}
+              />
+            </section>
+          ) : (
+            sections.map((section) => (
+              <section
+                key={section.anchor}
+                id={section.anchor}
+                className="scroll-mt-28 rounded-2xl border border-border/55 bg-card/88 p-4 shadow-elevate-xs sm:p-6 lg:p-7"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/20 sm:size-10 sm:rounded-2xl">
+                    {section.index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl lg:text-[1.7rem]">
+                      {section.heading}
+                    </h2>
+                    <div className="mt-4 space-y-4">
+                      {renderSectionBody(section.body, `${post.slug}-${section.index}`)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
-          ))}
+              </section>
+            ))
+          )}
         </div>
       </div>
 
