@@ -14,6 +14,16 @@ function isInternalAssetPath(pathname: string) {
   );
 }
 
+function isPublicContentPath(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/blog" ||
+    pathname.startsWith("/blog/") ||
+    pathname === "/privacy" ||
+    pathname === "/terms"
+  );
+}
+
 function isLocalHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
 }
@@ -25,7 +35,12 @@ export function proxy(request: NextRequest) {
   if (PUBLIC_ADMIN_HOSTS.has(hostname) && !isLocalHost(hostname)) {
     const isAdminRoute = pathname.startsWith("/admin");
     const isAdminApi = pathname.startsWith("/api/admin");
-    if (!isAdminRoute && !isAdminApi && !isInternalAssetPath(pathname)) {
+    if (
+      !isAdminRoute &&
+      !isAdminApi &&
+      !isInternalAssetPath(pathname) &&
+      !isPublicContentPath(pathname)
+    ) {
       return NextResponse.redirect(new URL("/admin/blogs", request.url));
     }
   }

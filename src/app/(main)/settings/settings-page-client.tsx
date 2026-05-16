@@ -2,36 +2,109 @@
 
 import * as React from "react";
 
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import {
+  CheckCircle2,
+  Cloud,
+  Database,
+  HardDrive,
+  Loader2,
+  LogOut,
+  Palette,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 
 import {
-  WorkspaceFormPageStack,
+  WorkspaceModulePageStack,
   WorkspaceSurfaceCard,
 } from "@/components/layout/workspace-layout";
 import { ThemePreferenceControl } from "@/components/layout/theme-switcher";
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { TULMIN_CONTACT_EMAIL } from "@/lib/brand/tulmin";
 import { toast as notify } from "sonner";
 import { LAST_AUTH_METHOD_KEY, SIGNIN_NUDGE_DISMISS_KEY } from "@/lib/auth/constants";
 import { THEME_STORAGE_KEY } from "@/lib/theme/constants";
-import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 function isMissingUserIdColumnError(message: string | undefined): boolean {
   if (!message) return false;
   return (
     message.includes("Could not find the 'user_id' column") ||
     message.includes('column "user_id" does not exist')
+  );
+}
+
+function SettingsPanel({
+  icon: Icon,
+  title,
+  description,
+  children,
+  className,
+}: {
+  icon: typeof Palette;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <WorkspaceSurfaceCard
+      padding="p-0"
+      className={cn(
+        "overflow-hidden border-border/55 bg-card/92 shadow-elevate-sm ring-1 ring-black/[0.03] dark:ring-white/[0.05]",
+        className
+      )}
+    >
+      <div className="flex items-start gap-4 border-b border-border/60 px-5 py-5 sm:px-6">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <Icon className="size-5" strokeWidth={1.8} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+      </div>
+      <div className="p-5 sm:p-6">{children}</div>
+    </WorkspaceSurfaceCard>
+  );
+}
+
+function StatusTile({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "good" | "warn";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4 shadow-elevate-xs",
+        tone === "good"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-100"
+          : tone === "warn"
+            ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-100"
+            : "border-border/55 bg-muted/25 text-foreground"
+      )}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] opacity-70">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-semibold leading-snug">{value}</p>
+    </div>
   );
 }
 
@@ -188,111 +261,272 @@ export function SettingsPageClient() {
           { label: "Settings" },
         ]}
         title="Settings"
-        description="Theme and data on this device and in the cloud. Profile and password live under Account."
-        badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Tulmin workspace</Badge>}
+        description="A cleaner command center for appearance, workspace data, cloud sync, and account control."
+        badges={
+          <Badge
+            variant="outline"
+            className="border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
+          >
+            Workspace controls
+          </Badge>
+        }
       />
 
-      <WorkspaceFormPageStack>
+      <WorkspaceModulePageStack className="gap-5 sm:gap-6">
         <WorkspaceSurfaceCard
-          padding="p-4 sm:p-8"
-          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
+          padding="p-5 sm:p-6"
+          className="overflow-hidden border-primary/20 bg-[linear-gradient(135deg,rgb(63_108_255/0.10),rgb(16_185_129/0.08)_48%,var(--card)_100%)] shadow-elevate-sm dark:bg-[linear-gradient(135deg,rgb(95_134_255/0.12),rgb(16_185_129/0.08)_48%,var(--card)_100%)]"
         >
-          <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
-              <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-                Appearance
-              </CardTitle>
-              <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-                Theme is saved on this device only.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8">
-              <ThemePreferenceControl />
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                <Sparkles className="size-4" strokeWidth={1.8} aria-hidden />
+                Workspace health
+              </div>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                Keep Tulmin tuned for fast dispatch work.
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                Settings are grouped by daily workflow impact: visual comfort,
+                browser storage, cloud sync, and account control.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[460px]">
+              <StatusTile label="Theme" value="Saved on device" tone="good" />
+              <StatusTile
+                label="Cloud"
+                value={authReady && user ? "Connected" : authReady ? "Not signed in" : "Checking"}
+                tone={authReady && user ? "good" : "warn"}
+              />
+              <StatusTile label="Data" value="Local first" />
+            </div>
+          </div>
         </WorkspaceSurfaceCard>
 
-        <WorkspaceSurfaceCard
-          padding="p-4 sm:p-8"
-          className="border-border/20 bg-card/70 shadow-none ring-0 sm:border-border/30 sm:bg-card/90 sm:shadow-elevate-sm sm:ring-1 sm:ring-black/[0.03]"
-        >
-          <Card className="border-0 shadow-none ring-0">
-            <CardHeader className="space-y-2.5 border-b border-border/60 pb-4 sm:space-y-3 sm:border-border/90 sm:pb-5">
-              <CardTitle className="text-lg font-semibold tracking-tight text-card-foreground">
-                Data control
-              </CardTitle>
-              <CardDescription className="text-[14px] leading-relaxed text-muted-foreground">
-                Clear caches here; cloud wipes need a signed-in account.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3.5 pt-6 pb-6 sm:space-y-4 sm:pt-8 sm:pb-8">
-              <div className="rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/20">
-                <p className="text-sm font-semibold text-foreground">This device</p>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  Drops local drafts, label export markers, and cached uploads from this browser.
-                </p>
-                <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={clearThisDeviceData}>
-                  Clear local data
-                </Button>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.58fr)]">
+          <SettingsPanel
+            icon={Palette}
+            title="Appearance"
+            description="Choose the interface mode that fits your workspace lighting. This preference stays on this device."
+          >
+            <div className="rounded-2xl border border-border/55 bg-muted/25 p-4 sm:p-5">
+              <ThemePreferenceControl />
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  ["Light", "Crisp canvas for daytime operations."],
+                  ["Dark", "Lower glare for evening packing runs."],
+                  ["System", "Matches your device automatically."],
+                ].map(([title, copy]) => (
+                  <div
+                    key={title}
+                    className="rounded-xl border border-border/55 bg-card/70 p-3"
+                  >
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {copy}
+                    </p>
+                  </div>
+                ))}
               </div>
+            </div>
+          </SettingsPanel>
 
-              {!authReady ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  Checking account…
-                </p>
-              ) : user ? (
-                <>
-                  <div className="rounded-lg border border-border/65 bg-muted/12 p-4 sm:bg-muted/20">
-                    <p className="text-sm font-semibold text-foreground">Cloud SKU data</p>
-                    <p className="mt-1 text-[13px] text-muted-foreground">
-                      Deletes your SKU map and master rows in Tulmin&apos;s database for this account.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-3 w-full sm:w-auto"
-                      disabled={dangerBusy}
-                      onClick={() => void deleteCloudData()}
-                    >
-                      {dangerBusy ? "Deleting…" : "Delete cloud data"}
-                    </Button>
+          <SettingsPanel
+            icon={UserRound}
+            title="Account"
+            description="Cloud controls appear when an account is connected. Profile details live in Account."
+          >
+            {!authReady ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Checking account status
+              </p>
+            ) : user ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/25">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="size-5 text-emerald-700 dark:text-emerald-200" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                        Signed in
+                      </p>
+                      <p className="truncate text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                        {user.email}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="rounded-lg border border-red-300/50 bg-red-50/45 p-4 dark:border-red-900/60 dark:bg-red-950/22">
-                    <p className="text-sm font-semibold text-red-900 dark:text-red-100">
-                      Delete account
-                    </p>
-                    <p className="mt-1 text-[13px] text-red-800/90 dark:text-red-200/90">
-                      Signs you out and removes mapping data. For full identity removal, email{" "}
-                      {TULMIN_CONTACT_EMAIL}.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      className="mt-3 w-full sm:w-auto"
-                      disabled={dangerBusy}
-                      onClick={() => void requestAccountDeletion()}
-                    >
-                      {dangerBusy ? "Processing…" : "Delete account"}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-[13px] text-muted-foreground">
-                  Sign in to manage cloud data.{" "}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Link
                     href="/account"
-                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    className={buttonVariants({
+                      variant: "outline",
+                      className: "h-10 rounded-xl",
+                    })}
                   >
-                    Account
+                    Open account
                   </Link>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 rounded-xl text-muted-foreground hover:text-foreground"
+                    onClick={() => void signOut()}
+                  >
+                    <LogOut className="size-4" />
+                    Sign out
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/25">
+                  <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                    Not signed in
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-amber-800/85 dark:text-amber-200/85">
+                    You can keep working locally. Sign in when you want mapping
+                    data available across browsers.
+                  </p>
+                </div>
+                <Link
+                  href="/account"
+                  className={buttonVariants({
+                    className: "h-10 rounded-xl",
+                  })}
+                >
+                  Go to account
+                </Link>
+              </div>
+            )}
+          </SettingsPanel>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          <SettingsPanel
+            icon={HardDrive}
+            title="This Device"
+            description="Clear only the local browser workspace. Cloud data is untouched."
+          >
+            <div className="rounded-2xl border border-border/55 bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-foreground">
+                Local drafts and caches
+              </p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Removes local SKU drafts, upload caches, and label export markers
+                from this browser.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4 h-10 rounded-xl"
+                onClick={clearThisDeviceData}
+              >
+                <Trash2 className="size-4" />
+                Clear local data
+              </Button>
+            </div>
+          </SettingsPanel>
+
+          <SettingsPanel
+            icon={Cloud}
+            title="Cloud Data"
+            description="Manage SKU maps and workspace rows saved to Tulmin for this account."
+          >
+            {!authReady ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Checking cloud access
+              </p>
+            ) : user ? (
+              <div className="rounded-2xl border border-border/55 bg-muted/20 p-4">
+                <div className="flex items-start gap-3">
+                  <Database className="mt-0.5 size-5 text-primary" aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      SKU mapping tables
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Deletes SKU map, master SKU, and mapping workspace rows
+                      for the signed-in account.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 h-10 rounded-xl"
+                  disabled={dangerBusy}
+                  onClick={() => void deleteCloudData()}
+                >
+                  {dangerBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  {dangerBusy ? "Deleting" : "Delete cloud data"}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border/55 bg-muted/20 p-4">
+                <p className="text-sm font-semibold text-foreground">
+                  Cloud sync is off
                 </p>
-              )}
-            </CardContent>
-          </Card>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Sign in from Account to manage saved cloud data.
+                </p>
+                <Link
+                  href="/account"
+                  className={buttonVariants({
+                    variant: "outline",
+                    className: "mt-4 h-10 rounded-xl",
+                  })}
+                >
+                  Open account
+                </Link>
+              </div>
+            )}
+          </SettingsPanel>
+        </div>
+
+        <WorkspaceSurfaceCard
+          padding="p-0"
+          className="overflow-hidden border-red-300/40 bg-red-50/50 shadow-elevate-sm dark:border-red-900/55 dark:bg-red-950/20"
+        >
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="flex items-start gap-4 p-5 sm:p-6">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-700 ring-1 ring-red-500/20 dark:text-red-200">
+                <ShieldAlert className="size-5" strokeWidth={1.8} aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-red-950 dark:text-red-100">
+                  Danger Zone
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-red-800/85 dark:text-red-200/85">
+                  Account deletion removes cloud mapping data, signs you out,
+                  and marks the account for deletion review. For full identity
+                  removal, contact {TULMIN_CONTACT_EMAIL}.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center border-t border-red-300/35 p-5 sm:p-6 lg:border-l lg:border-t-0">
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-10 w-full rounded-xl lg:w-auto"
+                disabled={!authReady || !user || dangerBusy}
+                onClick={() => void requestAccountDeletion()}
+              >
+                {dangerBusy ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+                {dangerBusy ? "Processing" : "Delete account"}
+              </Button>
+            </div>
+          </div>
         </WorkspaceSurfaceCard>
-      </WorkspaceFormPageStack>
+      </WorkspaceModulePageStack>
     </>
   );
 }
