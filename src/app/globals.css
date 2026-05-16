@@ -72,6 +72,24 @@
     padding-left: 1rem;
     color: var(--foreground);
   }
+
+  html:not(.dark) .blog-rich-content [style*="color: white"],
+  html:not(.dark) .blog-rich-content [style*="color:#fff"],
+  html:not(.dark) .blog-rich-content [style*="color: #fff"],
+  html:not(.dark) .blog-rich-content [style*="color:#ffffff"],
+  html:not(.dark) .blog-rich-content [style*="color: #ffffff"],
+  html:not(.dark) .blog-rich-content [style*="color: rgb(255, 255, 255)"] {
+    color: var(--foreground) !important;
+  }
+
+  html:not(.dark) .blog-rich-content [style*="background-color: white"],
+  html:not(.dark) .blog-rich-content [style*="background-color:#fff"],
+  html:not(.dark) .blog-rich-content [style*="background-color: #fff"],
+  html:not(.dark) .blog-rich-content [style*="background-color:#ffffff"],
+  html:not(.dark) .blog-rich-content [style*="background-color: #ffffff"],
+  html:not(.dark) .blog-rich-content [style*="background-color: rgb(255, 255, 255)"] {
+    background-color: color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+  }
 }
 
 @layer utilities {

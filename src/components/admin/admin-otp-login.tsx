@@ -103,19 +103,19 @@ export function AdminOtpLogin() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070b12] px-4 py-8 text-white">
+    <main className="min-h-screen bg-[#f5f8fd] px-4 py-8 text-slate-950 dark:bg-[#070b12] dark:text-white">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_420px]">
         <section className="max-w-2xl">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-            <ShieldCheck className="size-6 text-sky-200" />
+          <div className="flex size-12 items-center justify-center rounded-xl bg-[#335cff]/10 ring-1 ring-[#335cff]/20 dark:bg-white/10 dark:ring-white/15">
+            <ShieldCheck className="size-6 text-[#335cff] dark:text-sky-200" />
           </div>
-          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200/80">
+          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.24em] text-[#335cff] dark:text-sky-200/80">
             Tulmin Blog Admin
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
             Private publishing console for Tulmin content.
           </h1>
-          <p className="mt-5 text-sm leading-7 text-slate-300">
+          <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
             This area is separate from the seller SaaS dashboard. Only allowlisted
             Tulmin admins can create, edit, publish, or delete blog content.
           </p>
@@ -123,15 +123,15 @@ export function AdminOtpLogin() {
 
         <form
           onSubmit={step === "email" ? sendOtp : verifyOtp}
-          className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_80px_-42px_rgba(37,99,235,0.85)]"
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_24px_80px_-42px_rgba(37,99,235,0.45)] dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_-42px_rgba(37,99,235,0.85)]"
         >
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-sky-400/12 text-sky-200 ring-1 ring-sky-300/20">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-[#335cff]/10 text-[#335cff] ring-1 ring-[#335cff]/20 dark:bg-sky-400/12 dark:text-sky-200 dark:ring-sky-300/20">
               <LockKeyhole className="size-5" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Admin sign in</h2>
-              <p className="text-xs text-slate-400">Email OTP, server allowlist required</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Email OTP, server allowlist required</p>
             </div>
           </div>
 
@@ -142,7 +142,7 @@ export function AdminOtpLogin() {
               onChange={(event) => setEmail(event.target.value)}
               placeholder="admin@tulmin.com"
               disabled={busy || step === "otp"}
-              className="h-12 rounded-xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
+              className="h-12 rounded-xl border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400 dark:border-white/10 dark:bg-black/20 dark:text-white dark:placeholder:text-slate-500"
             />
             {step === "otp" ? (
               <Input
@@ -151,7 +151,7 @@ export function AdminOtpLogin() {
                 onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, otpLength))}
                 placeholder="6-digit code"
                 disabled={busy}
-                className="h-12 rounded-xl border-white/10 bg-black/20 text-center font-mono text-lg tracking-[0.35em] text-white placeholder:tracking-normal placeholder:text-slate-500"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 text-center font-mono text-lg tracking-[0.35em] text-slate-950 placeholder:tracking-normal placeholder:text-slate-400 dark:border-white/10 dark:bg-black/20 dark:text-white dark:placeholder:text-slate-500"
               />
             ) : null}
           </div>
@@ -164,7 +164,7 @@ export function AdminOtpLogin() {
           {step === "otp" ? (
             <button
               type="button"
-              className="mt-3 text-xs font-medium text-slate-400 hover:text-white"
+              className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
               onClick={() => {
                 setStep("email");
                 setOtp("");
