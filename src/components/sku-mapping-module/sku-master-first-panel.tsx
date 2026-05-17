@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { SkuMasterFirstRow, MappingStatusFilter } from "@/types/sku-mapping-module";
-import type { MasterSkuRecord } from "@/types/sku-map";
 import { newEmptyMasterRow } from "@/lib/sku-mapping-module/master-first-helpers";
 import {
   closeMatchScore,
@@ -158,7 +157,6 @@ export interface SkuMasterFirstPanelProps {
   uploadedSkus: string[];
   masterRows: SkuMasterFirstRow[];
   setMasterRows: React.Dispatch<React.SetStateAction<SkuMasterFirstRow[]>>;
-  masterNameSuggestions: MasterSkuRecord[];
   globalBusy: boolean;
   remoteAvailable: boolean;
   cloudConfigured: boolean;
@@ -172,7 +170,6 @@ export function SkuMasterFirstPanel({
   uploadedSkus,
   masterRows,
   setMasterRows,
-  masterNameSuggestions,
   globalBusy,
   remoteAvailable,
   cloudConfigured,
@@ -181,7 +178,6 @@ export function SkuMasterFirstPanel({
   onFlushSaveNow,
   flushSaveBusy,
 }: SkuMasterFirstPanelProps) {
-  const suggestionsListId = React.useId();
   const scrollParentRef = React.useRef<HTMLDivElement>(null);
   const unmappedScrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -283,7 +279,9 @@ export function SkuMasterFirstPanel({
             onChange={(e) => updateMasterName(row.id, e.target.value)}
             disabled={globalBusy}
             placeholder="e.g. KURTI_RED_FAMILY"
-            list={suggestionsListId}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             className="min-h-11 rounded-md border-input bg-background font-mono text-[13px] shadow-sm sm:min-h-9"
           />
         </div>
@@ -344,12 +342,6 @@ export function SkuMasterFirstPanel({
 
   return (
     <div className="space-y-3">
-      <datalist id={suggestionsListId}>
-        {masterNameSuggestions.map((m) => (
-          <option key={m.id} value={m.name} />
-        ))}
-      </datalist>
-
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-elevate-xs">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Button

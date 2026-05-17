@@ -9,6 +9,7 @@ import {
   PencilLine,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Trash2,
 } from "lucide-react";
 
@@ -57,6 +58,10 @@ import {
 import { parseListingSkuUpload } from "@/lib/sku-mapping-module/parse-listing-sku-upload";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import {
+  SIGNIN_NUDGE_DISMISS_KEY,
+  SIGNIN_NUDGE_SESSION_KEY,
+} from "@/lib/auth/constants";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import {
   batchApplyMasterMappingsRemote,
@@ -311,6 +316,7 @@ export function SkuMappingModule() {
 
   const [workspaceBootBusy, setWorkspaceBootBusy] = React.useState(false);
   const [resumeWorkspaceOpen, setResumeWorkspaceOpen] = React.useState(false);
+  const [signinNudgeOpen, setSigninNudgeOpen] = React.useState(false);
 
   const workspaceIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -1177,40 +1183,49 @@ export function SkuMappingModule() {
     snapshotRefreshing ||
     pushDraftBusy;
 
-  const mastersForDatalist = React.useMemo(() => {
-    const fromCloud = [...(snapshot?.masters ?? [])];
-    const seen = new Set(fromCloud.map((m) => m.name.trim().toLowerCase()));
-    const extra: MasterSkuRecord[] = [];
-    for (const v of Object.values(localDraft)) {
-      const n = v.trim();
-      const k = n.toLowerCase();
-      if (n && !seen.has(k)) {
-        seen.add(k);
-        extra.push({
-          id: `local:${n}`,
-          name: n,
-          created_at: new Date(0).toISOString(),
-        });
-      }
-    }
-    for (const r of masterRows) {
-      const n = r.masterName.trim();
-      const k = n.toLowerCase();
-      if (n && !seen.has(k)) {
-        seen.add(k);
-        extra.push({
-          id: `row:${r.id}`,
-          name: n,
-          created_at: new Date(0).toISOString(),
-        });
-      }
-    }
-    return [...fromCloud, ...extra].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-    );
-  }, [snapshot?.masters, localDraft, masterRows]);
-
   const pendingLocalOnlyCount = countLocalDraftMappings(localDraft);
+
+  React.useEffect(() => {
+    if (!authReady || userId || !cloudConfigured || uploadedSkus.length === 0)
+      return;
+    if (resumeWorkspaceOpen || signinNudgeOpen) return;
+
+    try {
+      if (localStorage.getItem(SIGNIN_NUDGE_DISMISS_KEY) === "1") return;
+      if (sessionStorage.getItem(SIGNIN_NUDGE_SESSION_KEY) === "1") return;
+      sessionStorage.setItem(SIGNIN_NUDGE_SESSION_KEY, "1");
+    } catch {
+      /* private browsing can block storage; still show once for this render path */
+    }
+
+    const id = window.setTimeout(() => setSigninNudgeOpen(true), 700);
+    return () => window.clearTimeout(id);
+  }, [
+    authReady,
+    cloudConfigured,
+    resumeWorkspaceOpen,
+    signinNudgeOpen,
+    uploadedSkus.length,
+    userId,
+  ]);
+
+  function closeSigninNudge() {
+    setSigninNudgeOpen(false);
+  }
+
+  function dismissSigninNudgeForever() {
+    try {
+      localStorage.setItem(SIGNIN_NUDGE_DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    closeSigninNudge();
+  }
+
+  function acceptSigninNudge() {
+    closeSigninNudge();
+    openOptionalSignIn();
+  }
 
   const headerBadges = !cloudConfigured
     ? null
@@ -1332,6 +1347,67 @@ export function SkuMappingModule() {
               Continue workspace
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={signinNudgeOpen} onOpenChange={setSigninNudgeOpen}>
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[460px]">
+          <div className="border-b border-border/60 bg-[linear-gradient(135deg,rgb(63_108_255/0.12),rgb(16_185_129/0.08))] p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/20">
+                <ShieldCheck className="size-6" strokeWidth={1.8} aria-hidden />
+              </span>
+              <DialogHeader className="space-y-2 text-left">
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  Save this SKU map for next time?
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-6">
+                  Sign in once and Tulmin can keep this SKU mapping in your private cloud workspace, so you do not repeat the same mapping on your next label run.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-5 sm:p-6">
+            <div className="grid gap-3">
+              {[
+                ["Future runs", "Reuse mapped SKU names when you upload labels again."],
+                ["Browser continuity", "Continue from another browser after signing in."],
+                ["Optional", "You can skip this and keep working locally."],
+              ].map(([title, copy]) => (
+                <div key={title} className="rounded-xl border border-border/55 bg-muted/25 p-3">
+                  <p className="text-sm font-semibold text-foreground">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-10 rounded-xl text-muted-foreground hover:text-foreground"
+                onClick={dismissSigninNudgeForever}
+              >
+                Don&apos;t show again
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl"
+                onClick={closeSigninNudge}
+              >
+                Maybe later
+              </Button>
+              <Button
+                type="button"
+                className="h-10 rounded-xl font-semibold"
+                onClick={acceptSigninNudge}
+              >
+                Sign in to save
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1485,7 +1561,6 @@ export function SkuMappingModule() {
               uploadedSkus={uploadedSkus}
               masterRows={masterRows}
               setMasterRows={setMasterRows}
-              masterNameSuggestions={mastersForDatalist}
               globalBusy={globalBusy}
               remoteAvailable={remoteAvailable}
               cloudConfigured={cloudConfigured}
