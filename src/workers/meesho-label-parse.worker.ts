@@ -2,7 +2,7 @@
 
 import { parseMeeshoLabelPdfFromBytes } from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
 
-import type { AmazonInvoiceRecord } from "@/lib/amazon-label-parse";
+import type { AmazonTaxInvoicePage } from "@/lib/amazon-label-engine";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 
@@ -17,7 +17,7 @@ type WorkerOut =
   | {
       kind: "result";
       rows: MeeshoLabelRecord[];
-      amazonInvoices: AmazonInvoiceRecord[];
+      amazonInvoices: AmazonTaxInvoicePage[];
       error?: string;
       pdfBuffer: ArrayBuffer;
     }

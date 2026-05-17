@@ -1,10 +1,9 @@
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
 import {
-  extractAmazonInvoiceFields,
-  extractAmazonShippingFields,
-  type AmazonInvoiceRecord,
-} from "@/lib/amazon-label-parse";
+  parseAmazonPage,
+  type AmazonTaxInvoicePage,
+} from "@/lib/amazon-label-engine";
 import { extractMeeshoFields } from "@/lib/meesho-parse";
 import { loadPdfJsDocument } from "@/lib/pdf/configure-pdfjs";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
@@ -49,7 +48,7 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
   yieldPolicy?: PdfParseYieldPolicy;
 }): Promise<{
   rows: MeeshoLabelRecord[];
-  amazonInvoices: AmazonInvoiceRecord[];
+  amazonInvoices: AmazonTaxInvoicePage[];
   pdfBytes: Uint8Array;
   error?: string;
 }> {
@@ -60,24 +59,24 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
     const pdfJsDoc = await loadPdfJsDocument(pdfBytes);
     const pageCount = pdfJsDoc.numPages;
     const rows: MeeshoLabelRecord[] = [];
-    const amazonInvoices: AmazonInvoiceRecord[] = [];
+    const amazonInvoices: AmazonTaxInvoicePage[] = [];
 
     for (let page = 1; page <= pageCount; page++) {
       const pageObj = await pdfJsDoc.getPage(page);
       const tc = await pageObj.getTextContent();
       const rawText = textFromContent(tc);
       const normalizedText = rawText.replace(/\s+/g, " ").trim();
-      const amazonInvoice = extractAmazonInvoiceFields(rawText, page - 1);
-      if (amazonInvoice) {
-        amazonInvoices.push(amazonInvoice);
+      const amazonPage = parseAmazonPage(rawText, page - 1);
+      if (amazonPage.type === "tax_invoice") {
+        amazonInvoices.push(amazonPage.invoice);
         await pageObj.cleanup();
         opts.onProgress?.(page, pageCount);
         await yieldForParsePolicy(page, policy);
         continue;
       }
 
-      const amazonShipping = extractAmazonShippingFields(rawText);
-      if (amazonShipping) {
+      if (amazonPage.type === "shipping_label") {
+        const amazonShipping = amazonPage.shipping;
         await pageObj.cleanup();
 
         rows.push({

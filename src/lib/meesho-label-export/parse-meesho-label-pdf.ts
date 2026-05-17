@@ -5,7 +5,7 @@ import {
   raceWithTimeout,
 } from "@/lib/runtime/client-capabilities";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
-import type { AmazonInvoiceRecord } from "@/lib/amazon-label-parse";
+import type { AmazonTaxInvoicePage } from "@/lib/amazon-label-engine";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 
 /** Huge PDFs: fail fast-ish with a readable error instead of an infinite spinner */
@@ -13,7 +13,7 @@ const PARSE_DEADLINE_MS = 15 * 60 * 1000;
 
 type ParseResult = {
   rows: MeeshoLabelRecord[];
-  amazonInvoices: AmazonInvoiceRecord[];
+  amazonInvoices: AmazonTaxInvoicePage[];
   pdfBytes: Uint8Array;
   error?: string;
 };
@@ -45,7 +45,7 @@ async function parseViaWorker(opts: {
         done?: number;
         total?: number;
         rows?: MeeshoLabelRecord[];
-        amazonInvoices?: AmazonInvoiceRecord[];
+        amazonInvoices?: AmazonTaxInvoicePage[];
         error?: string;
         pdfBuffer?: ArrayBuffer;
         message?: string;

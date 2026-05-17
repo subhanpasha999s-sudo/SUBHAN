@@ -63,9 +63,12 @@ import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
+  amazonShippingOverlayText,
+  containsAmazonRows,
   normalizeAmazonOrderId,
-  type AmazonInvoiceRecord,
-} from "@/lib/amazon-label-parse";
+  pairAmazonShippingRows,
+  type AmazonTaxInvoicePage,
+} from "@/lib/amazon-label-engine";
 import type {
   MarketplaceKind,
   MeeshoLabelRecord,
@@ -242,49 +245,15 @@ type ImportedPdfSource = {
   order: number;
 };
 
-function enrichAmazonShippingRows(
-  rows: readonly MeeshoLabelRecord[],
-  invoices: readonly AmazonInvoiceRecord[]
-): MeeshoLabelRecord[] {
-  const invoiceByOrder = new Map<string, AmazonInvoiceRecord>();
-  for (const invoice of invoices) {
-    const key = normalizeAmazonOrderId(invoice.orderId);
-    if (key && !invoiceByOrder.has(key)) invoiceByOrder.set(key, invoice);
+function listingSkuDisplay(row: EnrichedMeeshoLabelRow): React.ReactNode {
+  if (row.listing_sku.trim()) return row.listing_sku;
+  if (row.marketplace === "amazon" && row.matchStatus === "Invoice Missing") {
+    return <span className="text-amber-700 dark:text-amber-200">Tax invoice missing</span>;
   }
-
-  return rows.map((row) => {
-    if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return row;
-    const key = normalizeAmazonOrderId(row.orderId);
-    const invoice = key ? invoiceByOrder.get(key) : undefined;
-    if (!invoice) {
-      return {
-        ...row,
-        listing_sku: "",
-        quantity: row.quantity,
-        matchStatus: "Invoice Missing",
-      };
-    }
-    return {
-      ...row,
-      listing_sku: invoice.sku || "Unknown",
-      quantity: invoice.quantity,
-      invoiceNumber: invoice.invoiceNumber,
-      productName: invoice.productName,
-      matchStatus: "Matched",
-    };
-  });
-}
-
-function amazonOverlayText(row: MeeshoLabelRecord): string | undefined {
-  if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return undefined;
-  if (row.matchStatus !== "Matched") return undefined;
-  const sku = row.listing_sku.trim() || "Unknown";
-  const qty = row.quantity == null ? "Unknown" : row.quantity.toLocaleString();
-  return `${sku} x ${qty}`;
-}
-
-function hasAmazonRows(rows: readonly EnrichedMeeshoLabelRow[]): boolean {
-  return rows.some((row) => row.marketplace === "amazon");
+  if (row.marketplace === "amazon" && row.matchStatus !== "Matched") {
+    return <span className="text-muted-foreground">Unmatched Amazon page</span>;
+  }
+  return <span className="text-muted-foreground">—</span>;
 }
 
 /** Compact hint that this mapped SKU bucket was already included in a successful export. */
@@ -1440,7 +1409,7 @@ function LabelsVirtualGrid({
                       ) : null}
                     </div>
                     <div className="min-w-0 truncate border-l border-border/80 px-2 font-mono text-xs">
-                      {r.listing_sku || "—"}
+                      {listingSkuDisplay(r)}
                     </div>
                     <div className="border-l border-border/80 px-2 text-xs tabular-nums text-muted-foreground">
                       {r.quantity ?? "—"}
@@ -1618,7 +1587,7 @@ function LabelsMobileCards({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 break-all font-mono text-[15px] font-semibold leading-snug tracking-tight text-foreground">
-                          {r.listing_sku || "—"}
+                          {listingSkuDisplay(r)}
                         </p>
                         <span className="shrink-0 rounded-full bg-background/65 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-white/[0.08]">
                           {marketplaceDisplay(r.marketplace)} · p.{r.page}
@@ -1685,7 +1654,7 @@ export function MeeshoLabelExportTool() {
 
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
   const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
-  const [amazonInvoices, setAmazonInvoices] = React.useState<AmazonInvoiceRecord[]>([]);
+  const [amazonInvoices, setAmazonInvoices] = React.useState<AmazonTaxInvoicePage[]>([]);
   const [includeAmazonInvoicesInDownload, setIncludeAmazonInvoicesInDownload] =
     React.useState(() => {
       if (typeof window === "undefined") return false;
@@ -1793,7 +1762,7 @@ export function MeeshoLabelExportTool() {
   }, [pdfSources]);
 
   const amazonInvoiceByOrderId = React.useMemo(() => {
-    const out = new Map<string, AmazonInvoiceRecord>();
+    const out = new Map<string, AmazonTaxInvoicePage>();
     for (const invoice of amazonInvoices) {
       const key = normalizeAmazonOrderId(invoice.orderId);
       if (key && !out.has(key)) out.set(key, invoice);
@@ -2178,11 +2147,11 @@ export function MeeshoLabelExportTool() {
     [filteredLabels, selected]
   );
   const selectedHasAmazonRows = React.useMemo(
-    () => hasAmazonRows(selectedLabelRows),
+    () => containsAmazonRows(selectedLabelRows),
     [selectedLabelRows]
   );
   const filteredHasAmazonRows = React.useMemo(
-    () => hasAmazonRows(filteredLabels),
+    () => containsAmazonRows(filteredLabels),
     [filteredLabels]
   );
   const showAmazonInvoiceDownloadOption =
@@ -2231,7 +2200,7 @@ export function MeeshoLabelExportTool() {
           importKey: r.importId,
           sourcePdfBytes: src.pdfBytes,
           pageOneBased: r.page,
-          overlayText: amazonOverlayText(r),
+          overlayText: amazonShippingOverlayText(r),
         }];
 
         if (includeAmazonInvoicesInDownload && r.marketplace === "amazon") {
@@ -2261,7 +2230,7 @@ export function MeeshoLabelExportTool() {
       .map((src, order) => ({ ...src, order }));
     const remainingRows = rows.filter((row) => row.importId !== importId);
     const remainingInvoices = amazonInvoices.filter((invoice) => invoice.importId !== importId);
-    const rematchedRows = enrichAmazonShippingRows(remainingRows, remainingInvoices);
+    const rematchedRows = pairAmazonShippingRows(remainingRows, remainingInvoices);
     const remainingIds = new Set(rematchedRows.map((row) => row.id));
 
     setPdfSources(remainingSources);
@@ -2315,7 +2284,7 @@ export function MeeshoLabelExportTool() {
 
     const nextRows: MeeshoLabelRecord[] = [];
     const nextSources: ImportedPdfSource[] = [];
-    const nextAmazonInvoices: AmazonInvoiceRecord[] = [];
+    const nextAmazonInvoices: AmazonTaxInvoicePage[] = [];
     const failures: string[] = [];
     let completedPages = 0;
     const existingSourceCount = pdfSources.length;
@@ -2380,7 +2349,7 @@ export function MeeshoLabelExportTool() {
     }
 
     const mergedInvoices = [...amazonInvoices, ...nextAmazonInvoices];
-    const mergedRows = enrichAmazonShippingRows([...rows, ...nextRows], mergedInvoices);
+    const mergedRows = pairAmazonShippingRows([...rows, ...nextRows], mergedInvoices);
     const mergedSources = [...pdfSources, ...nextSources];
 
     setRows(mergedRows);

@@ -21,6 +21,7 @@ export interface MeeshoLabelRecord {
   customerName?: string;
   shippingAddress?: string;
   invoiceNumber?: string;
+  invoiceDate?: string;
   productName?: string;
   matchStatus?: LabelMatchStatus;
   /** 1-based PDF page index */
