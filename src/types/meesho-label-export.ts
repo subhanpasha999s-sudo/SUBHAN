@@ -1,5 +1,5 @@
 export type MarketplaceKind = "meesho" | "flipkart" | "unknown";
-export type PaymentKind = "prepaid" | "cod" | "unknown";
+export type PaymentKind = "prepaid" | "cod" | "exchange" | "unknown";
 
 /** One marketplace label page after PDF text extraction (strict scope: no PII fields). */
 export interface MeeshoLabelRecord {

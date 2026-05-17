@@ -158,7 +158,7 @@ export interface ExtractedFields {
   sku: string | null;
   qty: number | null;
   partner: string;
-  payment: "prepaid" | "cod" | "unknown";
+  payment: "prepaid" | "cod" | "exchange" | "unknown";
   brand: string | null;
 }
 
@@ -167,10 +167,13 @@ function resolvePaymentMode(normalizedText: string): ExtractedFields["payment"] 
   const header = t.slice(0, 1200);
   const codPattern =
     /\b(?:COD(?:\s*:\s*Check\s+the\s+payable\s+amount\s+on\s+the\s+app)?|Cash\s+on\s+Delivery)\b/i;
+  const exchangePattern = /\bExchange\b/i;
+  if (exchangePattern.test(header)) return "exchange";
   if (codPattern.test(header)) return "cod";
   if (/\b(?:PREPAID|Pre\s*Paid|Paid\s+Online|Online\s+Payment)\b/i.test(header)) {
     return "prepaid";
   }
+  if (exchangePattern.test(t)) return "exchange";
   if (codPattern.test(t)) return "cod";
   if (/\b(?:PREPAID|Pre\s*Paid|Paid\s+Online|Online\s+Payment)\b/i.test(t)) {
     return "prepaid";

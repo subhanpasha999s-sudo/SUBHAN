@@ -413,6 +413,8 @@ function paymentLabel(value: PaymentKind | "all"): string {
       return "Prepaid";
     case "cod":
       return "COD";
+    case "exchange":
+      return "Exchange";
     case "unknown":
       return "Unknown";
     default:
@@ -425,7 +427,7 @@ function paymentFilterTriggerDisplay(
   stats: QtyCarrierFilterStats
 ): string {
   if (value === "all") return `All (${stats.totalLabels.toLocaleString()})`;
-  if (value === "prepaid" || value === "cod" || value === "unknown") {
+  if (value === "prepaid" || value === "cod" || value === "exchange" || value === "unknown") {
     return `${paymentLabel(value)} (${(stats.perPayment[value] ?? 0).toLocaleString()})`;
   }
   return String(value);
@@ -649,7 +651,7 @@ function LabelPdfFilterFields({
       <Select
         value={paymentFilter}
         onValueChange={(v) => {
-          if (v === "all" || v === "prepaid" || v === "cod" || v === "unknown") {
+          if (v === "all" || v === "prepaid" || v === "cod" || v === "exchange" || v === "unknown") {
             onPaymentFilter(v);
           }
         }}
@@ -673,7 +675,7 @@ function LabelPdfFilterFields({
           {...FILTER_SELECT_POPUP_SIDE}
           className={cn(FILTER_SELECT_MENU_SURFACE_CLASS, "max-h-[min(340px,min(52vh,28rem))]")}
         >
-          {(["all", "prepaid", "cod", "unknown"] as const).map((value) => (
+          {(["all", "prepaid", "cod", "exchange", "unknown"] as const).map((value) => (
             <SelectItem
               key={value}
               value={value}
@@ -979,7 +981,7 @@ function LabelPdfFilterFields({
         <div>
           <span className={lbl}>Payment</span>
           <div className={cn("mt-2", chipScroller)}>
-            {(["all", "prepaid", "cod", "unknown"] as const).map((value) => (
+            {(["all", "prepaid", "cod", "exchange", "unknown"] as const).map((value) => (
               <MobileFilterChip
                 key={value}
                 active={paymentFilter === value}
@@ -1834,6 +1836,7 @@ export function MeeshoLabelExportTool() {
     const perPayment: Record<PaymentKind, number> = {
       prepaid: 0,
       cod: 0,
+      exchange: 0,
       unknown: 0,
     };
     const partnerOrderQtySum: Record<string, number> = {};
