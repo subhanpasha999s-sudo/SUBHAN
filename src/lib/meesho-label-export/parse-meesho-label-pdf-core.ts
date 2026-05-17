@@ -66,6 +66,7 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
       const pageObj = await pdfJsDoc.getPage(page);
       const tc = await pageObj.getTextContent();
       const rawText = textFromContent(tc);
+      const normalizedText = rawText.replace(/\s+/g, " ").trim();
       const amazonInvoice = extractAmazonInvoiceFields(rawText, page - 1);
       if (amazonInvoice) {
         amazonInvoices.push(amazonInvoice);
@@ -103,8 +104,27 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
         continue;
       }
 
+      if (normalizedText.length < 12) {
+        await pageObj.cleanup();
+        opts.onProgress?.(page, pageCount);
+        await yieldForParsePolicy(page, policy);
+        continue;
+      }
+
       const extracted = extractMeeshoFields(rawText);
       await pageObj.cleanup();
+
+      if (
+        extracted.marketplace === "unknown" &&
+        !extracted.sku &&
+        extracted.qty == null &&
+        extracted.partner === "Unknown" &&
+        extracted.payment === "unknown"
+      ) {
+        opts.onProgress?.(page, pageCount);
+        await yieldForParsePolicy(page, policy);
+        continue;
+      }
 
       rows.push({
         id: `label-${page}`,
