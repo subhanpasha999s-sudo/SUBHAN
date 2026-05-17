@@ -51,6 +51,7 @@ import {
 } from "@/lib/meesho-label-export/master-lookup";
 import { partitionByMasterMapping } from "@/lib/meesho-label-export/partition-label-rows";
 import { parseMeeshoLabelPdf } from "@/lib/meesho-label-export/parse-meesho-label-pdf";
+import type { PdfLabelParseStats } from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
 import {
   exportPdfPagesFromMultiSourceOrdered,
   triggerPdfDownload,
@@ -113,6 +114,56 @@ const MEESHO_SKU_EXPORT_MARK_STORAGE = "lable.meeshoSkuExported.v1";
 const AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE =
   "tulmin.amazonIncludeInvoiceDownload.v1";
 const ROW_MASTER_EXPORT_KEY_UNMAPPED = "__unmapped__";
+
+type ImportFailureReason = "parse_error" | "image_only_pdf" | "unrecognized_layout" | "empty_pdf";
+
+type ImportFailure = {
+  name: string;
+  reason: ImportFailureReason;
+  error?: string;
+};
+
+function classifyImportFailure(stats: PdfLabelParseStats, error?: string): ImportFailureReason {
+  if (error) return "parse_error";
+  if (stats.pageCount > 0 && stats.textPageCount === 0) return "image_only_pdf";
+  if (stats.unrecognizedTextPageCount > 0) return "unrecognized_layout";
+  return "empty_pdf";
+}
+
+function importFailureCopy(failures: readonly ImportFailure[]): {
+  title: string;
+  description: string;
+} {
+  const failedCount = failures.length.toLocaleString();
+  if (failures.some((failure) => failure.reason === "image_only_pdf")) {
+    return {
+      title: "Could not read this PDF",
+      description:
+        "Root cause: this PDF has no selectable text layer. Upload the original marketplace PDF export; scanned/image PDFs need OCR before Tulmin can detect labels.",
+    };
+  }
+
+  if (failures.some((failure) => failure.reason === "unrecognized_layout")) {
+    return {
+      title: "Could not detect labels in this PDF",
+      description:
+        "The PDF text is readable, but it does not match Meesho, Flipkart, or the new Amazon shipping/invoice layouts.",
+    };
+  }
+
+  if (failures.some((failure) => failure.reason === "parse_error")) {
+    const firstError = failures.find((failure) => failure.error)?.error;
+    return {
+      title: "Could not parse this PDF",
+      description: firstError ? firstError : `${failedCount} file(s) failed.`,
+    };
+  }
+
+  return {
+    title: "Could not parse this PDF",
+    description: `${failedCount} file(s) failed.`,
+  };
+}
 
 function rowMasterExportKey(r: EnrichedMeeshoLabelRow): string {
   const m = r.master_sku?.trim();
@@ -2285,7 +2336,7 @@ export function MeeshoLabelExportTool() {
     const nextRows: MeeshoLabelRecord[] = [];
     const nextSources: ImportedPdfSource[] = [];
     const nextAmazonInvoices: AmazonTaxInvoicePage[] = [];
-    const failures: string[] = [];
+    const failures: ImportFailure[] = [];
     let completedPages = 0;
     const existingSourceCount = pdfSources.length;
 
@@ -2302,9 +2353,14 @@ export function MeeshoLabelExportTool() {
       });
 
       if (res.error || (res.rows.length === 0 && res.amazonInvoices.length === 0)) {
-        failures.push(file.name);
+        const reason = classifyImportFailure(res.stats, res.error);
+        failures.push({ name: file.name, reason, error: res.error });
         trackEvent("meesho_pdf_import_failed", {
-          reason: res.error ? "parse_error" : "empty_pdf",
+          reason,
+          page_count: res.stats.pageCount,
+          text_page_count: res.stats.textPageCount,
+          unreadable_page_count: res.stats.unreadablePageCount,
+          unrecognized_text_page_count: res.stats.unrecognizedTextPageCount,
           size_bytes: file.size,
           source_file: file.name,
         });
@@ -2339,12 +2395,11 @@ export function MeeshoLabelExportTool() {
     setParseProgress(null);
 
     if (nextRows.length === 0 && nextAmazonInvoices.length === 0) {
-      notify.error("Could not parse this PDF", {
-        description:
-          failures.length > 0
-            ? `${failures.length.toLocaleString()} file(s) failed.`
-            : "No labels found.",
-      });
+      const copy =
+        failures.length > 0
+          ? importFailureCopy(failures)
+          : { title: "Could not parse this PDF", description: "No labels found." };
+      notify.error(copy.title, { description: copy.description });
       return;
     }
 

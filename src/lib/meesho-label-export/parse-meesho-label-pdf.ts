@@ -1,4 +1,7 @@
-import { parseMeeshoLabelPdfFromBytes } from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
+import {
+  parseMeeshoLabelPdfFromBytes,
+  type PdfLabelParseStats,
+} from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
 import { fileToUint8Array } from "@/lib/pdf/file-to-bytes";
 import {
   canUseDedicatedModuleWorker,
@@ -14,8 +17,18 @@ const PARSE_DEADLINE_MS = 15 * 60 * 1000;
 type ParseResult = {
   rows: MeeshoLabelRecord[];
   amazonInvoices: AmazonTaxInvoicePage[];
+  stats: PdfLabelParseStats;
   pdfBytes: Uint8Array;
   error?: string;
+};
+
+const emptyStats: PdfLabelParseStats = {
+  pageCount: 0,
+  textPageCount: 0,
+  parsedLabelPageCount: 0,
+  parsedAmazonInvoicePageCount: 0,
+  unreadablePageCount: 0,
+  unrecognizedTextPageCount: 0,
 };
 
 async function parseViaWorker(opts: {
@@ -46,6 +59,7 @@ async function parseViaWorker(opts: {
         total?: number;
         rows?: MeeshoLabelRecord[];
         amazonInvoices?: AmazonTaxInvoicePage[];
+        stats?: PdfLabelParseStats;
         error?: string;
         pdfBuffer?: ArrayBuffer;
         message?: string;
@@ -70,6 +84,7 @@ async function parseViaWorker(opts: {
         resolve({
           rows: d.rows,
           amazonInvoices: d.amazonInvoices ?? [],
+          stats: d.stats ?? emptyStats,
           pdfBytes: new Uint8Array(d.pdfBuffer),
           error: d.error,
         });

@@ -1,6 +1,9 @@
 /// <reference lib="webworker" />
 
-import { parseMeeshoLabelPdfFromBytes } from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
+import {
+  parseMeeshoLabelPdfFromBytes,
+  type PdfLabelParseStats,
+} from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
 
 import type { AmazonTaxInvoicePage } from "@/lib/amazon-label-engine";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
@@ -18,6 +21,7 @@ type WorkerOut =
       kind: "result";
       rows: MeeshoLabelRecord[];
       amazonInvoices: AmazonTaxInvoicePage[];
+      stats: PdfLabelParseStats;
       error?: string;
       pdfBuffer: ArrayBuffer;
     }
@@ -65,6 +69,7 @@ self.addEventListener("message", (e: MessageEvent<unknown>) => {
           kind: "result",
           rows: out.rows,
           amazonInvoices: out.amazonInvoices,
+          stats: out.stats,
           error: out.error,
           pdfBuffer,
         } satisfies WorkerOut,
