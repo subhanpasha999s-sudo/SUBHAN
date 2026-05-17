@@ -278,6 +278,10 @@ function amazonOverlayText(row: MeeshoLabelRecord): string | undefined {
   return `${sku} x ${qty}`;
 }
 
+function hasAmazonRows(rows: readonly EnrichedMeeshoLabelRow[]): boolean {
+  return rows.some((row) => row.marketplace === "amazon");
+}
+
 /** Compact hint that this mapped SKU bucket was already included in a successful export. */
 function ExportedSkuHint({ className }: { className?: string }) {
   return (
@@ -1677,6 +1681,8 @@ export function MeeshoLabelExportTool() {
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
   const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
   const [amazonInvoices, setAmazonInvoices] = React.useState<AmazonInvoiceRecord[]>([]);
+  const [includeAmazonInvoicesInDownload, setIncludeAmazonInvoicesInDownload] =
+    React.useState(false);
   const [sourceName, setSourceName] = React.useState("");
   const [parsing, setParsing] = React.useState(false);
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
@@ -1762,6 +1768,15 @@ export function MeeshoLabelExportTool() {
     for (const src of pdfSources) out.set(src.id, src.order);
     return out;
   }, [pdfSources]);
+
+  const amazonInvoiceByOrderId = React.useMemo(() => {
+    const out = new Map<string, AmazonInvoiceRecord>();
+    for (const invoice of amazonInvoices) {
+      const key = normalizeAmazonOrderId(invoice.orderId);
+      if (key && !out.has(key)) out.set(key, invoice);
+    }
+    return out;
+  }, [amazonInvoices]);
 
   const sourceLabelStats = React.useMemo(() => {
     const out = new Map<
@@ -2139,6 +2154,16 @@ export function MeeshoLabelExportTool() {
     () => filteredLabels.filter((r) => Boolean(selected[r.id])),
     [filteredLabels, selected]
   );
+  const selectedHasAmazonRows = React.useMemo(
+    () => hasAmazonRows(selectedLabelRows),
+    [selectedLabelRows]
+  );
+  const filteredHasAmazonRows = React.useMemo(
+    () => hasAmazonRows(filteredLabels),
+    [filteredLabels]
+  );
+  const showAmazonInvoiceDownloadOption =
+    (selectedHasAmazonRows || filteredHasAmazonRows) && amazonInvoices.length > 0;
 
   const selectedDistinctSkuBuckets = React.useMemo(() => {
     const keys = new Set<string>();
@@ -2176,17 +2201,34 @@ export function MeeshoLabelExportTool() {
         if (ao !== bo) return ao - bo;
         return a.page - b.page;
       })
-      .map((r) => {
+      .flatMap((r) => {
         const src = pdfSourceByImportId.get(r.importId);
-        if (!src) return null;
-        return {
+        if (!src) return [];
+        const steps = [{
           importKey: r.importId,
           sourcePdfBytes: src.pdfBytes,
           pageOneBased: r.page,
           overlayText: amazonOverlayText(r),
-        };
+        }];
+
+        if (includeAmazonInvoicesInDownload && r.marketplace === "amazon") {
+          const invoice = amazonInvoiceByOrderId.get(normalizeAmazonOrderId(r.orderId));
+          const invoiceSource = invoice?.importId
+            ? pdfSourceByImportId.get(invoice.importId)
+            : undefined;
+          if (invoice && invoiceSource) {
+            steps.push({
+              importKey: invoice.importId ?? invoiceSource.id,
+              sourcePdfBytes: invoiceSource.pdfBytes,
+              pageOneBased: invoice.rawPageIndex + 1,
+              overlayText: undefined,
+            });
+          }
+        }
+
+        return steps;
       })
-      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+      .filter((x) => Boolean(x));
   }
 
   function removeUploadedPdfSource(importId: string) {
@@ -2195,7 +2237,7 @@ export function MeeshoLabelExportTool() {
       .filter((src) => src.id !== importId)
       .map((src, order) => ({ ...src, order }));
     const remainingRows = rows.filter((row) => row.importId !== importId);
-    const remainingInvoices = amazonInvoices.filter((invoice) => invoice.sourceFile !== removed?.fileName);
+    const remainingInvoices = amazonInvoices.filter((invoice) => invoice.importId !== importId);
     const rematchedRows = enrichAmazonShippingRows(remainingRows, remainingInvoices);
     const remainingIds = new Set(rematchedRows.map((row) => row.id));
 
@@ -2294,6 +2336,7 @@ export function MeeshoLabelExportTool() {
       nextAmazonInvoices.push(
         ...res.amazonInvoices.map((invoice) => ({
           ...invoice,
+          importId,
           sourceFile: file.name,
         }))
       );
@@ -2621,6 +2664,18 @@ export function MeeshoLabelExportTool() {
 
   const hasMappedSkuLabels =
     Object.keys(mappedSkuLabelStats.perName).length > 0;
+
+  const amazonInvoiceDownloadToggle = showAmazonInvoiceDownloadOption ? (
+    <label className="inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm sm:text-xs">
+      <Checkbox
+        checked={includeAmazonInvoicesInDownload}
+        onCheckedChange={(checked) => setIncludeAmazonInvoicesInDownload(Boolean(checked))}
+        aria-label="Include matched Amazon invoices in download"
+        className="size-4"
+      />
+      <span className="whitespace-nowrap">Include Amazon invoices</span>
+    </label>
+  ) : null;
 
   const ready = rows.length > 0 && pdfSources.length > 0 && !parsing;
   const mapBusy = parsing || bulkSkuZipState != null;
@@ -3100,6 +3155,7 @@ export function MeeshoLabelExportTool() {
                 </Button>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                {amazonInvoiceDownloadToggle}
                 <Button
                   type="button"
                   variant="outline"
@@ -3207,6 +3263,11 @@ export function MeeshoLabelExportTool() {
 
             {viewMode === "mobile" && selectedTotal > 0 ? (
               <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/94 px-4 pt-3 shadow-[0_-10px_34px_-26px_rgba(0,0,0,0.55)] backdrop-blur-sm supports-[backdrop-filter]:bg-background/86 dark:shadow-[0_-12px_40px_-30px_rgb(0_0_0/0.75)] sm:hidden">
+                {amazonInvoiceDownloadToggle ? (
+                  <div className="mx-auto mb-2 flex max-w-lg justify-end">
+                    {amazonInvoiceDownloadToggle}
+                  </div>
+                ) : null}
                 <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
                   <div className="min-w-0 flex-1 truncate">
                     <p className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground tabular-nums">

@@ -7,6 +7,7 @@ export interface AmazonInvoiceRecord {
   sku: string;
   quantity: number | null;
   rawPageIndex: number;
+  importId?: string;
   sourceFile: string;
   matchStatus: "Shipping Label Missing";
 }
