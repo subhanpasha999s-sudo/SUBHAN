@@ -6,9 +6,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Meesho label filter SaaS by SKU, QTY, and courier partner",
+  title: "Meesho and Flipkart label filter SaaS by SKU, QTY, and courier",
   description:
-    "Tulmin is a Meesho label filter SaaS for sellers. Filter labels by SKU, quantity, and courier partner, find labels instantly, and export only the exact dispatch-ready set.",
+    "Tulmin filters Meesho and Flipkart label PDFs by SKU, quantity, and courier partner. Upload mixed marketplace labels together and export only the exact dispatch-ready set.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "meesho label crop",
@@ -32,6 +32,9 @@ export const metadata: Metadata = {
     "meesho label crop a4",
     "meesho label generator",
     "Meesho PDF labels",
+    "Flipkart label filter",
+    "Flipkart SKU label PDF",
+    "Flipkart courier label filter",
     "Meesho dispatch PDF",
     "Meesho bulk label export",
     "Meesho ecommerce operator tool",
@@ -47,7 +50,7 @@ export default function ExportLabelsPage() {
       <ModulePageHeader
         breadcrumb={[{ label: "Labels" }]}
         title="Labels"
-        description="Tulmin is a Meesho label filter SaaS built for dispatch teams. Filter labels by SKU, QTY, and courier partner, then export only the exact labels you need in minutes."
+        description="Upload Meesho and Flipkart label PDFs together. Tulmin detects each page, filters by SKU, QTY, and courier partner, then exports only the labels dispatch needs."
       />
       <ExportLabelsBody />
     </>

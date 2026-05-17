@@ -14,6 +14,7 @@ import {
   Loader2,
   Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
@@ -51,8 +52,7 @@ import {
 import { partitionByMasterMapping } from "@/lib/meesho-label-export/partition-label-rows";
 import { parseMeeshoLabelPdf } from "@/lib/meesho-label-export/parse-meesho-label-pdf";
 import {
-  exportPdfPages,
-  exportPdfPagesInOrder,
+  exportPdfPagesFromMultiSourceOrdered,
   triggerPdfDownload,
   triggerZipDownload,
 } from "@/lib/meesho-label-export/export-selected-pages";
@@ -62,7 +62,11 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
-import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
+import type {
+  MarketplaceKind,
+  MeeshoLabelRecord,
+  PaymentKind,
+} from "@/types/meesho-label-export";
 import type { MasterSkuRecord, SkuMapRecord } from "@/types/sku-map";
 import {
   WorkspaceModulePageStack,
@@ -212,6 +216,13 @@ type BulkSkuZipState =
   | { phase: "zipping"; done: number; total: number }
   | { phase: "starting" };
 
+type ImportedPdfSource = {
+  id: string;
+  fileName: string;
+  pdfBytes: Uint8Array;
+  order: number;
+};
+
 /** Compact hint that this mapped SKU bucket was already included in a successful export. */
 function ExportedSkuHint({ className }: { className?: string }) {
   return (
@@ -360,11 +371,65 @@ type QtyCarrierFilterStats = {
   totalOrderQty: number;
   perQty: Record<number, number>;
   perPartner: Record<string, number>;
+  perPayment: Record<PaymentKind, number>;
   /** Sum of `quantity` per carrier (labels without qty omitted from the sum). */
   partnerOrderQtySum: Record<string, number>;
   quantitiesSortedDesc: number[];
   partnersSortedDesc: string[];
 };
+
+type MarketplaceFilterStats = {
+  total: number;
+  perMarketplace: Record<MarketplaceKind, number>;
+};
+
+function marketplaceLabel(value: MarketplaceKind | "all"): string {
+  switch (value) {
+    case "meesho":
+      return "Meesho";
+    case "flipkart":
+      return "Flipkart";
+    case "unknown":
+      return "Unknown";
+    default:
+      return "All";
+  }
+}
+
+function marketplaceFilterTriggerDisplay(
+  value: MarketplaceKind | "all" | string,
+  stats: MarketplaceFilterStats
+): string {
+  if (value === "all") return `All (${stats.total.toLocaleString()})`;
+  if (value === "meesho" || value === "flipkart" || value === "unknown") {
+    return `${marketplaceLabel(value)} (${(stats.perMarketplace[value] ?? 0).toLocaleString()})`;
+  }
+  return String(value);
+}
+
+function paymentLabel(value: PaymentKind | "all"): string {
+  switch (value) {
+    case "prepaid":
+      return "Prepaid";
+    case "cod":
+      return "COD";
+    case "unknown":
+      return "Unknown";
+    default:
+      return "All";
+  }
+}
+
+function paymentFilterTriggerDisplay(
+  value: PaymentKind | "all" | string,
+  stats: QtyCarrierFilterStats
+): string {
+  if (value === "all") return `All (${stats.totalLabels.toLocaleString()})`;
+  if (value === "prepaid" || value === "cod" || value === "unknown") {
+    return `${paymentLabel(value)} (${(stats.perPayment[value] ?? 0).toLocaleString()})`;
+  }
+  return String(value);
+}
 
 function qtyFilterTriggerDisplay(
   value: string | number | unknown,
@@ -467,6 +532,10 @@ function LabelPdfFilterFields({
   listingSkuSearch,
   onListingSkuSearch,
   mappedMasterFilter,
+  marketplaceFilter,
+  onMarketplaceFilter,
+  paymentFilter,
+  onPaymentFilter,
   onMasterFilterAll,
   onMasterFilterUnmapped,
   onMasterFilterToggleMaster,
@@ -480,11 +549,16 @@ function LabelPdfFilterFields({
   activeFilterCount,
   onClearFilters,
   mappedSkuLabelStats,
+  marketplaceFilterStats,
 }: {
   layout: "desktop" | "sheet";
   listingSkuSearch: string;
   onListingSkuSearch: (v: string) => void;
   mappedMasterFilter: MappedSkuMasterFilter;
+  marketplaceFilter: MarketplaceKind | "all";
+  onMarketplaceFilter: (v: MarketplaceKind | "all") => void;
+  paymentFilter: PaymentKind | "all";
+  onPaymentFilter: (v: PaymentKind | "all") => void;
   onMasterFilterAll: () => void;
   onMasterFilterUnmapped: () => void;
   onMasterFilterToggleMaster: (name: string, checked: boolean) => void;
@@ -498,6 +572,7 @@ function LabelPdfFilterFields({
   activeFilterCount: number;
   onClearFilters: () => void;
   mappedSkuLabelStats: MappedSkuLabelStats;
+  marketplaceFilterStats: MarketplaceFilterStats;
 }) {
   const isSheet = layout === "sheet";
   const lbl = isSheet ? MOBILE_FILTER_LABEL_CLASS : PREMIUM_FIELD_LABEL_CLASS;
@@ -505,6 +580,122 @@ function LabelPdfFilterFields({
   const selectTriggerExtras = cn(
     "h-10 shrink-0 border py-0 pr-8 hover:bg-background [&_svg]:size-[15px] [&_svg]:text-muted-foreground/70 [&_[data-slot=select-value]]:truncate",
     isSheet ? "rounded-xl" : "rounded-full"
+  );
+
+  const marketplaceBlock = (
+    <div className="min-w-0">
+      <Label htmlFor="label-filter-marketplace" className={lbl}>
+        Marketplace
+      </Label>
+      <Select
+        value={marketplaceFilter}
+        onValueChange={(v) => {
+          if (v === "all" || v === "meesho" || v === "flipkart" || v === "unknown") {
+            onMarketplaceFilter(v);
+          }
+        }}
+      >
+        <SelectTrigger
+          size="sm"
+          id="label-filter-marketplace"
+          title="Marketplace detected from each PDF page"
+          className={cn(ctl, selectTriggerExtras)}
+        >
+          <SelectValue
+            placeholder={marketplaceFilterTriggerDisplay("all", marketplaceFilterStats)}
+          >
+            {(v) =>
+              marketplaceFilterTriggerDisplay(
+                typeof v === "string" ? v : "all",
+                marketplaceFilterStats
+              )
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent
+          {...FILTER_SELECT_POPUP_SIDE}
+          className={cn(FILTER_SELECT_MENU_SURFACE_CLASS, "max-h-[min(340px,min(52vh,28rem))]")}
+        >
+          {(["all", "meesho", "flipkart", "unknown"] as const).map((value) => (
+            <SelectItem
+              key={value}
+              value={value}
+              className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium"
+            >
+              <FilterMenuCountRow
+                primary={
+                  <span className="font-semibold text-foreground">
+                    {marketplaceLabel(value)}
+                  </span>
+                }
+                count={
+                  value === "all"
+                    ? marketplaceFilterStats.total
+                    : marketplaceFilterStats.perMarketplace[value] ?? 0
+                }
+              />
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  const paymentBlock = (
+    <div className="min-w-0">
+      <Label htmlFor="label-filter-payment" className={lbl}>
+        Payment
+      </Label>
+      <Select
+        value={paymentFilter}
+        onValueChange={(v) => {
+          if (v === "all" || v === "prepaid" || v === "cod" || v === "unknown") {
+            onPaymentFilter(v);
+          }
+        }}
+      >
+        <SelectTrigger
+          size="sm"
+          id="label-filter-payment"
+          title="Payment mode detected from each label"
+          className={cn(ctl, selectTriggerExtras)}
+        >
+          <SelectValue placeholder={paymentFilterTriggerDisplay("all", qtyCarrierStats)}>
+            {(v) =>
+              paymentFilterTriggerDisplay(
+                typeof v === "string" ? v : "all",
+                qtyCarrierStats
+              )
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent
+          {...FILTER_SELECT_POPUP_SIDE}
+          className={cn(FILTER_SELECT_MENU_SURFACE_CLASS, "max-h-[min(340px,min(52vh,28rem))]")}
+        >
+          {(["all", "prepaid", "cod", "unknown"] as const).map((value) => (
+            <SelectItem
+              key={value}
+              value={value}
+              className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium"
+            >
+              <FilterMenuCountRow
+                primary={
+                  <span className="font-semibold text-foreground">
+                    {paymentLabel(value)}
+                  </span>
+                }
+                count={
+                  value === "all"
+                    ? qtyCarrierStats.totalLabels
+                    : qtyCarrierStats.perPayment[value] ?? 0
+                }
+              />
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 
   const masterBlock = (
@@ -754,6 +945,22 @@ function LabelPdfFilterFields({
         </p>
 
         <div>
+          <span className={lbl}>Marketplace</span>
+          <div className={cn("mt-2", chipScroller)}>
+            {(["all", "meesho", "flipkart", "unknown"] as const).map((value) => (
+              <MobileFilterChip
+                key={value}
+                active={marketplaceFilter === value}
+                onClick={() => onMarketplaceFilter(value)}
+              >
+                {marketplaceFilterTriggerDisplay(value, marketplaceFilterStats)}
+              </MobileFilterChip>
+            ))}
+          </div>
+          <div className="mt-3">{marketplaceBlock}</div>
+        </div>
+
+        <div>
           <span className={lbl}>Match status</span>
           <div className={cn("mt-2", chipScroller)}>
             <MobileFilterChip active={mappedMasterFilter.mode === "all"} onClick={onMasterFilterAll}>
@@ -767,6 +974,22 @@ function LabelPdfFilterFields({
             </MobileFilterChip>
           </div>
           <div className="mt-3">{masterBlock}</div>
+        </div>
+
+        <div>
+          <span className={lbl}>Payment</span>
+          <div className={cn("mt-2", chipScroller)}>
+            {(["all", "prepaid", "cod", "unknown"] as const).map((value) => (
+              <MobileFilterChip
+                key={value}
+                active={paymentFilter === value}
+                onClick={() => onPaymentFilter(value)}
+              >
+                {paymentFilterTriggerDisplay(value, qtyCarrierStats)}
+              </MobileFilterChip>
+            ))}
+          </div>
+          <div className="mt-3">{paymentBlock}</div>
         </div>
 
         <div>
@@ -826,13 +1049,13 @@ function LabelPdfFilterFields({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="max-w-md text-[12px] leading-snug text-muted-foreground lg:text-[13px]">
-          SKU · courier · qty. Filters this screen only.
+          Marketplace · SKU · payment · courier · qty. Filters this screen only.
         </p>
         {activeFilterCount > 0 ? (
           <div className="shrink-0 sm:pt-px">{clearBtn}</div>
         ) : null}
       </div>
-      <div className="grid gap-x-5 gap-y-[1.125rem] sm:grid-cols-2 lg:grid-cols-4 lg:items-end lg:gap-x-7">
+      <div className="grid gap-x-5 gap-y-[1.125rem] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:items-end lg:gap-x-7">
         <div className="sm:col-span-2 lg:col-span-1">
           <Label htmlFor="label-filter-listing-sku-desk" className={lbl}>
             Listing SKU
@@ -850,7 +1073,9 @@ function LabelPdfFilterFields({
             Listing SKU substring match.
           </p>
         </div>
+        {marketplaceBlock}
         {masterBlock}
+        {paymentBlock}
         {qtyBlock}
         {courierBlock}
       </div>
@@ -910,6 +1135,8 @@ function LabelsVirtualGrid({
   togglePageSort,
   virtualTune,
   exportedMasterKeys,
+  sourceCount,
+  sourceOrderByImportId,
 }: {
   density: LabelGridDensity;
   rows: EnrichedMeeshoLabelRow[];
@@ -924,6 +1151,8 @@ function LabelsVirtualGrid({
   togglePageSort: () => void;
   virtualTune: VirtualListTuning;
   exportedMasterKeys: ReadonlySet<string>;
+  sourceCount: number;
+  sourceOrderByImportId: ReadonlyMap<string, number>;
 }) {
   const grid = labelGridTemplate(density);
   const showCourier = density === "desktop";
@@ -1095,8 +1324,11 @@ function LabelsVirtualGrid({
                         aria-label={`Select label page ${r.page}`}
                       />
                     </div>
-                    <div className="flex min-w-0 items-center justify-center overflow-hidden border-l border-border/80 px-3 font-mono text-xs tabular-nums text-muted-foreground">
-                      {r.page}
+                    <div
+                      className="flex min-w-0 items-center justify-center overflow-hidden border-l border-border/80 px-3 font-mono text-xs tabular-nums text-muted-foreground"
+                      title={`${r.marketplace === "flipkart" ? "Flipkart" : r.marketplace === "meesho" ? "Meesho" : "Unknown"} · ${r.sourceFile || "PDF"}`}
+                    >
+                      {sourceCount > 1 ? `${(sourceOrderByImportId.get(r.importId) ?? 0) + 1}.${r.page}` : r.page}
                     </div>
                     <div className="flex min-w-0 items-center gap-1 border-l border-border/80 px-2 text-xs font-medium text-card-foreground">
                       <span className="min-w-0 truncate">
@@ -1292,7 +1524,7 @@ function LabelsMobileCards({
                           {r.listing_sku || "—"}
                         </p>
                         <span className="shrink-0 rounded-full bg-background/65 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-white/[0.08]">
-                          p.{r.page}
+                          {r.marketplace === "flipkart" ? "Flipkart" : r.marketplace === "meesho" ? "Meesho" : "Unknown"} · p.{r.page}
                         </span>
                       </div>
 
@@ -1355,7 +1587,7 @@ export function MeeshoLabelExportTool() {
   const userId = user?.id;
 
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
-  const [pdfBytes, setPdfBytes] = React.useState<Uint8Array | null>(null);
+  const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
   const [sourceName, setSourceName] = React.useState("");
   const [parsing, setParsing] = React.useState(false);
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
@@ -1369,6 +1601,10 @@ export function MeeshoLabelExportTool() {
 
   const [mappedMasterFilter, setMappedMasterFilter] =
     React.useState<MappedSkuMasterFilter>({ mode: "all" });
+  const [marketplaceFilter, setMarketplaceFilter] =
+    React.useState<MarketplaceKind | "all">("all");
+  const [paymentFilter, setPaymentFilter] =
+    React.useState<PaymentKind | "all">("all");
   const [listingSkuSearch, setListingSkuSearch] = React.useState("");
   /** `"__all__"` or stringified integer from parsed PDF */
   const [qtyFilter, setQtyFilter] = React.useState("__all__");
@@ -1386,8 +1622,8 @@ export function MeeshoLabelExportTool() {
   const exportMarkFingerprint = React.useMemo(() => {
     if (rows.length === 0) return "";
     const tail = rows[rows.length - 1];
-    return `${sourceName || "labels"}|${rows.length}|${tail?.id ?? ""}`;
-  }, [rows, sourceName]);
+    return `${sourceName || "labels"}|${pdfSources.length}|${rows.length}|${tail?.id ?? ""}`;
+  }, [pdfSources.length, rows, sourceName]);
 
   const [mastersExportMarked, setMastersExportMarked] = React.useState<Set<string>>(
     () => new Set()
@@ -1425,6 +1661,42 @@ export function MeeshoLabelExportTool() {
 
   const viewMode = useLabelExportViewMode();
   const perf = useRuntimePerformanceProfile();
+
+  const pdfSourceByImportId = React.useMemo(() => {
+    const out = new Map<string, ImportedPdfSource>();
+    for (const src of pdfSources) out.set(src.id, src);
+    return out;
+  }, [pdfSources]);
+
+  const sourceOrderByImportId = React.useMemo(() => {
+    const out = new Map<string, number>();
+    for (const src of pdfSources) out.set(src.id, src.order);
+    return out;
+  }, [pdfSources]);
+
+  const sourceLabelStats = React.useMemo(() => {
+    const out = new Map<
+      string,
+      {
+        total: number;
+        meesho: number;
+        flipkart: number;
+        unknown: number;
+      }
+    >();
+    for (const src of pdfSources) {
+      out.set(src.id, { total: 0, meesho: 0, flipkart: 0, unknown: 0 });
+    }
+    for (const row of rows) {
+      const stat =
+        out.get(row.importId) ??
+        { total: 0, meesho: 0, flipkart: 0, unknown: 0 };
+      stat.total += 1;
+      stat[row.marketplace] += 1;
+      out.set(row.importId, stat);
+    }
+    return out;
+  }, [pdfSources, rows]);
 
   /** Weak / mid devices defer heavy filtering while typing listings (keeps input snappy). */
   const deferredListingSkuSearch = React.useDeferredValue(listingSkuSearch);
@@ -1491,10 +1763,41 @@ export function MeeshoLabelExportTool() {
     [rows, remoteListingToMaster]
   );
 
+  const marketplaceStats = React.useMemo(() => {
+    const stats = {
+      meesho: 0,
+      flipkart: 0,
+      unknown: 0,
+      invalid: 0,
+    };
+    for (const r of enrichedRows) {
+      stats[r.marketplace] += 1;
+      if (!r.listing_sku.trim()) stats.invalid += 1;
+    }
+    return stats;
+  }, [enrichedRows]);
+
+  const marketplaceFilterStats = React.useMemo<MarketplaceFilterStats>(
+    () => ({
+      total: enrichedRows.length,
+      perMarketplace: {
+        meesho: marketplaceStats.meesho,
+        flipkart: marketplaceStats.flipkart,
+        unknown: marketplaceStats.unknown,
+      },
+    }),
+    [enrichedRows.length, marketplaceStats]
+  );
+
+  const marketplaceScopedRows = React.useMemo(() => {
+    if (marketplaceFilter === "all") return enrichedRows;
+    return enrichedRows.filter((r) => r.marketplace === marketplaceFilter);
+  }, [enrichedRows, marketplaceFilter]);
+
   const mappedSkuLabelStats = React.useMemo<MappedSkuLabelStats>(() => {
     const perName: Record<string, number> = {};
     let unmapped = 0;
-    for (const r of enrichedRows) {
+    for (const r of marketplaceScopedRows) {
       const nm = r.master_sku?.trim();
       if (!nm) {
         unmapped++;
@@ -1502,12 +1805,12 @@ export function MeeshoLabelExportTool() {
       }
       perName[nm] = (perName[nm] ?? 0) + 1;
     }
-    return { perName, unmapped, total: enrichedRows.length };
-  }, [enrichedRows]);
+    return { perName, unmapped, total: marketplaceScopedRows.length };
+  }, [marketplaceScopedRows]);
 
   const mappedRows = React.useMemo(
-    () => partitionByMasterMapping(enrichedRows).mapped,
-    [enrichedRows]
+    () => partitionByMasterMapping(marketplaceScopedRows).mapped,
+    [marketplaceScopedRows]
   );
 
   /**
@@ -1528,9 +1831,15 @@ export function MeeshoLabelExportTool() {
   const qtyCarrierStats = React.useMemo<QtyCarrierFilterStats>(() => {
     const perQty: Record<number, number> = {};
     const perPartner: Record<string, number> = {};
+    const perPayment: Record<PaymentKind, number> = {
+      prepaid: 0,
+      cod: 0,
+      unknown: 0,
+    };
     const partnerOrderQtySum: Record<string, number> = {};
     let totalOrderQty = 0;
-    for (const r of enrichedRows) {
+    for (const r of marketplaceScopedRows) {
+      perPayment[r.payment] = (perPayment[r.payment] ?? 0) + 1;
       const q = r.quantity;
       if (q != null && Number.isFinite(q)) {
         perQty[q] = (perQty[q] ?? 0) + 1;
@@ -1560,15 +1869,16 @@ export function MeeshoLabelExportTool() {
       return a.localeCompare(b, undefined, { sensitivity: "base" });
     });
     return {
-      totalLabels: enrichedRows.length,
+      totalLabels: marketplaceScopedRows.length,
       totalOrderQty,
       perQty,
       perPartner,
+      perPayment,
       partnerOrderQtySum,
       quantitiesSortedDesc,
       partnersSortedDesc,
     };
-  }, [enrichedRows]);
+  }, [marketplaceScopedRows]);
 
   React.useEffect(() => {
     if (qtyFilter === "__all__") return;
@@ -1585,6 +1895,13 @@ export function MeeshoLabelExportTool() {
     }
   }, [partner, qtyCarrierStats.perPartner]);
 
+  React.useEffect(() => {
+    if (paymentFilter === "all") return;
+    if ((qtyCarrierStats.perPayment[paymentFilter] ?? 0) === 0) {
+      setPaymentFilter("all");
+    }
+  }, [paymentFilter, qtyCarrierStats.perPayment]);
+
   const filters: MeeshoLabelFilters = React.useMemo(() => {
     const qtyExact =
       qtyFilter === "__all__"
@@ -1596,31 +1913,45 @@ export function MeeshoLabelExportTool() {
 
     return {
       mappedMaster: mappedMasterFilter,
+      marketplace: marketplaceFilter,
+      payment: paymentFilter,
       listingSearch: listingSearchForFilter,
       qtyExact,
       partner: partner === "__all__" ? "" : partner,
     };
-  }, [mappedMasterFilter, listingSearchForFilter, qtyFilter, partner]);
+  }, [
+    mappedMasterFilter,
+    marketplaceFilter,
+    paymentFilter,
+    listingSearchForFilter,
+    qtyFilter,
+    partner,
+  ]);
 
   /** All PDF labels, enriched when mappings exist; filtered client-side (Zoho-style grid). */
   const filteredLabels = React.useMemo(() => {
     const base = applyMeeshoLabelFilters(enrichedRows, filters);
     if (sortKey === "page") {
-      return [...base].sort((a, b) =>
-        sortDir === "asc" ? a.page - b.page : b.page - a.page
-      );
+      return [...base].sort((a, b) => {
+        const ao = sourceOrderByImportId.get(a.importId) ?? 0;
+        const bo = sourceOrderByImportId.get(b.importId) ?? 0;
+        const c = ao === bo ? a.page - b.page : ao - bo;
+        return sortDir === "asc" ? c : -c;
+      });
     }
     return sortMeeshoLabels(base, sortKey, sortDir);
-  }, [enrichedRows, filters, sortKey, sortDir]);
+  }, [enrichedRows, filters, sortKey, sortDir, sourceOrderByImportId]);
 
   const labelFilterActiveCount = React.useMemo(() => {
     let c = 0;
     if (listingSkuSearch.trim()) c++;
+    if (marketplaceFilter !== "all") c++;
+    if (paymentFilter !== "all") c++;
     if (mappedMasterFilter.mode !== "all") c++;
     if (qtyFilter !== QTY_PARTNER_FILTER_ALL) c++;
     if (partner !== QTY_PARTNER_FILTER_ALL) c++;
     return c;
-  }, [listingSkuSearch, mappedMasterFilter, qtyFilter, partner]);
+  }, [listingSkuSearch, marketplaceFilter, paymentFilter, mappedMasterFilter, qtyFilter, partner]);
 
   const onMasterFilterAll = React.useCallback(() => {
     setMappedMasterFilter({ mode: "all" });
@@ -1651,10 +1982,19 @@ export function MeeshoLabelExportTool() {
 
   const clearLabelFilters = React.useCallback(() => {
     setMappedMasterFilter({ mode: "all" });
+    setMarketplaceFilter("all");
+    setPaymentFilter("all");
     setListingSkuSearch("");
     setQtyFilter(QTY_PARTNER_FILTER_ALL);
     setPartner(QTY_PARTNER_FILTER_ALL);
   }, []);
+
+  React.useEffect(() => {
+    if (marketplaceFilter === "all") return;
+    if ((marketplaceFilterStats.perMarketplace[marketplaceFilter] ?? 0) === 0) {
+      setMarketplaceFilter("all");
+    }
+  }, [marketplaceFilter, marketplaceFilterStats.perMarketplace]);
 
   React.useEffect(() => {
     setMappedMasterFilter((prev) => {
@@ -1715,73 +2055,188 @@ export function MeeshoLabelExportTool() {
     }
   }
 
-  async function ingestPdf(file: File) {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
+  function rowsToPdfExportSteps(sourceRows: readonly EnrichedMeeshoLabelRow[]) {
+    return [...sourceRows]
+      .sort((a, b) => {
+        const ao = sourceOrderByImportId.get(a.importId) ?? 0;
+        const bo = sourceOrderByImportId.get(b.importId) ?? 0;
+        if (ao !== bo) return ao - bo;
+        return a.page - b.page;
+      })
+      .map((r) => {
+        const src = pdfSourceByImportId.get(r.importId);
+        if (!src) return null;
+        return {
+          importKey: r.importId,
+          sourcePdfBytes: src.pdfBytes,
+          pageOneBased: r.page,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+  }
+
+  function removeUploadedPdfSource(importId: string) {
+    const removed = pdfSources.find((src) => src.id === importId);
+    const remainingSources = pdfSources
+      .filter((src) => src.id !== importId)
+      .map((src, order) => ({ ...src, order }));
+    const remainingRows = rows.filter((row) => row.importId !== importId);
+    const remainingIds = new Set(remainingRows.map((row) => row.id));
+
+    setPdfSources(remainingSources);
+    setRows(remainingRows);
+    setSelected((prev) => {
+      const next: Record<string, true> = {};
+      for (const id of Object.keys(prev)) {
+        if (remainingIds.has(id)) next[id] = true;
+      }
+      return next;
+    });
+    setSourceName(
+      remainingSources.length === 0
+        ? ""
+        : remainingSources.length === 1
+          ? remainingSources[0].fileName.replace(/\.pdf$/i, "")
+          : `${remainingSources.length} PDFs`
+    );
+    if (remainingSources.length === 0) {
+      clearLabelFilters();
+      setMobileFilterOpen(false);
+    }
+    notify.success("PDF removed", {
+      description: removed?.fileName ?? "Uploaded file removed from this run.",
+    });
+  }
+
+  async function ingestPdfFiles(files: File[]) {
+    const pdfFiles = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
+    if (pdfFiles.length === 0) {
       trackEvent("meesho_pdf_import_rejected", { reason: "unsupported_file_type" });
       notify.error("Unsupported file", {
-        description: ".pdf only.",
+        description: "Upload one or more PDF files.",
       });
       return;
     }
+    if (pdfFiles.length !== files.length) {
+      notify.info("Only PDFs were imported", {
+        description: `${(files.length - pdfFiles.length).toLocaleString()} non-PDF file(s) skipped.`,
+      });
+    }
+
     trackEvent("meesho_pdf_import_started", {
-      size_bytes: file.size,
+      file_count: pdfFiles.length,
+      size_bytes: pdfFiles.reduce((sum, file) => sum + file.size, 0),
       signed_in: Boolean(userId),
     });
     setParsing(true);
     setParseProgress([0, 0]);
-    setSelected({});
-    setMappedMasterFilter({ mode: "all" });
-    setListingSkuSearch("");
-    setQtyFilter(QTY_PARTNER_FILTER_ALL);
-    setPartner(QTY_PARTNER_FILTER_ALL);
-    setRows([]);
-    setPdfBytes(null);
 
-    const res = await parseMeeshoLabelPdf({
-      file,
-      yieldPolicy: perf.parseYieldPolicy,
-      onProgress: (done, total) => setParseProgress([done, total]),
-    });
+    const nextRows: MeeshoLabelRecord[] = [];
+    const nextSources: ImportedPdfSource[] = [];
+    const failures: string[] = [];
+    let completedPages = 0;
+    const existingSourceCount = pdfSources.length;
+
+    for (let i = 0; i < pdfFiles.length; i += 1) {
+      const file = pdfFiles[i];
+      const importId =
+        crypto.randomUUID?.() ?? `import-${Date.now().toString(36)}-${i}`;
+
+      const res = await parseMeeshoLabelPdf({
+        file,
+        yieldPolicy: perf.parseYieldPolicy,
+        onProgress: (done, total) =>
+          setParseProgress([completedPages + done, completedPages + Math.max(done, total)]),
+      });
+
+      if (res.error || res.rows.length === 0) {
+        failures.push(file.name);
+        trackEvent("meesho_pdf_import_failed", {
+          reason: res.error ? "parse_error" : "empty_pdf",
+          size_bytes: file.size,
+          source_file: file.name,
+        });
+        continue;
+      }
+
+      nextSources.push({
+        id: importId,
+        fileName: file.name,
+        pdfBytes: res.pdfBytes,
+        order: existingSourceCount + i,
+      });
+      nextRows.push(
+        ...res.rows.map((r) => ({
+          ...r,
+          id: `${importId}-p${r.page}`,
+          importId,
+          sourceFile: file.name,
+        }))
+      );
+      completedPages += res.rows.length;
+    }
 
     setParsing(false);
     setParseProgress(null);
 
-    if (res.error || res.rows.length === 0) {
-      trackEvent("meesho_pdf_import_failed", {
-        reason: res.error ? "parse_error" : "empty_pdf",
-        size_bytes: file.size,
-      });
+    if (nextRows.length === 0) {
       notify.error("Could not parse this PDF", {
-        description: res.error ?? "No labels found.",
+        description:
+          failures.length > 0
+            ? `${failures.length.toLocaleString()} file(s) failed.`
+            : "No labels found.",
       });
       return;
     }
 
-    setRows(res.rows);
-    setPdfBytes(res.pdfBytes);
-    setSourceName(file.name.replace(/\.pdf$/i, ""));
+    const mergedRows = [...rows, ...nextRows];
+    const mergedSources = [...pdfSources, ...nextSources];
+
+    setRows(mergedRows);
+    setPdfSources(mergedSources);
+    setSourceName(
+      mergedSources.length === 1
+        ? mergedSources[0].fileName.replace(/\.pdf$/i, "")
+        : `${mergedSources.length} PDFs`
+    );
+
+    const flipkart = mergedRows.filter((r) => r.marketplace === "flipkart").length;
+    const meesho = mergedRows.filter((r) => r.marketplace === "meesho").length;
+    const invalid = mergedRows.filter((r) => !r.listing_sku.trim()).length;
+
     notify.success("Imported", {
-      description: `${res.rows.length.toLocaleString()} labels.`,
+      description: `${nextRows.length.toLocaleString()} added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
     });
     trackEvent("meesho_pdf_import_succeeded", {
-      label_count: res.rows.length,
-      size_bytes: file.size,
+      file_count: nextSources.length,
+      label_count: nextRows.length,
+      total_label_count: mergedRows.length,
+      flipkart_count: flipkart,
+      meesho_count: meesho,
+      invalid_count: invalid,
+      size_bytes: pdfFiles.reduce((sum, file) => sum + file.size, 0),
       signed_in: Boolean(userId),
     });
+
+    if (failures.length > 0) {
+      notify.warning("Some PDFs were skipped", {
+        description: failures.slice(0, 3).join(", "),
+      });
+    }
 
     if (userId && getSupabaseBrowser()) await refreshMapSnapshot();
   }
 
   function onFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (f) void ingestPdf(f);
+    if (files.length > 0) void ingestPdfFiles(files);
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) void ingestPdf(f);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) void ingestPdfFiles(files);
   }
 
   function toggleSelect(id: string, on: boolean) {
@@ -1816,7 +2271,7 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadFilteredPdf() {
-    if (!pdfBytes || selectedTotal === 0) {
+    if (pdfSources.length === 0 || selectedTotal === 0) {
       trackEvent("meesho_export_selected_blocked", {
         reason: "no_selection",
         visible_count: filteredLabels.length,
@@ -1826,12 +2281,9 @@ export function MeeshoLabelExportTool() {
     }
     const idSet = new Set(Object.keys(selected));
     const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
-    const pagesToExport = rows
-      .filter((r) => idSet.has(r.id))
-      .map((r) => r.page)
-      .sort((a, b) => a - b);
+    const steps = rowsToPdfExportSteps(exportedEnriched);
 
-    if (pagesToExport.length === 0) {
+    if (steps.length === 0) {
       trackEvent("meesho_export_selected_failed", {
         reason: "selection_page_mismatch",
         selected_count: selectedTotal,
@@ -1841,14 +2293,14 @@ export function MeeshoLabelExportTool() {
     }
 
     try {
-      const out = await exportPdfPages(pdfBytes, pagesToExport);
+      const out = await exportPdfPagesFromMultiSourceOrdered(steps);
       triggerPdfDownload(out, buildSelectedExportFilename(exportedEnriched));
       mergeExportedMastersFromRows(exportedEnriched);
       notify.success("Exported", {
-        description: `${pagesToExport.length.toLocaleString()} page(s) · ✓ = already in an export`,
+        description: `${steps.length.toLocaleString()} page(s) · ✓ = already in an export`,
       });
       trackEvent("meesho_export_selected_succeeded", {
-        page_count: pagesToExport.length,
+        page_count: steps.length,
         selected_count: selectedTotal,
         visible_count: filteredLabels.length,
       });
@@ -1868,7 +2320,7 @@ export function MeeshoLabelExportTool() {
     zipFilename: string,
     scope: "filtered" | "selected"
   ) {
-    if (!pdfBytes || sourceRows.length === 0) {
+    if (pdfSources.length === 0 || sourceRows.length === 0) {
       if (scope === "filtered") {
         trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
         notify.info("Nothing matches filters.");
@@ -1910,15 +2362,11 @@ export function MeeshoLabelExportTool() {
 
       for (let i = 0; i < bucketList.length; i += 1) {
         const bucket = bucketList[i];
-        const pages = bucket.rows
-          .map((r) => r.page)
-          .filter((p) => Number.isInteger(p) && p >= 1)
-          .sort((a, b) => a - b);
-        const uniquePages = [...new Set(pages)];
-        if (uniquePages.length === 0) continue;
+        const steps = rowsToPdfExportSteps(bucket.rows);
+        if (steps.length === 0) continue;
 
         setBulkSkuZipState({ phase: "preparing", done: i + 1, total: bucketList.length });
-        const pdfOut = await exportPdfPagesInOrder(pdfBytes, uniquePages);
+        const pdfOut = await exportPdfPagesFromMultiSourceOrdered(steps);
         const base = makeSkuBucketFileLabel(bucket.masterSku);
         const fileBase = dedupeFilename(base, usedNames);
         zip.file(`${fileBase}.pdf`, pdfOut);
@@ -2043,7 +2491,7 @@ export function MeeshoLabelExportTool() {
   const hasMappedSkuLabels =
     Object.keys(mappedSkuLabelStats.perName).length > 0;
 
-  const ready = rows.length > 0 && pdfBytes && !parsing;
+  const ready = rows.length > 0 && pdfSources.length > 0 && !parsing;
   const mapBusy = parsing || bulkSkuZipState != null;
 
   return (
@@ -2064,6 +2512,7 @@ export function MeeshoLabelExportTool() {
             ref={fileInputRef}
             type="file"
             accept="application/pdf,.pdf"
+            multiple
             className="hidden"
             id="meesho-pdf-upload"
             disabled={parsing}
@@ -2099,10 +2548,10 @@ export function MeeshoLabelExportTool() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[17px] font-semibold tracking-tight text-foreground">
-                    Import PDF
+                    Import labels
                   </p>
                   <p className="mx-auto max-w-sm text-[13px] leading-snug text-muted-foreground">
-                    Meesho label PDF · filter · export selection.
+                    Drop Meesho and Flipkart PDFs together. Tulmin detects each page automatically.
                   </p>
                 </div>
                 <Button
@@ -2112,7 +2561,7 @@ export function MeeshoLabelExportTool() {
                   disabled={parsing}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Choose file
+                  Choose PDFs
                 </Button>
               </>
             )}
@@ -2123,9 +2572,80 @@ export function MeeshoLabelExportTool() {
       {ready ? (
         <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-8">
           {rows.length > 0 ? (
-            <p className="-mt-0.5 mb-3 text-[12px] font-medium tabular-nums text-muted-foreground sm:mb-5 sm:text-[13px]">
-              {rows.length.toLocaleString()} labels imported
-            </p>
+            <div className="-mt-0.5 mb-3 flex flex-wrap items-center gap-2 text-[12px] font-medium tabular-nums text-muted-foreground sm:mb-5 sm:text-[13px]">
+              <span>{rows.length.toLocaleString()} labels imported</span>
+              <span className="inline-flex rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200">
+                Meesho {marketplaceStats.meesho.toLocaleString()}
+              </span>
+              <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-700 ring-1 ring-blue-500/20 dark:text-blue-200">
+                Flipkart {marketplaceStats.flipkart.toLocaleString()}
+              </span>
+              {marketplaceStats.invalid > 0 ? (
+                <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+                  Review {marketplaceStats.invalid.toLocaleString()}
+                </span>
+              ) : null}
+              {pdfSources.length > 1 ? (
+                <span>{pdfSources.length.toLocaleString()} PDFs</span>
+              ) : null}
+            </div>
+          ) : null}
+          {pdfSources.length > 0 ? (
+            <div className="mb-4 rounded-2xl border border-border/55 bg-muted/20 p-3 shadow-elevate-xs ring-1 ring-black/[0.03] dark:bg-muted/10 dark:ring-white/[0.04]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12px] font-semibold tracking-tight text-foreground">
+                  Uploaded PDFs
+                </p>
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  Remove duplicates without resetting the run.
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {pdfSources.map((src) => {
+                  const stat =
+                    sourceLabelStats.get(src.id) ??
+                    { total: 0, meesho: 0, flipkart: 0, unknown: 0 };
+                  const marketplaceParts = [
+                    stat.meesho > 0 ? `Meesho ${stat.meesho}` : "",
+                    stat.flipkart > 0 ? `Flipkart ${stat.flipkart}` : "",
+                    stat.unknown > 0 ? `Unknown ${stat.unknown}` : "",
+                  ].filter(Boolean);
+                  const label =
+                    marketplaceParts.length > 0
+                      ? marketplaceParts.join(" · ")
+                      : `${stat.total.toLocaleString()} labels`;
+                  return (
+                    <span
+                      key={src.id}
+                      className="inline-flex max-w-full items-center gap-2 rounded-full border border-border/65 bg-background/85 px-3 py-2 text-[12px] font-medium shadow-sm dark:bg-background/70"
+                      title={src.fileName}
+                    >
+                      <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                        {label}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {stat.total.toLocaleString()} labels
+                      </span>
+                      {pdfSources.length > 1 ? (
+                        <span className="hidden shrink-0 text-muted-foreground/60 sm:inline">
+                          PDF {(sourceOrderByImportId.get(src.id) ?? 0) + 1}
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${src.fileName}`}
+                        title="Remove this PDF from current run"
+                        className="interaction-press -mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+                        disabled={parsing || bulkSkuZipState != null}
+                        onClick={() => removeUploadedPdfSource(src.id)}
+                      >
+                        <X className="size-3.5" strokeWidth={2.2} aria-hidden />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           ) : null}
           <section
             className={cn(
@@ -2155,7 +2675,7 @@ export function MeeshoLabelExportTool() {
                       id="labels-grid-heading"
                       className="text-[15px] font-semibold tracking-tight text-foreground"
                     >
-                      Meesho labels
+                      Labels
                     </h2>
                     <span className="shrink-0 text-[12px] font-medium tabular-nums text-muted-foreground">
                       {filteredLabels.length.toLocaleString()}
@@ -2169,7 +2689,7 @@ export function MeeshoLabelExportTool() {
                         id="labels-grid-heading"
                         className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
                       >
-                        Meesho labels
+                        Labels
                       </h2>
                       <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
                         ·
@@ -2202,9 +2722,9 @@ export function MeeshoLabelExportTool() {
               <div className="hidden shrink-0 text-right text-[11px] tabular-nums leading-snug text-muted-foreground sm:block">
                 <div>
                   <span className="font-semibold text-foreground">
-                    {enrichedRows.length.toLocaleString()}
+                      {enrichedRows.length.toLocaleString()}
                   </span>{" "}
-                  labels in file
+                  labels in queue
                 </div>
                 <div>
                   {mappedRows.length.toLocaleString()} labels ready ·{" "}
@@ -2333,6 +2853,10 @@ export function MeeshoLabelExportTool() {
                         listingSkuSearch={listingSkuSearch}
                         onListingSkuSearch={setListingSkuSearch}
                         mappedMasterFilter={mappedMasterFilter}
+                        marketplaceFilter={marketplaceFilter}
+                        onMarketplaceFilter={setMarketplaceFilter}
+                        paymentFilter={paymentFilter}
+                        onPaymentFilter={setPaymentFilter}
                         onMasterFilterAll={onMasterFilterAll}
                         onMasterFilterUnmapped={onMasterFilterUnmapped}
                         onMasterFilterToggleMaster={onMasterFilterToggleMaster}
@@ -2346,6 +2870,7 @@ export function MeeshoLabelExportTool() {
                         activeFilterCount={labelFilterActiveCount}
                         onClearFilters={clearLabelFilters}
                         mappedSkuLabelStats={mappedSkuLabelStats}
+                        marketplaceFilterStats={marketplaceFilterStats}
                       />
                     </div>
                     <div className="flex flex-col gap-2 border-t border-border/40 bg-muted/25 px-4 py-4 pb-safe">
@@ -2382,6 +2907,10 @@ export function MeeshoLabelExportTool() {
                     listingSkuSearch={listingSkuSearch}
                     onListingSkuSearch={setListingSkuSearch}
                     mappedMasterFilter={mappedMasterFilter}
+                    marketplaceFilter={marketplaceFilter}
+                    onMarketplaceFilter={setMarketplaceFilter}
+                    paymentFilter={paymentFilter}
+                    onPaymentFilter={setPaymentFilter}
                     onMasterFilterAll={onMasterFilterAll}
                     onMasterFilterUnmapped={onMasterFilterUnmapped}
                     onMasterFilterToggleMaster={onMasterFilterToggleMaster}
@@ -2395,6 +2924,7 @@ export function MeeshoLabelExportTool() {
                     activeFilterCount={labelFilterActiveCount}
                     onClearFilters={clearLabelFilters}
                     mappedSkuLabelStats={mappedSkuLabelStats}
+                    marketplaceFilterStats={marketplaceFilterStats}
                   />
                 </div>
               </div>
@@ -2521,6 +3051,8 @@ export function MeeshoLabelExportTool() {
                   togglePageSort={togglePageSort}
                   virtualTune={perf.labelsGridVirtual}
                   exportedMasterKeys={mastersExportMarked}
+                  sourceCount={pdfSources.length}
+                  sourceOrderByImportId={sourceOrderByImportId}
                 />
               </div>
             )}

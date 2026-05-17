@@ -67,8 +67,12 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
         listing_sku: extracted.sku?.trim() ?? "",
         quantity: extracted.qty,
         delivery_partner: extracted.partner,
+        marketplace: extracted.marketplace,
+        payment: extracted.payment,
         page,
+        rawPageIndex: page - 1,
         importId: "",
+        sourceFile: "",
       });
 
       opts.onProgress?.(page, pageCount);

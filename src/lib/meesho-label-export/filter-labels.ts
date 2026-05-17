@@ -1,4 +1,5 @@
 import type { EnrichedMeeshoLabelRow } from "@/lib/meesho-label-export/master-lookup";
+import type { MarketplaceKind, PaymentKind } from "@/types/meesho-label-export";
 
 /**
  * Order rows for a grouped PDF: master → carrier → qty → listing → page.
@@ -42,6 +43,8 @@ export type MappedSkuMasterFilter =
 
 export interface MeeshoLabelFilters {
   mappedMaster: MappedSkuMasterFilter;
+  marketplace: MarketplaceKind | "all";
+  payment: PaymentKind | "all";
   listingSearch: string;
   /** `null` = no quantity filter; otherwise match PDF-extracted quantity exactly */
   qtyExact: number | null;
@@ -73,6 +76,9 @@ export function applyMeeshoLabelFilters(
   const partnerNeedle = f.partner.trim().toLowerCase();
 
   return rows.filter((r) => {
+    if (f.marketplace !== "all" && r.marketplace !== f.marketplace) return false;
+    if (f.payment !== "all" && r.payment !== f.payment) return false;
+
     const mm = f.mappedMaster;
     if (mm.mode === "unmapped") {
       if ((r.master_sku ?? "").trim()) return false;

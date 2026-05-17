@@ -3,7 +3,7 @@ const KNOWN_PARTNERS = [
   { names: ["delhivery"], display: "Delhivery" },
   { names: ["shadowfax"], display: "Shadowfax" },
   { names: ["xpressbee", "xpressbees"], display: "Xpressbees" },
-  { names: ["flipkart logistics", "ekart"], display: "Ekart" },
+  { names: ["e-kart logistics", "flipkart logistics", "ekart"], display: "E-Kart Logistics" },
   { names: ["india post", "speed post"], display: "India Post" },
   { names: ["blue dart", "bluedart"], display: "Blue Dart" },
   { names: ["amazon logistic", "amazon shipping"], display: "Amazon" },
@@ -154,19 +154,135 @@ export function resolveLabelSku(normalizedText: string): string | null {
 }
 
 export interface ExtractedFields {
+  marketplace: "meesho" | "flipkart" | "unknown";
   sku: string | null;
   qty: number | null;
   partner: string;
+  payment: "prepaid" | "cod" | "unknown";
   brand: string | null;
+}
+
+function resolvePaymentMode(normalizedText: string): ExtractedFields["payment"] {
+  const t = normalizedText.replace(/\s+/g, " ");
+  const header = t.slice(0, 1200);
+  const codPattern =
+    /\b(?:COD(?:\s*:\s*Check\s+the\s+payable\s+amount\s+on\s+the\s+app)?|Cash\s+on\s+Delivery)\b/i;
+  if (codPattern.test(header)) return "cod";
+  if (/\b(?:PREPAID|Pre\s*Paid|Paid\s+Online|Online\s+Payment)\b/i.test(header)) {
+    return "prepaid";
+  }
+  if (codPattern.test(t)) return "cod";
+  if (/\b(?:PREPAID|Pre\s*Paid|Paid\s+Online|Online\s+Payment)\b/i.test(t)) {
+    return "prepaid";
+  }
+  return "unknown";
+}
+
+function detectMarketplace(normalizedText: string): ExtractedFields["marketplace"] {
+  const t = normalizedText;
+  const lc = t.toLowerCase();
+  let flipkartScore = 0;
+  if (/\bOD\d{12,}\b/i.test(t)) flipkartScore += 3;
+  if (/\bSKU\s*ID\s*\|\s*Description\s+QTY\b/i.test(t)) flipkartScore += 3;
+  if (/\b(?:AWB|WB)\s*No\.?\b/i.test(t)) flipkartScore += 1;
+  if (/\bTax\s+Invoice\b/i.test(t) && /\bOrdered\s+through\b/i.test(t)) flipkartScore += 1;
+  if (/\bFlipkart\b/i.test(t)) flipkartScore += 1;
+  if (flipkartScore >= 3) return "flipkart";
+
+  if (
+    lc.includes("meesho") ||
+    lc.includes("sub_order") ||
+    lc.includes("product details") ||
+    /\bsku\b/i.test(t)
+  ) {
+    return "meesho";
+  }
+
+  return "unknown";
+}
+
+function resolveFlipkartSku(normalizedText: string): string | null {
+  const t = normalizedText.replace(/\s+/g, " ").trim();
+
+  const table = t.match(
+    /\bSKU\s*ID\s*\|\s*Description\s+QTY\s+\d+\s+(.+?)\s+\|\s+.+?\s+(\d{1,4})\b/i
+  );
+  if (table?.[1]) {
+    const sku = table[1].trim();
+    if (sku.length >= 2 && sku.length <= 80) return sku;
+  }
+
+  const product = t.match(
+    /\bProduct\s+Description\s+Qty\b.+?\s([A-Za-z0-9][A-Za-z0-9._-]{1,80})\s+\|\s+\1\b/i
+  );
+  if (product?.[1]) return product[1].trim();
+
+  const pipe = t.match(/\|\s*([A-Za-z0-9][A-Za-z0-9._-]{1,80})\s*\|\s*IMEI\/SrNo/i);
+  if (pipe?.[1]) return pipe[1].trim();
+
+  return null;
+}
+
+function resolveFlipkartQuantity(normalizedText: string): number | null {
+  const t = normalizedText.replace(/\s+/g, " ").trim();
+  const table = t.match(
+    /\bSKU\s*ID\s*\|\s*Description\s+QTY\s+\d+\s+[^\|]{2,90}\s+\|.{0,240}?\s+(\d{1,4})\s+(?=[A-Z]{2,}[A-Z0-9]{6,}\b|\bTax\s+Invoice\b|\bOrder\s+Id\b)/i
+  );
+  if (table?.[1]) {
+    const n = parseInt(table[1], 10);
+    if (Number.isFinite(n)) return n;
+  }
+
+  const total = t.match(/\bTOTAL\s+QTY\s*:\s*(\d{1,4})\b/i);
+  if (total?.[1]) {
+    const n = parseInt(total[1], 10);
+    if (Number.isFinite(n)) return n;
+  }
+
+  return resolveQuantity(normalizedText);
+}
+
+function resolveFlipkartPartner(normalizedText: string): string {
+  const t = normalizedText.replace(/\s+/g, " ").trim();
+  const known = resolvePickupPartner(t);
+  if (known !== "Unknown") return known;
+
+  const header = t.slice(0, 700);
+  const beforeOrder = header.match(
+    /\b([A-Z][A-Za-z&./ -]{2,48}?(?:Logistics|Express|Courier|Surface|Shipping|Transport|Services))\s+OD\d{12,}\b/i
+  );
+  if (beforeOrder?.[1]) return beforeOrder[1].replace(/\s+/g, " ").trim();
+
+  const awb = t.match(/\b(?:AWB|WB)\s*No\.?\s*[:.-]?\s*([A-Z0-9-]{6,})\b/i);
+  if (awb?.[1]) {
+    const code = awb[1].toUpperCase();
+    if (code.startsWith("FMP")) return "E-Kart Logistics";
+    if (code.startsWith("SF")) return "Shadowfax";
+    if (code.startsWith("DL")) return "Delhivery";
+    if (code.startsWith("XB")) return "Xpressbees";
+  }
+
+  return "Unknown";
 }
 
 export function extractMeeshoFields(rawText: string): ExtractedFields {
   const normalized = rawText.replace(/\u00a0/g, " ").replace(/\r/g, "");
+  const marketplace = detectMarketplace(normalized);
+  if (marketplace === "flipkart") {
+    const partner = resolveFlipkartPartner(normalized);
+    const qty = resolveFlipkartQuantity(normalized);
+    const payment = resolvePaymentMode(normalized);
+    const brand = resolveBrandIdentifier(normalized);
+    const sku = resolveFlipkartSku(normalized);
+    return { marketplace, sku, qty, partner, payment, brand };
+  }
+
   const partner = resolvePickupPartner(normalized);
   const qty = resolveQuantity(normalized);
+  const payment = resolvePaymentMode(normalized);
   const brand = resolveBrandIdentifier(normalized);
   let sku = resolveLabelSku(normalized);
   sku = sku ? sku.trim() : sku;
   if (sku?.length !== undefined && sku.length < 4) sku = null;
-  return { sku, qty, partner, brand };
+  return { marketplace, sku, qty, partner, payment, brand };
 }

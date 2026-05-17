@@ -392,7 +392,7 @@ function SidebarChrome({
                     </span>
                   </div>
                   <p className="mt-1 truncate text-[11px] font-medium text-sidebar-foreground/48">
-                    Meesho dispatch workspace
+                    Marketplace dispatch workspace
                   </p>
                 </div>
               </div>

@@ -25,7 +25,7 @@ function pageChrome(pathname: string) {
   if (p === "/" || p === "") {
     return {
       title: "Tulmin",
-      subtitle: "Smart label filtering for Meesho sellers",
+      subtitle: "Smart label filtering for marketplace sellers",
       ctaHref: "/mapping",
       ctaLabel: "Map SKUs",
     };
@@ -88,7 +88,7 @@ function pageChrome(pathname: string) {
   }
   return {
     title: "Tulmin",
-    subtitle: "Meesho dispatch · labels",
+    subtitle: "Marketplace dispatch · labels",
     ctaHref: "/export-labels",
     ctaLabel: "Start run",
   };
@@ -150,7 +150,7 @@ export function AppTopbar({
                 Tulmin
               </span>
               <span className="mt-px block truncate text-[11px] font-medium text-muted-foreground">
-                Smart label filtering for Meesho sellers
+                Smart label filtering for marketplace sellers
               </span>
             </div>
 
