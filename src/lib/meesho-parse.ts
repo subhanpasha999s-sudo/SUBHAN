@@ -186,17 +186,25 @@ function detectMarketplace(normalizedText: string): ExtractedFields["marketplace
   const lc = t.toLowerCase();
   let flipkartScore = 0;
   if (/\bOD\d{12,}\b/i.test(t)) flipkartScore += 3;
-  if (/\bSKU\s*ID\s*\|\s*Description\s+QTY\b/i.test(t)) flipkartScore += 3;
+  if (/\bSKU\s*ID\s*\|?\s*Description\s+QTY\b/i.test(t)) flipkartScore += 3;
   if (/\b(?:AWB|WB)\s*No\.?\b/i.test(t)) flipkartScore += 1;
+  if (/\bProduct\s+Description\s+Qty\b/i.test(t)) flipkartScore += 2;
+  if (/\bOrdered\s+through\b/i.test(t)) flipkartScore += 2;
   if (/\bTax\s+Invoice\b/i.test(t) && /\bOrdered\s+through\b/i.test(t)) flipkartScore += 1;
   if (/\bFlipkart\b/i.test(t)) flipkartScore += 1;
   if (flipkartScore >= 3) return "flipkart";
 
+  let meeshoScore = 0;
+  if (lc.includes("meesho")) meeshoScore += 3;
+  if (lc.includes("sub_order")) meeshoScore += 3;
+  if (lc.includes("product details")) meeshoScore += 2;
+  if (/\bSKU\b/i.test(t) && /\bFree\s+Size\b/i.test(t)) meeshoScore += 1;
+  if (/\b(?:COD|PREPAID|Exchange)\b/i.test(t) && /\bProduct\s+Details\b/i.test(t)) {
+    meeshoScore += 1;
+  }
   if (
-    lc.includes("meesho") ||
-    lc.includes("sub_order") ||
-    lc.includes("product details") ||
-    /\bsku\b/i.test(t)
+    meeshoScore >= 3 ||
+    (meeshoScore >= 2 && !/\b(?:OD\d{12,}|Flipkart|Ordered\s+through)\b/i.test(t))
   ) {
     return "meesho";
   }

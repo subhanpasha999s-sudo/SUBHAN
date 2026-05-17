@@ -44,15 +44,17 @@ export function isAmazonInvoiceText(rawText: string): boolean {
 
 export function isAmazonShippingLabelText(rawText: string): boolean {
   const t = rawText.replace(/\s+/g, " ");
+  const hasAmazonFooter = /\bSold\s+on\s*:\s*www\s*\.?\s*amazon\s*\.?\s*in\b/i.test(t);
+  const hasAmazonOrderId = /\bOrder\s+Id\s*[:#-]?\s*[0-9]{3}\s*[-–—]\s*[0-9]{7}\s*[-–—]\s*[0-9]{7}\b/i.test(t);
   let score = 0;
-  if (/\bSold\s+on\s*:\s*www\s*\.?\s*amazon\s*\.?\s*in\b/i.test(t)) score += 3;
+  if (hasAmazonFooter) score += 3;
   if (/\bOrder\s+Id\b/i.test(t)) score += 2;
   if (/\bShip\s+To\b/i.test(t)) score += 1;
   if (/\bAWB\b/i.test(t)) score += 1;
   if (/\bPREPAID\b|\bCOD\b/i.test(t)) score += 1;
   if (/\bDelivery\s+Station\b|\bSort\s*Zone\b|\bSector\b/i.test(t)) score += 1;
   if (/\b(?:ATS|ATSPL|Delhivery|Shadowfax|Blue\s*Dart|Ecom)\b/i.test(t)) score += 1;
-  return score >= 3;
+  return hasAmazonFooter || (hasAmazonOrderId && score >= 5);
 }
 
 export function resolveAmazonPayment(rawText: string): PaymentKind {
