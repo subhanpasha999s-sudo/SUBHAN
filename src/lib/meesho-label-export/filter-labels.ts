@@ -88,7 +88,8 @@ export function applyMeeshoLabelFilters(
     }
 
     const sku = (r.listing_sku ?? "").toLowerCase();
-    if (q && !sku.includes(q)) return false;
+    const orderId = (r.orderId ?? "").toLowerCase();
+    if (q && !sku.includes(q) && !orderId.includes(q)) return false;
 
     const qty = r.quantity;
     if (f.qtyExact != null && Number.isFinite(f.qtyExact)) {

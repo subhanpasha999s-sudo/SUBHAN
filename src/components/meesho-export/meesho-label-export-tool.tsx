@@ -107,6 +107,8 @@ function marketplaceDisplay(value: MarketplaceKind): string {
 
 /** Session key for “already exported” hints — scoped per imported PDF fingerprint. */
 const MEESHO_SKU_EXPORT_MARK_STORAGE = "lable.meeshoSkuExported.v1";
+const AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE =
+  "tulmin.amazonIncludeInvoiceDownload.v1";
 const ROW_MASTER_EXPORT_KEY_UNMAPPED = "__unmapped__";
 
 function rowMasterExportKey(r: EnrichedMeeshoLabelRow): string {
@@ -266,6 +268,8 @@ function enrichAmazonShippingRows(
       ...row,
       listing_sku: invoice.sku || "Unknown",
       quantity: invoice.quantity,
+      invoiceNumber: invoice.invoiceNumber,
+      productName: invoice.productName,
       matchStatus: "Matched",
     };
   });
@@ -1157,8 +1161,8 @@ function LabelPdfFilterFields({
             id="label-filter-listing-sku-desk"
             value={listingSkuSearch}
             onChange={(e) => onListingSkuSearch(e.target.value)}
-            placeholder="Search…"
-            title="SKU, master, courier, qty"
+            placeholder="SKU or order ID…"
+            title="SKU, order ID, master, courier, qty"
             aria-describedby="label-filter-listing-hint-desk"
             className={cn(ctl, "h-10 py-2")}
           />
@@ -1683,7 +1687,14 @@ export function MeeshoLabelExportTool() {
   const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
   const [amazonInvoices, setAmazonInvoices] = React.useState<AmazonInvoiceRecord[]>([]);
   const [includeAmazonInvoicesInDownload, setIncludeAmazonInvoicesInDownload] =
-    React.useState(false);
+    React.useState(() => {
+      if (typeof window === "undefined") return false;
+      try {
+        return window.localStorage.getItem(AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE) === "1";
+      } catch {
+        return false;
+      }
+    });
   const [sourceName, setSourceName] = React.useState("");
   const [parsing, setParsing] = React.useState(false);
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
@@ -1732,6 +1743,17 @@ export function MeeshoLabelExportTool() {
     }
     setMastersExportMarked(loadExportedMasterKeysFromSession(exportMarkFingerprint));
   }, [exportMarkFingerprint]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE,
+        includeAmazonInvoicesInDownload ? "1" : "0"
+      );
+    } catch {
+      /* local preference only */
+    }
+  }, [includeAmazonInvoicesInDownload]);
 
   const exportMarkFingerprintRef = React.useRef(exportMarkFingerprint);
   React.useEffect(() => {
@@ -2667,14 +2689,22 @@ export function MeeshoLabelExportTool() {
     Object.keys(mappedSkuLabelStats.perName).length > 0;
 
   const amazonInvoiceDownloadToggle = showAmazonInvoiceDownloadOption ? (
-    <label className="inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-sm sm:text-xs">
+    <label
+      className="inline-flex min-h-9 max-w-full cursor-pointer items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1.5 text-[11px] font-semibold text-orange-900 shadow-sm ring-1 ring-orange-500/10 dark:text-orange-100 sm:text-xs"
+      title="Amazon labels contain separate invoice pages."
+    >
       <Checkbox
         checked={includeAmazonInvoicesInDownload}
         onCheckedChange={(checked) => setIncludeAmazonInvoicesInDownload(Boolean(checked))}
         aria-label="Include matched Amazon invoices in download"
         className="size-4"
       />
-      <span className="whitespace-nowrap">Include Amazon invoices</span>
+      <span className="min-w-0">
+        <span className="whitespace-nowrap">Include Tax Invoice</span>
+        <span className="hidden text-orange-800/75 dark:text-orange-100/75 md:inline">
+          {" "}with Shipping Labels
+        </span>
+      </span>
     </label>
   ) : null;
 
@@ -2793,6 +2823,11 @@ export function MeeshoLabelExportTool() {
                   <span>{pdfSources.length.toLocaleString()} PDFs</span>
                 ) : null}
               </div>
+              {amazonStats.total > 0 ? (
+                <p className="-mt-2 mb-3 rounded-xl border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-[12px] font-semibold leading-snug text-orange-900 dark:text-orange-100">
+                  Amazon labels contain separate invoice pages.
+                </p>
+              ) : null}
               {amazonStats.unmatched > 0 ? (
                 <p className="-mt-2 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold leading-snug text-amber-800 dark:text-amber-200">
                   Invoice required to fetch SKU.
@@ -2999,8 +3034,8 @@ export function MeeshoLabelExportTool() {
                         id="label-workspace-mobile-search"
                         value={listingSkuSearch}
                         onChange={(e) => setListingSkuSearch(e.target.value)}
-                        placeholder="Search…"
-                        title="SKU, master, courier, qty"
+                        placeholder="SKU or order ID…"
+                        title="SKU, order ID, master, courier, qty"
                         aria-label="Search labels"
                         className="h-11 rounded-2xl border-0 bg-muted/40 py-2 pl-10 pr-3 text-[14px] font-medium shadow-[inset_0_1px_2px_rgb(0_0_0/0.12)] ring-1 ring-white/[0.06] placeholder:text-muted-foreground/55 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)]"
                       />

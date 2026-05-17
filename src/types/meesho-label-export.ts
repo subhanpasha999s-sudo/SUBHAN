@@ -17,6 +17,11 @@ export interface MeeshoLabelRecord {
   payment: PaymentKind;
   fileType?: LabelFileType;
   orderId?: string;
+  awb?: string;
+  customerName?: string;
+  shippingAddress?: string;
+  invoiceNumber?: string;
+  productName?: string;
   matchStatus?: LabelMatchStatus;
   /** 1-based PDF page index */
   page: number;
