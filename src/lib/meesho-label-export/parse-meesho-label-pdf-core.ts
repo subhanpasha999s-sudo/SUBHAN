@@ -1,5 +1,10 @@
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
+import {
+  extractAmazonInvoiceFields,
+  extractAmazonShippingFields,
+  type AmazonInvoiceRecord,
+} from "@/lib/amazon-label-parse";
 import { extractMeeshoFields } from "@/lib/meesho-parse";
 import { loadPdfJsDocument } from "@/lib/pdf/configure-pdfjs";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
@@ -44,6 +49,7 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
   yieldPolicy?: PdfParseYieldPolicy;
 }): Promise<{
   rows: MeeshoLabelRecord[];
+  amazonInvoices: AmazonInvoiceRecord[];
   pdfBytes: Uint8Array;
   error?: string;
 }> {
@@ -54,11 +60,46 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
     const pdfJsDoc = await loadPdfJsDocument(pdfBytes);
     const pageCount = pdfJsDoc.numPages;
     const rows: MeeshoLabelRecord[] = [];
+    const amazonInvoices: AmazonInvoiceRecord[] = [];
 
     for (let page = 1; page <= pageCount; page++) {
       const pageObj = await pdfJsDoc.getPage(page);
       const tc = await pageObj.getTextContent();
       const rawText = textFromContent(tc);
+      const amazonInvoice = extractAmazonInvoiceFields(rawText, page - 1);
+      if (amazonInvoice) {
+        amazonInvoices.push(amazonInvoice);
+        await pageObj.cleanup();
+        opts.onProgress?.(page, pageCount);
+        await yieldForParsePolicy(page, policy);
+        continue;
+      }
+
+      const amazonShipping = extractAmazonShippingFields(rawText);
+      if (amazonShipping) {
+        await pageObj.cleanup();
+
+        rows.push({
+          id: `label-${page}`,
+          listing_sku: "",
+          quantity: null,
+          delivery_partner: amazonShipping.courierPartner,
+          marketplace: "amazon",
+          payment: amazonShipping.payment,
+          fileType: "shipping_label",
+          orderId: amazonShipping.orderId ?? "",
+          matchStatus: amazonShipping.orderId ? "Invoice Missing" : "Invoice Missing",
+          page,
+          rawPageIndex: page - 1,
+          importId: "",
+          sourceFile: "",
+        });
+
+        opts.onProgress?.(page, pageCount);
+        await yieldForParsePolicy(page, policy);
+        continue;
+      }
+
       const extracted = extractMeeshoFields(rawText);
       await pageObj.cleanup();
 
@@ -69,6 +110,8 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
         delivery_partner: extracted.partner,
         marketplace: extracted.marketplace,
         payment: extracted.payment,
+        fileType: "label",
+        matchStatus: "Not Required",
         page,
         rawPageIndex: page - 1,
         importId: "",
@@ -80,12 +123,13 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
     }
 
     await pdfJsDoc.destroy();
-    return { rows, pdfBytes };
+    return { rows, amazonInvoices, pdfBytes };
   } catch (e) {
     const msg =
       e instanceof Error ? e.message : "Invalid or unreadable PDF.";
     return {
       rows: [],
+      amazonInvoices: [],
       pdfBytes: new Uint8Array(),
       error: msg,
     };

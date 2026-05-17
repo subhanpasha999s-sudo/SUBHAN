@@ -1,5 +1,11 @@
-export type MarketplaceKind = "meesho" | "flipkart" | "unknown";
+export type MarketplaceKind = "meesho" | "flipkart" | "amazon" | "unknown";
 export type PaymentKind = "prepaid" | "cod" | "exchange" | "unknown";
+export type LabelFileType = "shipping_label" | "invoice" | "label";
+export type LabelMatchStatus =
+  | "Matched"
+  | "Invoice Missing"
+  | "Shipping Label Missing"
+  | "Not Required";
 
 /** One marketplace label page after PDF text extraction (strict scope: no PII fields). */
 export interface MeeshoLabelRecord {
@@ -9,6 +15,9 @@ export interface MeeshoLabelRecord {
   delivery_partner: string;
   marketplace: MarketplaceKind;
   payment: PaymentKind;
+  fileType?: LabelFileType;
+  orderId?: string;
+  matchStatus?: LabelMatchStatus;
   /** 1-based PDF page index */
   page: number;
   /** 0-based page index from the source PDF. */

@@ -62,6 +62,10 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
+import {
+  normalizeAmazonOrderId,
+  type AmazonInvoiceRecord,
+} from "@/lib/amazon-label-parse";
 import type {
   MarketplaceKind,
   MeeshoLabelRecord,
@@ -87,6 +91,19 @@ import type { VirtualListTuning } from "@/lib/runtime/performance-tier";
 const ROW_H = 42;
 /** Virtual row estimate — mapped rows add a “Mapped to” line; refined by `measureElement`. */
 const CARD_ROW_H = 108;
+
+function marketplaceDisplay(value: MarketplaceKind): string {
+  switch (value) {
+    case "amazon":
+      return "Amazon";
+    case "flipkart":
+      return "Flipkart";
+    case "meesho":
+      return "Meesho";
+    default:
+      return "Unknown";
+  }
+}
 
 /** Session key for “already exported” hints — scoped per imported PDF fingerprint. */
 const MEESHO_SKU_EXPORT_MARK_STORAGE = "lable.meeshoSkuExported.v1";
@@ -222,6 +239,44 @@ type ImportedPdfSource = {
   pdfBytes: Uint8Array;
   order: number;
 };
+
+function enrichAmazonShippingRows(
+  rows: readonly MeeshoLabelRecord[],
+  invoices: readonly AmazonInvoiceRecord[]
+): MeeshoLabelRecord[] {
+  const invoiceByOrder = new Map<string, AmazonInvoiceRecord>();
+  for (const invoice of invoices) {
+    const key = normalizeAmazonOrderId(invoice.orderId);
+    if (key && !invoiceByOrder.has(key)) invoiceByOrder.set(key, invoice);
+  }
+
+  return rows.map((row) => {
+    if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return row;
+    const key = normalizeAmazonOrderId(row.orderId);
+    const invoice = key ? invoiceByOrder.get(key) : undefined;
+    if (!invoice) {
+      return {
+        ...row,
+        listing_sku: row.listing_sku.trim() || "Unknown",
+        quantity: row.quantity,
+        matchStatus: "Invoice Missing",
+      };
+    }
+    return {
+      ...row,
+      listing_sku: invoice.sku || "Unknown",
+      quantity: invoice.quantity,
+      matchStatus: "Matched",
+    };
+  });
+}
+
+function amazonOverlayText(row: MeeshoLabelRecord): string | undefined {
+  if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return undefined;
+  const sku = row.listing_sku.trim() || "Unknown";
+  const qty = row.quantity == null ? "Unknown" : row.quantity.toLocaleString();
+  return `${sku} x ${qty}`;
+}
 
 /** Compact hint that this mapped SKU bucket was already included in a successful export. */
 function ExportedSkuHint({ className }: { className?: string }) {
@@ -383,7 +438,7 @@ type MarketplaceFilterStats = {
   perMarketplace: Record<MarketplaceKind, number>;
 };
 
-const MARKETPLACE_FILTER_VALUES = ["meesho", "flipkart", "unknown"] as const;
+const MARKETPLACE_FILTER_VALUES = ["meesho", "flipkart", "amazon", "unknown"] as const;
 const PAYMENT_FILTER_VALUES = ["prepaid", "cod", "exchange", "unknown"] as const;
 
 function marketplaceLabel(value: MarketplaceKind | "all"): string {
@@ -392,6 +447,8 @@ function marketplaceLabel(value: MarketplaceKind | "all"): string {
       return "Meesho";
     case "flipkart":
       return "Flipkart";
+    case "amazon":
+      return "Amazon";
     case "unknown":
       return "Unknown";
     default:
@@ -617,7 +674,7 @@ function LabelPdfFilterFields({
       <Select
         value={marketplaceFilter}
         onValueChange={(v) => {
-          if (v === "all" || v === "meesho" || v === "flipkart" || v === "unknown") {
+          if (v === "all" || v === "meesho" || v === "flipkart" || v === "amazon" || v === "unknown") {
             onMarketplaceFilter(v);
           }
         }}
@@ -1357,7 +1414,7 @@ function LabelsVirtualGrid({
                     </div>
                     <div
                       className="flex min-w-0 items-center justify-center overflow-hidden border-l border-border/80 px-3 font-mono text-xs tabular-nums text-muted-foreground"
-                      title={`${r.marketplace === "flipkart" ? "Flipkart" : r.marketplace === "meesho" ? "Meesho" : "Unknown"} · ${r.sourceFile || "PDF"}`}
+                      title={`${marketplaceDisplay(r.marketplace)} · ${r.sourceFile || "PDF"}${r.matchStatus ? ` · ${r.matchStatus}` : ""}`}
                     >
                       {sourceCount > 1 ? `${(sourceOrderByImportId.get(r.importId) ?? 0) + 1}.${r.page}` : r.page}
                     </div>
@@ -1555,7 +1612,7 @@ function LabelsMobileCards({
                           {r.listing_sku || "—"}
                         </p>
                         <span className="shrink-0 rounded-full bg-background/65 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-white/[0.08]">
-                          {r.marketplace === "flipkart" ? "Flipkart" : r.marketplace === "meesho" ? "Meesho" : "Unknown"} · p.{r.page}
+                          {marketplaceDisplay(r.marketplace)} · p.{r.page}
                         </span>
                       </div>
 
@@ -1619,6 +1676,7 @@ export function MeeshoLabelExportTool() {
 
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
   const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
+  const [amazonInvoices, setAmazonInvoices] = React.useState<AmazonInvoiceRecord[]>([]);
   const [sourceName, setSourceName] = React.useState("");
   const [parsing, setParsing] = React.useState(false);
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
@@ -1712,16 +1770,17 @@ export function MeeshoLabelExportTool() {
         total: number;
         meesho: number;
         flipkart: number;
+        amazon: number;
         unknown: number;
       }
     >();
     for (const src of pdfSources) {
-      out.set(src.id, { total: 0, meesho: 0, flipkart: 0, unknown: 0 });
+      out.set(src.id, { total: 0, meesho: 0, flipkart: 0, amazon: 0, unknown: 0 });
     }
     for (const row of rows) {
       const stat =
         out.get(row.importId) ??
-        { total: 0, meesho: 0, flipkart: 0, unknown: 0 };
+        { total: 0, meesho: 0, flipkart: 0, amazon: 0, unknown: 0 };
       stat.total += 1;
       stat[row.marketplace] += 1;
       out.set(row.importId, stat);
@@ -1798,6 +1857,7 @@ export function MeeshoLabelExportTool() {
     const stats = {
       meesho: 0,
       flipkart: 0,
+      amazon: 0,
       unknown: 0,
       invalid: 0,
     };
@@ -1808,12 +1868,27 @@ export function MeeshoLabelExportTool() {
     return stats;
   }, [enrichedRows]);
 
+  const amazonStats = React.useMemo(() => {
+    const amazonRows = enrichedRows.filter((r) => r.marketplace === "amazon");
+    return {
+      total: amazonRows.length,
+      matched: amazonRows.filter((r) => r.matchStatus === "Matched").length,
+      unmatched: amazonRows.filter((r) => r.matchStatus !== "Matched").length,
+      skuDetected: amazonRows.filter((r) => r.listing_sku.trim() && r.listing_sku !== "Unknown").length,
+      quantityDetected: amazonRows.filter((r) => r.quantity != null).length,
+      courierDetected: amazonRows.filter((r) => r.delivery_partner.trim() && r.delivery_partner !== "Unknown").length,
+      paymentDetected: amazonRows.filter((r) => r.payment !== "unknown").length,
+      invoices: amazonInvoices.length,
+    };
+  }, [amazonInvoices.length, enrichedRows]);
+
   const marketplaceFilterStats = React.useMemo<MarketplaceFilterStats>(
     () => ({
       total: enrichedRows.length,
       perMarketplace: {
         meesho: marketplaceStats.meesho,
         flipkart: marketplaceStats.flipkart,
+        amazon: marketplaceStats.amazon,
         unknown: marketplaceStats.unknown,
       },
     }),
@@ -2108,6 +2183,7 @@ export function MeeshoLabelExportTool() {
           importKey: r.importId,
           sourcePdfBytes: src.pdfBytes,
           pageOneBased: r.page,
+          overlayText: amazonOverlayText(r),
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
@@ -2119,10 +2195,13 @@ export function MeeshoLabelExportTool() {
       .filter((src) => src.id !== importId)
       .map((src, order) => ({ ...src, order }));
     const remainingRows = rows.filter((row) => row.importId !== importId);
-    const remainingIds = new Set(remainingRows.map((row) => row.id));
+    const remainingInvoices = amazonInvoices.filter((invoice) => invoice.sourceFile !== removed?.fileName);
+    const rematchedRows = enrichAmazonShippingRows(remainingRows, remainingInvoices);
+    const remainingIds = new Set(rematchedRows.map((row) => row.id));
 
     setPdfSources(remainingSources);
-    setRows(remainingRows);
+    setAmazonInvoices(remainingInvoices);
+    setRows(rematchedRows);
     setSelected((prev) => {
       const next: Record<string, true> = {};
       for (const id of Object.keys(prev)) {
@@ -2171,6 +2250,7 @@ export function MeeshoLabelExportTool() {
 
     const nextRows: MeeshoLabelRecord[] = [];
     const nextSources: ImportedPdfSource[] = [];
+    const nextAmazonInvoices: AmazonInvoiceRecord[] = [];
     const failures: string[] = [];
     let completedPages = 0;
     const existingSourceCount = pdfSources.length;
@@ -2187,7 +2267,7 @@ export function MeeshoLabelExportTool() {
           setParseProgress([completedPages + done, completedPages + Math.max(done, total)]),
       });
 
-      if (res.error || res.rows.length === 0) {
+      if (res.error || (res.rows.length === 0 && res.amazonInvoices.length === 0)) {
         failures.push(file.name);
         trackEvent("meesho_pdf_import_failed", {
           reason: res.error ? "parse_error" : "empty_pdf",
@@ -2211,13 +2291,19 @@ export function MeeshoLabelExportTool() {
           sourceFile: file.name,
         }))
       );
+      nextAmazonInvoices.push(
+        ...res.amazonInvoices.map((invoice) => ({
+          ...invoice,
+          sourceFile: file.name,
+        }))
+      );
       completedPages += res.rows.length;
     }
 
     setParsing(false);
     setParseProgress(null);
 
-    if (nextRows.length === 0) {
+    if (nextRows.length === 0 && nextAmazonInvoices.length === 0) {
       notify.error("Could not parse this PDF", {
         description:
           failures.length > 0
@@ -2227,10 +2313,12 @@ export function MeeshoLabelExportTool() {
       return;
     }
 
-    const mergedRows = [...rows, ...nextRows];
+    const mergedInvoices = [...amazonInvoices, ...nextAmazonInvoices];
+    const mergedRows = enrichAmazonShippingRows([...rows, ...nextRows], mergedInvoices);
     const mergedSources = [...pdfSources, ...nextSources];
 
     setRows(mergedRows);
+    setAmazonInvoices(mergedInvoices);
     setPdfSources(mergedSources);
     setSourceName(
       mergedSources.length === 1
@@ -2240,10 +2328,12 @@ export function MeeshoLabelExportTool() {
 
     const flipkart = mergedRows.filter((r) => r.marketplace === "flipkart").length;
     const meesho = mergedRows.filter((r) => r.marketplace === "meesho").length;
+    const amazon = mergedRows.filter((r) => r.marketplace === "amazon").length;
+    const amazonMatched = mergedRows.filter((r) => r.marketplace === "amazon" && r.matchStatus === "Matched").length;
     const invalid = mergedRows.filter((r) => !r.listing_sku.trim()).length;
 
     notify.success("Imported", {
-      description: `${nextRows.length.toLocaleString()} added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
+      description: `${nextRows.length.toLocaleString()} labels added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart · ${amazon.toLocaleString()} Amazon${amazon ? ` (${amazonMatched.toLocaleString()} matched)` : ""}${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
     });
     trackEvent("meesho_pdf_import_succeeded", {
       file_count: nextSources.length,
@@ -2251,6 +2341,9 @@ export function MeeshoLabelExportTool() {
       total_label_count: mergedRows.length,
       flipkart_count: flipkart,
       meesho_count: meesho,
+      amazon_count: amazon,
+      amazon_invoice_count: mergedInvoices.length,
+      amazon_matched_count: amazonMatched,
       invalid_count: invalid,
       size_bytes: pdfFiles.reduce((sum, file) => sum + file.size, 0),
       signed_in: Boolean(userId),
@@ -2589,7 +2682,7 @@ export function MeeshoLabelExportTool() {
                     Import labels
                   </p>
                   <p className="mx-auto max-w-sm text-[13px] leading-snug text-muted-foreground">
-                    Drop Meesho and Flipkart PDFs together. Tulmin detects each page automatically.
+                    Drop Meesho, Flipkart, and Amazon label/invoice PDFs together.
                   </p>
                 </div>
                 <Button
@@ -2618,6 +2711,22 @@ export function MeeshoLabelExportTool() {
               <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-700 ring-1 ring-blue-500/20 dark:text-blue-200">
                 Flipkart {marketplaceStats.flipkart.toLocaleString()}
               </span>
+              <span className="inline-flex rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-700 ring-1 ring-orange-500/20 dark:text-orange-200">
+                Amazon {marketplaceStats.amazon.toLocaleString()}
+              </span>
+              {amazonStats.total > 0 || amazonStats.invoices > 0 ? (
+                <>
+                  <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
+                    Amazon matched {amazonStats.matched.toLocaleString()}
+                  </span>
+                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+                    Amazon unmatched {amazonStats.unmatched.toLocaleString()}
+                  </span>
+                  <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-border/60">
+                    SKU {amazonStats.skuDetected.toLocaleString()} · Qty {amazonStats.quantityDetected.toLocaleString()} · Courier {amazonStats.courierDetected.toLocaleString()} · Payment {amazonStats.paymentDetected.toLocaleString()}
+                  </span>
+                </>
+              ) : null}
               {marketplaceStats.invalid > 0 ? (
                 <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
                   Review {marketplaceStats.invalid.toLocaleString()}
@@ -2642,10 +2751,11 @@ export function MeeshoLabelExportTool() {
                 {pdfSources.map((src) => {
                   const stat =
                     sourceLabelStats.get(src.id) ??
-                    { total: 0, meesho: 0, flipkart: 0, unknown: 0 };
+                    { total: 0, meesho: 0, flipkart: 0, amazon: 0, unknown: 0 };
                   const marketplaceParts = [
                     stat.meesho > 0 ? `Meesho ${stat.meesho}` : "",
                     stat.flipkart > 0 ? `Flipkart ${stat.flipkart}` : "",
+                    stat.amazon > 0 ? `Amazon ${stat.amazon}` : "",
                     stat.unknown > 0 ? `Unknown ${stat.unknown}` : "",
                   ].filter(Boolean);
                   const label =

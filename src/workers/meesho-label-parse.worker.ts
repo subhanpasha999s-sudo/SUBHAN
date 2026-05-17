@@ -2,6 +2,7 @@
 
 import { parseMeeshoLabelPdfFromBytes } from "@/lib/meesho-label-export/parse-meesho-label-pdf-core";
 
+import type { AmazonInvoiceRecord } from "@/lib/amazon-label-parse";
 import type { PdfParseYieldPolicy } from "@/lib/runtime/performance-tier";
 import type { MeeshoLabelRecord } from "@/types/meesho-label-export";
 
@@ -16,6 +17,7 @@ type WorkerOut =
   | {
       kind: "result";
       rows: MeeshoLabelRecord[];
+      amazonInvoices: AmazonInvoiceRecord[];
       error?: string;
       pdfBuffer: ArrayBuffer;
     }
@@ -62,6 +64,7 @@ self.addEventListener("message", (e: MessageEvent<unknown>) => {
         {
           kind: "result",
           rows: out.rows,
+          amazonInvoices: out.amazonInvoices,
           error: out.error,
           pdfBuffer,
         } satisfies WorkerOut,

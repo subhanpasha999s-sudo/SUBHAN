@@ -8,7 +8,7 @@ export async function exportPdfPages(
   sourcePdfBytes: Uint8Array,
   pagesOneBased: number[]
 ): Promise<Uint8Array> {
-  const { PDFDocument } = await import("pdf-lib");
+  const { PDFDocument, rgb } = await import("pdf-lib");
 
   const uniqueSorted = [...new Set(pagesOneBased)]
     .filter((p) => Number.isInteger(p) && p >= 1)
@@ -44,7 +44,7 @@ export async function exportPdfPagesInOrder(
   sourcePdfBytes: Uint8Array,
   pagesOneBased: readonly number[]
 ): Promise<Uint8Array> {
-  const { PDFDocument } = await import("pdf-lib");
+  const { PDFDocument, rgb } = await import("pdf-lib");
 
   const seen = new Set<number>();
   const order: number[] = [];
@@ -86,12 +86,14 @@ export async function exportPdfPagesFromMultiSourceOrdered(
     importKey: string;
     sourcePdfBytes: Uint8Array;
     pageOneBased: number;
+    overlayText?: string;
   }[]
 ): Promise<Uint8Array> {
   if (steps.length === 0) throw new Error("No pages to export.");
 
-  const { PDFDocument } = await import("pdf-lib");
+  const { PDFDocument, rgb } = await import("pdf-lib");
   const out = await PDFDocument.create();
+  const font = await out.embedFont("Helvetica-Bold");
   type LoadedPdfDoc = Awaited<ReturnType<typeof PDFDocument.load>>;
   const docCache = new Map<string, LoadedPdfDoc>();
 
@@ -114,6 +116,32 @@ export async function exportPdfPagesFromMultiSourceOrdered(
       );
     }
     const [copied] = await out.copyPages(src, [p - 1]);
+    if (step.overlayText?.trim()) {
+      const { width, height } = copied.getSize();
+      const text = step.overlayText.trim();
+      const fontSize = Math.max(11, Math.min(16, width / Math.max(18, text.length * 0.55)));
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const boxW = Math.min(width * 0.72, textWidth + 24);
+      const boxH = fontSize + 12;
+      const x = (width - boxW) / 2;
+      const y = Math.max(42, height * 0.28);
+      copied.drawRectangle({
+        x,
+        y,
+        width: boxW,
+        height: boxH,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 0.75,
+      });
+      copied.drawText(text, {
+        x: x + (boxW - textWidth) / 2,
+        y: y + 6,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
     out.addPage(copied);
   }
 
