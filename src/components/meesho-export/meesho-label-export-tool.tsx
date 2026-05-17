@@ -144,7 +144,7 @@ function importFailureCopy(failures: readonly ImportFailure[]): {
     return {
       title: "Could not read this PDF",
       description:
-        "Root cause: this PDF has no selectable text layer. Upload the original marketplace PDF export; scanned/image PDFs need OCR before Tulmin can detect labels.",
+        "Root cause: this PDF has no selectable text layer, and OCR could not detect a supported label. Upload the original marketplace PDF export or a clearer scan.",
     };
   }
 
@@ -160,7 +160,7 @@ function importFailureCopy(failures: readonly ImportFailure[]): {
     return {
       title: "Amazon shipping labels not detected",
       description:
-        "Tulmin read the Amazon tax invoice page, but no shipping-label page was detected. Upload the original Amazon PDF with shipping labels; scanned/image label pages need OCR before they can be filtered.",
+        "Tulmin read the Amazon tax invoice page, but no shipping-label page was detected. Upload the original Amazon PDF with shipping labels, or a clearer scan if the label is image-based.",
     };
   }
 

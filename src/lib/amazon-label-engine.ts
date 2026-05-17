@@ -106,6 +106,7 @@ function normalizeCourier(value: string): string {
   if (/^(?:ATS|ATSPL|Amazon\s+Transport(?:ation)?\s+Service(?:s)?)(?:\s+Pvt\.?\s+Ltd\.?)?$/i.test(v)) {
     return "Amazon Transport Service";
   }
+  if (/^ASL$/i.test(v)) return "Amazon Transport Service";
   if (/^Blue\s*Dart$/i.test(v) || /^BlueDart$/i.test(v)) return "Blue Dart";
   if (/^Ecom(?:\s+Express)?$/i.test(v)) return "Ecom Express";
   return v;
@@ -124,7 +125,7 @@ function extractAmazonCourier(rawText: string): string {
     if (value) return normalizeCourier(value);
   }
 
-  const known = t.match(/\b(ATS|ATSPL|Amazon\s+Transport(?:ation)?\s+Service(?:s)?|Delhivery|Ecom\s+Express|Ecom|Xpressbees|Blue\s*Dart|BlueDart|Shadowfax)\b/i);
+  const known = t.match(/\b(ATS|ATSPL|ASL|Amazon\s+Transport(?:ation)?\s+Service(?:s)?|Delhivery|Ecom\s+Express|Ecom|Xpressbees|Blue\s*Dart|BlueDart|Shadowfax)\b/i);
   return known?.[1] ? normalizeCourier(known[1]) : "Unknown";
 }
 

@@ -15,12 +15,13 @@
     "preview": "npx serve@14 out -l 3000",
     "start": "npx serve@14 out -l 3000",
     "lint": "eslint .",
-    "postinstall": "patch-package && (cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || true)"
+    "postinstall": "patch-package && (cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || true) && (mkdir -p public/ocr/tesseract-core && cp node_modules/tesseract.js/dist/worker.min.js public/ocr/worker.min.js && cp node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz public/ocr/eng.traineddata.gz && cp node_modules/tesseract.js-core/tesseract-core*.js node_modules/tesseract.js-core/tesseract-core*.wasm public/ocr/tesseract-core/ || true)"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-virtual": "^3.13.24",
+    "@tesseract.js-data/eng": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
@@ -37,6 +38,7 @@
     "shadcn": "^4.6.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
+    "tesseract.js": "^7.0.0",
     "tw-animate-css": "^1.4.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.12"

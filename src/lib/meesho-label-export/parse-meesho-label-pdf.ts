@@ -29,7 +29,15 @@ const emptyStats: PdfLabelParseStats = {
   parsedAmazonInvoicePageCount: 0,
   unreadablePageCount: 0,
   unrecognizedTextPageCount: 0,
+  ocrPageCount: 0,
 };
+
+function shouldRetryWithOcr(result: ParseResult): boolean {
+  return (
+    result.stats.unreadablePageCount > 0 &&
+    (result.rows.length === 0 || result.amazonInvoices.length > 0)
+  );
+}
 
 async function parseViaWorker(opts: {
   file: File;
@@ -121,13 +129,14 @@ export async function parseMeeshoLabelPdf(opts: {
 }): Promise<ParseResult> {
   const yieldPolicy = opts.yieldPolicy ?? "balanced";
 
-  const runMain = async () => {
+  const runMain = async (enableOcrFallback: boolean) => {
     const pdfBytes = await fileToUint8Array(opts.file);
     return raceWithTimeout(
       parseMeeshoLabelPdfFromBytes({
         pdfBytes,
         onProgress: opts.onProgress,
         yieldPolicy,
+        enableOcrFallback,
       }),
       PARSE_DEADLINE_MS,
       "PDF parse",
@@ -136,16 +145,18 @@ export async function parseMeeshoLabelPdf(opts: {
 
   if (canUseDedicatedModuleWorker()) {
     try {
-      return await raceWithTimeout(
+      const workerResult = await raceWithTimeout(
         parseViaWorker({ ...opts, yieldPolicy }),
         PARSE_DEADLINE_MS,
         "PDF parse (worker)",
       );
+      if (shouldRetryWithOcr(workerResult)) return runMain(true);
+      return workerResult;
     } catch {
       /** Worker unavailable, timed out, or threw — same-origin / WebView quirks */
-      return runMain();
+      return runMain(true);
     }
   }
 
-  return runMain();
+  return runMain(true);
 }

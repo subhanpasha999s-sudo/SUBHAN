@@ -1,7 +1,8 @@
-import type { TextContent } from "pdfjs-dist/types/src/display/api";
+import type { PDFPageProxy, TextContent } from "pdfjs-dist/types/src/display/api";
 
 import {
   parseAmazonPage,
+  type AmazonParsedPage,
   type AmazonTaxInvoicePage,
 } from "@/lib/amazon-label-engine";
 import { extractMeeshoFields } from "@/lib/meesho-parse";
@@ -44,6 +45,7 @@ export type PdfLabelParseStats = {
   parsedAmazonInvoicePageCount: number;
   unreadablePageCount: number;
   unrecognizedTextPageCount: number;
+  ocrPageCount: number;
 };
 
 function emptyParseStats(): PdfLabelParseStats {
@@ -54,7 +56,77 @@ function emptyParseStats(): PdfLabelParseStats {
     parsedAmazonInvoicePageCount: 0,
     unreadablePageCount: 0,
     unrecognizedTextPageCount: 0,
+    ocrPageCount: 0,
   };
+}
+
+function addAmazonParsedPage(opts: {
+  amazonPage: AmazonParsedPage;
+  page: number;
+  rows: MeeshoLabelRecord[];
+  amazonInvoices: AmazonTaxInvoicePage[];
+  stats: PdfLabelParseStats;
+}): boolean {
+  const { amazonPage, page, rows, amazonInvoices, stats } = opts;
+  if (amazonPage.type === "tax_invoice") {
+    amazonInvoices.push(amazonPage.invoice);
+    stats.parsedAmazonInvoicePageCount += 1;
+    return true;
+  }
+
+  if (amazonPage.type === "shipping_label") {
+    const amazonShipping = amazonPage.shipping;
+    stats.parsedLabelPageCount += 1;
+    rows.push({
+      id: `label-${page}`,
+      listing_sku: "",
+      quantity: null,
+      delivery_partner: amazonShipping.courierPartner,
+      marketplace: "amazon",
+      payment: amazonShipping.payment,
+      fileType: "shipping_label",
+      orderId: amazonShipping.orderId ?? "",
+      awb: amazonShipping.awb ?? "",
+      customerName: amazonShipping.customerName ?? "",
+      shippingAddress: amazonShipping.shippingAddress ?? "",
+      matchStatus: "Invoice Missing",
+      page,
+      rawPageIndex: page - 1,
+      importId: "",
+      sourceFile: "",
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function renderPdfPageForOcr(pageObj: PDFPageProxy): Promise<string | null> {
+  if (typeof document === "undefined") return null;
+  const viewport = pageObj.getViewport({ scale: 2.2 });
+  const canvas = document.createElement("canvas");
+  const width = Math.ceil(viewport.width);
+  const height = Math.ceil(viewport.height);
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) return null;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, width, height);
+  await pageObj.render({ canvasContext: ctx, viewport, canvas }).promise;
+  return canvas.toDataURL("image/png");
+}
+
+async function recognizePdfPageText(pageObj: PDFPageProxy): Promise<string> {
+  const image = await renderPdfPageForOcr(pageObj);
+  if (!image) return "";
+  const Tesseract = (await import("tesseract.js")).default;
+  const result = await Tesseract.recognize(image, "eng", {
+    workerPath: "/ocr/worker.min.js",
+    langPath: "/ocr",
+    corePath: "/ocr/tesseract-core",
+  });
+  return result.data.text;
 }
 
 /**
@@ -66,6 +138,8 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
   onProgress?: (done: number, total: number) => void;
   /** Schedules cooperative yields — weak devices stay responsive on main-thread fallback. */
   yieldPolicy?: PdfParseYieldPolicy;
+  /** Slow fallback for image-only Amazon pages. Available on the browser main thread. */
+  enableOcrFallback?: boolean;
 }): Promise<{
   rows: MeeshoLabelRecord[];
   amazonInvoices: AmazonTaxInvoicePage[];
@@ -91,45 +165,38 @@ export async function parseMeeshoLabelPdfFromBytes(opts: {
       if (normalizedText.length >= 12) stats.textPageCount += 1;
 
       const amazonPage = parseAmazonPage(rawText, page - 1);
-      if (amazonPage.type === "tax_invoice") {
-        amazonInvoices.push(amazonPage.invoice);
-        stats.parsedAmazonInvoicePageCount += 1;
+      if (addAmazonParsedPage({ amazonPage, page, rows, amazonInvoices, stats })) {
         await pageObj.cleanup();
-        opts.onProgress?.(page, pageCount);
-        await yieldForParsePolicy(page, policy);
-        continue;
-      }
-
-      if (amazonPage.type === "shipping_label") {
-        const amazonShipping = amazonPage.shipping;
-        await pageObj.cleanup();
-        stats.parsedLabelPageCount += 1;
-
-        rows.push({
-          id: `label-${page}`,
-          listing_sku: "",
-          quantity: null,
-          delivery_partner: amazonShipping.courierPartner,
-          marketplace: "amazon",
-          payment: amazonShipping.payment,
-          fileType: "shipping_label",
-          orderId: amazonShipping.orderId ?? "",
-          awb: amazonShipping.awb ?? "",
-          customerName: amazonShipping.customerName ?? "",
-          shippingAddress: amazonShipping.shippingAddress ?? "",
-          matchStatus: amazonShipping.orderId ? "Invoice Missing" : "Invoice Missing",
-          page,
-          rawPageIndex: page - 1,
-          importId: "",
-          sourceFile: "",
-        });
-
         opts.onProgress?.(page, pageCount);
         await yieldForParsePolicy(page, policy);
         continue;
       }
 
       if (normalizedText.length < 12) {
+        if (opts.enableOcrFallback) {
+          const ocrText = await recognizePdfPageText(pageObj);
+          const normalizedOcrText = ocrText.replace(/\s+/g, " ").trim();
+          if (normalizedOcrText.length >= 12) {
+            stats.ocrPageCount += 1;
+            const ocrAmazonPage = parseAmazonPage(ocrText, page - 1);
+            if (
+              addAmazonParsedPage({
+                amazonPage: ocrAmazonPage,
+                page,
+                rows,
+                amazonInvoices,
+                stats,
+              })
+            ) {
+              await pageObj.cleanup();
+              opts.onProgress?.(page, pageCount);
+              await yieldForParsePolicy(page, policy);
+              continue;
+            }
+            stats.unrecognizedTextPageCount += 1;
+          }
+        }
+
         stats.unreadablePageCount += 1;
         await pageObj.cleanup();
         opts.onProgress?.(page, pageCount);
