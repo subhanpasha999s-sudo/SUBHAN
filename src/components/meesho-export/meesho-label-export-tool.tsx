@@ -115,7 +115,12 @@ const AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE =
   "tulmin.amazonIncludeInvoiceDownload.v1";
 const ROW_MASTER_EXPORT_KEY_UNMAPPED = "__unmapped__";
 
-type ImportFailureReason = "parse_error" | "image_only_pdf" | "unrecognized_layout" | "empty_pdf";
+type ImportFailureReason =
+  | "parse_error"
+  | "image_only_pdf"
+  | "unrecognized_layout"
+  | "invoice_only"
+  | "empty_pdf";
 
 type ImportFailure = {
   name: string;
@@ -148,6 +153,14 @@ function importFailureCopy(failures: readonly ImportFailure[]): {
       title: "Could not detect labels in this PDF",
       description:
         "The PDF text is readable, but it does not match Meesho, Flipkart, or the new Amazon shipping/invoice layouts.",
+    };
+  }
+
+  if (failures.some((failure) => failure.reason === "invoice_only")) {
+    return {
+      title: "Amazon shipping labels not detected",
+      description:
+        "Tulmin read the Amazon tax invoice page, but no shipping-label page was detected. Upload the original Amazon PDF with shipping labels; scanned/image label pages need OCR before they can be filtered.",
     };
   }
 
@@ -2394,12 +2407,27 @@ export function MeeshoLabelExportTool() {
     setParsing(false);
     setParseProgress(null);
 
-    if (nextRows.length === 0 && nextAmazonInvoices.length === 0) {
+    if (nextRows.length === 0 && rows.length === 0) {
+      const importOnlyFailures =
+        nextAmazonInvoices.length > 0
+          ? [
+              ...failures,
+              ...nextAmazonInvoices.map((invoice) => ({
+                name: invoice.sourceFile || "Amazon invoice",
+                reason: "invoice_only" as const,
+              })),
+            ]
+          : failures;
       const copy =
-        failures.length > 0
-          ? importFailureCopy(failures)
+        importOnlyFailures.length > 0
+          ? importFailureCopy(importOnlyFailures)
           : { title: "Could not parse this PDF", description: "No labels found." };
       notify.error(copy.title, { description: copy.description });
+      trackEvent("meesho_pdf_import_failed", {
+        reason: nextAmazonInvoices.length > 0 ? "invoice_only" : "empty_pdf",
+        invoice_count: nextAmazonInvoices.length,
+        source_file_count: pdfFiles.length,
+      });
       return;
     }
 
