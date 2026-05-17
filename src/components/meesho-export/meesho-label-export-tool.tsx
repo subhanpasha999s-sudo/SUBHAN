@@ -257,7 +257,7 @@ function enrichAmazonShippingRows(
     if (!invoice) {
       return {
         ...row,
-        listing_sku: row.listing_sku.trim() || "Unknown",
+        listing_sku: "",
         quantity: row.quantity,
         matchStatus: "Invoice Missing",
       };
@@ -273,6 +273,7 @@ function enrichAmazonShippingRows(
 
 function amazonOverlayText(row: MeeshoLabelRecord): string | undefined {
   if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return undefined;
+  if (row.matchStatus !== "Matched") return undefined;
   const sku = row.listing_sku.trim() || "Unknown";
   const qty = row.quantity == null ? "Unknown" : row.quantity.toLocaleString();
   return `${sku} x ${qty}`;
@@ -2758,39 +2759,46 @@ export function MeeshoLabelExportTool() {
       {ready ? (
         <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-8">
           {rows.length > 0 ? (
-            <div className="-mt-0.5 mb-3 flex flex-wrap items-center gap-2 text-[12px] font-medium tabular-nums text-muted-foreground sm:mb-5 sm:text-[13px]">
-              <span>{rows.length.toLocaleString()} labels imported</span>
-              <span className="inline-flex rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200">
-                Meesho {marketplaceStats.meesho.toLocaleString()}
-              </span>
-              <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-700 ring-1 ring-blue-500/20 dark:text-blue-200">
-                Flipkart {marketplaceStats.flipkart.toLocaleString()}
-              </span>
-              <span className="inline-flex rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-700 ring-1 ring-orange-500/20 dark:text-orange-200">
-                Amazon {marketplaceStats.amazon.toLocaleString()}
-              </span>
-              {amazonStats.total > 0 || amazonStats.invoices > 0 ? (
-                <>
-                  <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
-                    Amazon matched {amazonStats.matched.toLocaleString()}
-                  </span>
-                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
-                    Amazon unmatched {amazonStats.unmatched.toLocaleString()}
-                  </span>
-                  <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-border/60">
-                    SKU {amazonStats.skuDetected.toLocaleString()} · Qty {amazonStats.quantityDetected.toLocaleString()} · Courier {amazonStats.courierDetected.toLocaleString()} · Payment {amazonStats.paymentDetected.toLocaleString()}
-                  </span>
-                </>
-              ) : null}
-              {marketplaceStats.invalid > 0 ? (
-                <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
-                  Review {marketplaceStats.invalid.toLocaleString()}
+            <>
+              <div className="-mt-0.5 mb-3 flex flex-wrap items-center gap-2 text-[12px] font-medium tabular-nums text-muted-foreground sm:mb-5 sm:text-[13px]">
+                <span>{rows.length.toLocaleString()} labels imported</span>
+                <span className="inline-flex rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200">
+                  Meesho {marketplaceStats.meesho.toLocaleString()}
                 </span>
+                <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-700 ring-1 ring-blue-500/20 dark:text-blue-200">
+                  Flipkart {marketplaceStats.flipkart.toLocaleString()}
+                </span>
+                <span className="inline-flex rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-700 ring-1 ring-orange-500/20 dark:text-orange-200">
+                  Amazon {marketplaceStats.amazon.toLocaleString()}
+                </span>
+                {amazonStats.total > 0 || amazonStats.invoices > 0 ? (
+                  <>
+                    <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
+                      Amazon matched {amazonStats.matched.toLocaleString()}
+                    </span>
+                    <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+                      Amazon unmatched {amazonStats.unmatched.toLocaleString()}
+                    </span>
+                    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-border/60">
+                      SKU {amazonStats.skuDetected.toLocaleString()} · Qty {amazonStats.quantityDetected.toLocaleString()} · Courier {amazonStats.courierDetected.toLocaleString()} · Payment {amazonStats.paymentDetected.toLocaleString()}
+                    </span>
+                  </>
+                ) : null}
+                {marketplaceStats.invalid > 0 ? (
+                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+                    Review {marketplaceStats.invalid.toLocaleString()}
+                  </span>
+                ) : null}
+                {pdfSources.length > 1 ? (
+                  <span>{pdfSources.length.toLocaleString()} PDFs</span>
+                ) : null}
+              </div>
+              {amazonStats.unmatched > 0 ? (
+                <p className="-mt-2 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold leading-snug text-amber-800 dark:text-amber-200">
+                  Invoice required to fetch SKU.
+                </p>
               ) : null}
-              {pdfSources.length > 1 ? (
-                <span>{pdfSources.length.toLocaleString()} PDFs</span>
-              ) : null}
-            </div>
+            </>
           ) : null}
           {pdfSources.length > 0 ? (
             <div className="mb-4 rounded-2xl border border-border/55 bg-muted/20 p-3 shadow-elevate-xs ring-1 ring-black/[0.03] dark:bg-muted/10 dark:ring-white/[0.04]">
