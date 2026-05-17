@@ -384,6 +384,7 @@ type MarketplaceFilterStats = {
 };
 
 const MARKETPLACE_FILTER_VALUES = ["meesho", "flipkart", "unknown"] as const;
+const PAYMENT_FILTER_VALUES = ["prepaid", "cod", "exchange", "unknown"] as const;
 
 function marketplaceLabel(value: MarketplaceKind | "all"): string {
   switch (value) {
@@ -415,6 +416,15 @@ function visibleMarketplaceFilterValues(
   return [
     "all",
     ...MARKETPLACE_FILTER_VALUES.filter((value) => (stats.perMarketplace[value] ?? 0) > 0),
+  ];
+}
+
+function visiblePaymentFilterValues(
+  stats: QtyCarrierFilterStats
+): (PaymentKind | "all")[] {
+  return [
+    "all",
+    ...PAYMENT_FILTER_VALUES.filter((value) => (stats.perPayment[value] ?? 0) > 0),
   ];
 }
 
@@ -595,6 +605,9 @@ function LabelPdfFilterFields({
     isSheet ? "rounded-xl" : "rounded-full"
   );
   const marketplaceFilterValues = visibleMarketplaceFilterValues(marketplaceFilterStats);
+  const paymentFilterValues = visiblePaymentFilterValues(qtyCarrierStats);
+  const showUnmappedFilter =
+    mappedSkuLabelStats.unmapped > 0 || mappedMasterFilter.mode === "unmapped";
 
   const marketplaceBlock = (
     <div className="min-w-0">
@@ -687,7 +700,7 @@ function LabelPdfFilterFields({
           {...FILTER_SELECT_POPUP_SIDE}
           className={cn(FILTER_SELECT_MENU_SURFACE_CLASS, "max-h-[min(340px,min(52vh,28rem))]")}
         >
-          {(["all", "prepaid", "cod", "exchange", "unknown"] as const).map((value) => (
+          {paymentFilterValues.map((value) => (
             <SelectItem
               key={value}
               value={value}
@@ -756,24 +769,26 @@ function LabelPdfFilterFields({
               </span>
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onMasterFilterUnmapped}
-            className="mx-0.5 rounded-lg px-2 py-2.5 font-medium text-amber-950 dark:text-amber-200"
-          >
-            <span className="flex w-full min-w-0 items-center gap-2">
-              <span className={MASTER_FILTER_RADIO_BOX_FRAME_CLASS} aria-hidden>
-                {mappedMasterFilter.mode === "unmapped" ? (
-                  <Check className="size-[14px] shrink-0 text-primary" strokeWidth={2.75} />
-                ) : null}
+          {showUnmappedFilter ? (
+            <DropdownMenuItem
+              onClick={onMasterFilterUnmapped}
+              className="mx-0.5 rounded-lg px-2 py-2.5 font-medium text-amber-950 dark:text-amber-200"
+            >
+              <span className="flex w-full min-w-0 items-center gap-2">
+                <span className={MASTER_FILTER_RADIO_BOX_FRAME_CLASS} aria-hidden>
+                  {mappedMasterFilter.mode === "unmapped" ? (
+                    <Check className="size-[14px] shrink-0 text-primary" strokeWidth={2.75} />
+                  ) : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <FilterMenuCountRow
+                    primary={<span className="font-semibold">SKU Missing only</span>}
+                    count={mappedSkuLabelStats.unmapped}
+                  />
+                </span>
               </span>
-              <span className="min-w-0 flex-1">
-                <FilterMenuCountRow
-                  primary={<span className="font-semibold">SKU Missing only</span>}
-                  count={mappedSkuLabelStats.unmapped}
-                />
-              </span>
-            </span>
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+          ) : null}
           {distinctMasterNames.map((name) => {
             const picked =
               mappedMasterFilter.mode === "masters" &&
@@ -980,12 +995,14 @@ function LabelPdfFilterFields({
             <MobileFilterChip active={mappedMasterFilter.mode === "all"} onClick={onMasterFilterAll}>
               All
             </MobileFilterChip>
-            <MobileFilterChip
-              active={mappedMasterFilter.mode === "unmapped"}
-              onClick={onMasterFilterUnmapped}
-            >
-              SKU Missing
-            </MobileFilterChip>
+            {showUnmappedFilter ? (
+              <MobileFilterChip
+                active={mappedMasterFilter.mode === "unmapped"}
+                onClick={onMasterFilterUnmapped}
+              >
+                SKU Missing
+              </MobileFilterChip>
+            ) : null}
           </div>
           <div className="mt-3">{masterBlock}</div>
         </div>
@@ -993,7 +1010,7 @@ function LabelPdfFilterFields({
         <div>
           <span className={lbl}>Payment</span>
           <div className={cn("mt-2", chipScroller)}>
-            {(["all", "prepaid", "cod", "exchange", "unknown"] as const).map((value) => (
+            {paymentFilterValues.map((value) => (
               <MobileFilterChip
                 key={value}
                 active={paymentFilter === value}
@@ -1834,6 +1851,12 @@ export function MeeshoLabelExportTool() {
     [marketplaceScopedRows]
   );
 
+  React.useEffect(() => {
+    if (mappedMasterFilter.mode === "unmapped" && mappedSkuLabelStats.unmapped === 0) {
+      setMappedMasterFilter({ mode: "all" });
+    }
+  }, [mappedMasterFilter.mode, mappedSkuLabelStats.unmapped]);
+
   /**
    * Mapped SKUs present in this PDF, ordered by how many labels match (most first),
    * then A–Z — helps pick high-volume SKUs first in the dropdown.
@@ -2010,13 +2033,6 @@ export function MeeshoLabelExportTool() {
     setQtyFilter(QTY_PARTNER_FILTER_ALL);
     setPartner(QTY_PARTNER_FILTER_ALL);
   }, []);
-
-  React.useEffect(() => {
-    if (marketplaceFilter === "all") return;
-    if ((marketplaceFilterStats.perMarketplace[marketplaceFilter] ?? 0) === 0) {
-      setMarketplaceFilter("all");
-    }
-  }, [marketplaceFilter, marketplaceFilterStats.perMarketplace]);
 
   React.useEffect(() => {
     setMappedMasterFilter((prev) => {
