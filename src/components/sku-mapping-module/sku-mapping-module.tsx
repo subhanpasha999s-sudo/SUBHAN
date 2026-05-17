@@ -158,6 +158,8 @@ function readPersistedSkuUpload(userId: string | undefined): {
     if (!s?.listingSkus.length) return null;
     if (userId) {
       if (s.userId && s.userId !== userId) return null;
+    } else if (s.userId) {
+      return null;
     }
     return {
       listingSkus: s.listingSkus,
@@ -343,6 +345,72 @@ export function SkuMappingModule() {
     typeof setTimeout
   > | null>(null);
   const resumePromptShownRef = React.useRef(false);
+  const previousUserIdRef = React.useRef<string | null>(null);
+
+  const resetLocalWorkspaceView = React.useCallback(
+    (previousUserId?: string | null) => {
+      if (assignmentDebounceRef.current) {
+        clearTimeout(assignmentDebounceRef.current);
+        assignmentDebounceRef.current = null;
+      }
+      if (workspaceListingDebounceRef.current) {
+        clearTimeout(workspaceListingDebounceRef.current);
+        workspaceListingDebounceRef.current = null;
+      }
+
+      clearPersistedSkuUpload(previousUserId ?? undefined);
+      clearPersistedSkuUpload(undefined);
+      clearSkuWorkspaceLocalCache(previousUserId ?? undefined);
+      clearSkuWorkspaceLocalCache(undefined);
+      writeSkuMappingLocalDraft({});
+
+      try {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.removeItem(SESSION_RESUME_DISMISS_KEY);
+          sessionStorage.removeItem(SIGNIN_NUDGE_SESSION_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
+
+      setLocalDraft({});
+      setSnapshot(null);
+      setSnapshotLoading(false);
+      setSnapshotRefreshing(false);
+      setUploadedSkus([]);
+      setUploadMeta(null);
+      setMasterRows([]);
+      setEditListingOpen(false);
+      setEditListingDraft("");
+      setResetGroupingOpen(false);
+      setRemoveUploadOpen(false);
+      setWorkspaceId(null);
+      setWorkspaceFileLabel("");
+      setWorkspaceUploadedAtIso(null);
+      setCloudWorkspaceUpdatedAt(null);
+      setWorkspaceSearch("");
+      setMappingStatusFilter("all");
+      setAutosaveUi({ state: "idle", detail: null });
+      setMappingLastSyncedAt(null);
+      setWorkspaceBootBusy(false);
+      setResumeWorkspaceOpen(false);
+      setSigninNudgeOpen(false);
+      lastSyncedAssignmentFlatRef.current = {};
+      initialAutosaveBypassRef.current = true;
+      resumePromptShownRef.current = false;
+      setFileEpoch((n) => n + 1);
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    if (!authReady) return;
+    const previousUserId = previousUserIdRef.current;
+    if (previousUserId && !userId) {
+      resetLocalWorkspaceView(previousUserId);
+    }
+    previousUserIdRef.current = userId ?? null;
+  }, [authReady, resetLocalWorkspaceView, userId]);
 
   const pullRemoteSkuSnapshot = React.useCallback(async () => {
     if (!cloudConfigured || !userId) return;
