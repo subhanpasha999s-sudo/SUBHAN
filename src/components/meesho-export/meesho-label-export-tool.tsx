@@ -383,6 +383,8 @@ type MarketplaceFilterStats = {
   perMarketplace: Record<MarketplaceKind, number>;
 };
 
+const MARKETPLACE_FILTER_VALUES = ["meesho", "flipkart", "unknown"] as const;
+
 function marketplaceLabel(value: MarketplaceKind | "all"): string {
   switch (value) {
     case "meesho":
@@ -405,6 +407,15 @@ function marketplaceFilterTriggerDisplay(
     return `${marketplaceLabel(value)} (${(stats.perMarketplace[value] ?? 0).toLocaleString()})`;
   }
   return String(value);
+}
+
+function visibleMarketplaceFilterValues(
+  stats: MarketplaceFilterStats
+): (MarketplaceKind | "all")[] {
+  return [
+    "all",
+    ...MARKETPLACE_FILTER_VALUES.filter((value) => (stats.perMarketplace[value] ?? 0) > 0),
+  ];
 }
 
 function paymentLabel(value: PaymentKind | "all"): string {
@@ -583,6 +594,7 @@ function LabelPdfFilterFields({
     "h-10 shrink-0 border py-0 pr-8 hover:bg-background [&_svg]:size-[15px] [&_svg]:text-muted-foreground/70 [&_[data-slot=select-value]]:truncate",
     isSheet ? "rounded-xl" : "rounded-full"
   );
+  const marketplaceFilterValues = visibleMarketplaceFilterValues(marketplaceFilterStats);
 
   const marketplaceBlock = (
     <div className="min-w-0">
@@ -618,7 +630,7 @@ function LabelPdfFilterFields({
           {...FILTER_SELECT_POPUP_SIDE}
           className={cn(FILTER_SELECT_MENU_SURFACE_CLASS, "max-h-[min(340px,min(52vh,28rem))]")}
         >
-          {(["all", "meesho", "flipkart", "unknown"] as const).map((value) => (
+          {marketplaceFilterValues.map((value) => (
             <SelectItem
               key={value}
               value={value}
@@ -949,7 +961,7 @@ function LabelPdfFilterFields({
         <div>
           <span className={lbl}>Marketplace</span>
           <div className={cn("mt-2", chipScroller)}>
-            {(["all", "meesho", "flipkart", "unknown"] as const).map((value) => (
+            {marketplaceFilterValues.map((value) => (
               <MobileFilterChip
                 key={value}
                 active={marketplaceFilter === value}
@@ -1795,6 +1807,13 @@ export function MeeshoLabelExportTool() {
     if (marketplaceFilter === "all") return enrichedRows;
     return enrichedRows.filter((r) => r.marketplace === marketplaceFilter);
   }, [enrichedRows, marketplaceFilter]);
+
+  React.useEffect(() => {
+    if (marketplaceFilter === "all") return;
+    if ((marketplaceFilterStats.perMarketplace[marketplaceFilter] ?? 0) === 0) {
+      setMarketplaceFilter("all");
+    }
+  }, [marketplaceFilter, marketplaceFilterStats.perMarketplace]);
 
   const mappedSkuLabelStats = React.useMemo<MappedSkuLabelStats>(() => {
     const perName: Record<string, number> = {};
