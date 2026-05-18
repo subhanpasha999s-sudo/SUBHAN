@@ -2748,11 +2748,11 @@ export function MeeshoLabelExportTool() {
       <Checkbox
         checked={includeAmazonInvoicesInDownload}
         onCheckedChange={(checked) => setIncludeAmazonInvoicesInDownload(Boolean(checked))}
-        aria-label="Include matched Amazon invoices in download"
+        aria-label="Include Amazon tax invoices with shipping labels"
         className="size-4"
       />
       <span className="min-w-0">
-        <span className="whitespace-nowrap">Include Tax Invoice</span>
+        <span className="whitespace-nowrap">Include Amazon Tax Invoice</span>
         <span className="hidden text-orange-800/75 dark:text-orange-100/75 md:inline">
           {" "}with Shipping Labels
         </span>
