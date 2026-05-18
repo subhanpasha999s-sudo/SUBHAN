@@ -434,6 +434,65 @@ const PREMIUM_FIELD_CONTROL_CLASS =
 const MASTER_FILTER_RADIO_BOX_FRAME_CLASS =
   "pointer-events-none flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input bg-background shadow-[inset_0_1px_1px_rgb(15_23_42/0.04)] dark:border-input dark:bg-input/30 dark:shadow-none";
 
+function WorkflowStepPill({
+  step,
+  label,
+  active,
+}: {
+  step: string;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold leading-none",
+        active
+          ? "border-primary/30 bg-primary/12 text-primary ring-1 ring-primary/10"
+          : "border-border/55 bg-muted/25 text-muted-foreground"
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-5 items-center justify-center rounded-full text-[10px] font-bold tabular-nums",
+          active ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+        )}
+      >
+        {step}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+function RunMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "default" | "good" | "warn" | "amazon";
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-xl border px-3 py-2.5",
+        tone === "good"
+          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
+          : tone === "warn"
+            ? "border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-100"
+            : tone === "amazon"
+              ? "border-orange-500/20 bg-orange-500/10 text-orange-900 dark:text-orange-100"
+              : "border-border/50 bg-muted/18 text-foreground"
+      )}
+    >
+      <p className="truncate text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums">{value}</p>
+    </div>
+  );
+}
+
 /** Label/page counts per mapped SKU in this PDF (not order quantity). */
 type MappedSkuLabelStats = {
   perName: Record<string, number>;
@@ -503,7 +562,7 @@ function marketplaceFilterTriggerDisplay(
   stats: MarketplaceFilterStats
 ): string {
   if (value === "all") return `All (${stats.total.toLocaleString()})`;
-  if (value === "meesho" || value === "flipkart" || value === "unknown") {
+  if (value === "meesho" || value === "flipkart" || value === "amazon" || value === "unknown") {
     return `${marketplaceLabel(value)} (${(stats.perMarketplace[value] ?? 0).toLocaleString()})`;
   }
   return String(value);
@@ -1179,7 +1238,7 @@ function LabelPdfFilterFields({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="max-w-md text-[12px] leading-snug text-muted-foreground lg:text-[13px]">
-          Marketplace · SKU · payment · courier · qty. Filters this screen only.
+          Search or filter the current batch. Nothing changes until you download.
         </p>
         {activeFilterCount > 0 ? (
           <div className="shrink-0 sm:pt-px">{clearBtn}</div>
@@ -2765,75 +2824,124 @@ export function MeeshoLabelExportTool() {
 
   return (
     <WorkspaceModulePageStack>
-      <WorkspaceSurfaceCard padding="p-5 sm:p-6">
-        <div
-          data-tour="import-pdf"
-          className={cn(
-            "relative rounded-[14px] border border-dashed border-border bg-muted/30 transition-[border-color,box-shadow] hover:border-primary/35 dark:bg-muted/15",
-            parsing && "pointer-events-none opacity-80"
-          )}
-          onDragEnter={(e) => e.preventDefault()}
-          onDragLeave={(e) => e.preventDefault()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            multiple
-            className="hidden"
-            id="meesho-pdf-upload"
-            disabled={parsing}
-            onChange={onFileInput}
-          />
-          <div className="flex flex-col items-center gap-4 px-6 py-12 text-center sm:py-14">
-            {parsing ? (
-              <>
-                <Loader2 className="size-10 animate-spin text-primary/80" />
-                <p className="text-sm font-semibold text-foreground">
-                  Parsing labels…
+      <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-7">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:items-stretch">
+          <div className="flex min-w-0 flex-col justify-between gap-5">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <WorkflowStepPill step="1" label="Import" active={!ready || parsing} />
+                <WorkflowStepPill step="2" label="Filter" active={ready && selectedTotal === 0} />
+                <WorkflowStepPill step="3" label="Export" active={ready && selectedTotal > 0} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[12px] font-semibold text-muted-foreground">
+                  Dispatch workbench
                 </p>
-                {parseProgress ? (
-                  <>
-                    <p className="text-xs tabular-nums text-muted-foreground">
-                      Page {parseProgress[0]} / {parseProgress[1]}
-                    </p>
-                    <div className="mt-1 h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
-                      <div
-                        className="h-full rounded-full bg-primary/75 transition-[width] duration-300 ease-out"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
-                        }}
-                      />
-                    </div>
-                  </>
-                ) : null}
-              </>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  Upload once. Filter cleanly. Download only what dispatch needs.
+                </h2>
+                <p className="max-w-xl text-[14px] leading-6 text-muted-foreground">
+                  Drop Meesho, Flipkart, and Amazon PDFs together. Amazon tax invoices are paired automatically when available.
+                </p>
+              </div>
+            </div>
+            {rows.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2 text-center sm:max-w-lg">
+                <RunMetric label="Labels" value={rows.length.toLocaleString()} />
+                <RunMetric label="Visible" value={filteredLabels.length.toLocaleString()} tone="good" />
+                <RunMetric label="Selected" value={selectedTotal.toLocaleString()} tone={selectedTotal > 0 ? "amazon" : "default"} />
+              </div>
             ) : (
-              <>
-                <div className="flex size-14 items-center justify-center rounded-2xl border border-border bg-card shadow-inner">
-                  <FileUp className="size-7 text-primary" strokeWidth={1.35} aria-hidden />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[17px] font-semibold tracking-tight text-foreground">
-                    Import labels
-                  </p>
-                  <p className="mx-auto max-w-sm text-[13px] leading-snug text-muted-foreground">
-                    Drop Meesho, Flipkart, and Amazon label/invoice PDFs together.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="mt-2 min-h-11 min-w-[160px] font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:min-h-10"
-                  disabled={parsing}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Choose PDFs
-                </Button>
-              </>
+              <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-muted-foreground">
+                <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-violet-800 dark:text-violet-100">
+                  Meesho
+                </span>
+                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-blue-800 dark:text-blue-100">
+                  Flipkart
+                </span>
+                <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-orange-900 dark:text-orange-100">
+                  Amazon + invoices
+                </span>
+              </div>
             )}
+          </div>
+
+          <div
+            data-tour="import-pdf"
+            className={cn(
+              "relative flex min-h-[15rem] flex-col justify-center rounded-2xl border border-dashed border-border/75 bg-muted/18 p-5 transition-[border-color,box-shadow,background-color] hover:border-primary/40 hover:bg-muted/25 dark:bg-muted/10",
+              parsing && "pointer-events-none opacity-80"
+            )}
+            onDragEnter={(e) => e.preventDefault()}
+            onDragLeave={(e) => e.preventDefault()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onDrop}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              multiple
+              className="hidden"
+              id="meesho-pdf-upload"
+              disabled={parsing}
+              onChange={onFileInput}
+            />
+            <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 text-center">
+              {parsing ? (
+                <>
+                  <div className="flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
+                    <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[17px] font-semibold tracking-tight text-foreground">
+                      Reading your PDFs
+                    </p>
+                    <p className="text-[13px] leading-snug text-muted-foreground">
+                      Detecting marketplace, payment, courier, SKU, and quantity.
+                    </p>
+                  </div>
+                  {parseProgress ? (
+                    <div className="w-full max-w-[260px] space-y-2">
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        Page {parseProgress[0]} / {parseProgress[1]}
+                      </p>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
+                        <div
+                          className="h-full rounded-full bg-primary/80 transition-[width] duration-300 ease-out"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className="flex size-14 items-center justify-center rounded-2xl border border-border bg-background shadow-inner">
+                    <FileUp className="size-7 text-primary" strokeWidth={1.35} aria-hidden />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[18px] font-semibold tracking-tight text-foreground">
+                      Import marketplace PDFs
+                    </p>
+                    <p className="text-[13px] leading-snug text-muted-foreground">
+                      Meesho, Flipkart, Amazon labels, and Amazon tax invoices can be uploaded in one batch.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="mt-1 min-h-11 min-w-[168px] font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:min-h-10"
+                    disabled={parsing}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Choose PDFs
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </WorkspaceSurfaceCard>
@@ -2841,62 +2949,75 @@ export function MeeshoLabelExportTool() {
       {ready ? (
         <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-8">
           {rows.length > 0 ? (
-            <>
-              <div className="-mt-0.5 mb-3 flex flex-wrap items-center gap-2 text-[12px] font-medium tabular-nums text-muted-foreground sm:mb-5 sm:text-[13px]">
-                <span>{rows.length.toLocaleString()} labels imported</span>
-                <span className="inline-flex rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200">
-                  Meesho {marketplaceStats.meesho.toLocaleString()}
-                </span>
-                <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-700 ring-1 ring-blue-500/20 dark:text-blue-200">
-                  Flipkart {marketplaceStats.flipkart.toLocaleString()}
-                </span>
-                <span className="inline-flex rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-700 ring-1 ring-orange-500/20 dark:text-orange-200">
-                  Amazon {marketplaceStats.amazon.toLocaleString()}
-                </span>
-                {amazonStats.total > 0 || amazonStats.invoices > 0 ? (
-                  <>
-                    <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
-                      Amazon matched {amazonStats.matched.toLocaleString()}
-                    </span>
-                    <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
-                      Amazon unmatched {amazonStats.unmatched.toLocaleString()}
-                    </span>
-                    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-border/60">
-                      SKU {amazonStats.skuDetected.toLocaleString()} · Qty {amazonStats.quantityDetected.toLocaleString()} · Courier {amazonStats.courierDetected.toLocaleString()} · Payment {amazonStats.paymentDetected.toLocaleString()}
-                    </span>
-                  </>
-                ) : null}
-                {marketplaceStats.invalid > 0 ? (
-                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
-                    Review {marketplaceStats.invalid.toLocaleString()}
-                  </span>
-                ) : null}
-                {pdfSources.length > 1 ? (
-                  <span>{pdfSources.length.toLocaleString()} PDFs</span>
-                ) : null}
+            <div className="mb-5 space-y-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[12px] font-semibold text-muted-foreground">Current run</p>
+                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                    {filteredLabels.length.toLocaleString()} labels ready to filter
+                  </h2>
+                  <p className="max-w-2xl text-[13px] leading-5 text-muted-foreground">
+                    Source PDFs stay unchanged. Select rows below, then download a merged PDF or SKU-wise ZIP.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[28rem]">
+                  <RunMetric label="Meesho" value={marketplaceStats.meesho.toLocaleString()} />
+                  <RunMetric label="Flipkart" value={marketplaceStats.flipkart.toLocaleString()} />
+                  <RunMetric label="Amazon" value={marketplaceStats.amazon.toLocaleString()} tone="amazon" />
+                  <RunMetric
+                    label="Needs review"
+                    value={(marketplaceStats.invalid + amazonStats.unmatched).toLocaleString()}
+                    tone={marketplaceStats.invalid + amazonStats.unmatched > 0 ? "warn" : "good"}
+                  />
+                </div>
               </div>
-              {amazonStats.total > 0 ? (
-                <p className="-mt-2 mb-3 rounded-xl border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-[12px] font-semibold leading-snug text-orange-900 dark:text-orange-100">
-                  Amazon labels contain separate invoice pages.
-                </p>
+
+              {(amazonStats.total > 0 || marketplaceStats.invalid > 0) ? (
+                <div className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/18 px-3 py-3 text-[12px] leading-snug sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {amazonStats.total > 0 ? (
+                      <>
+                        <span className="inline-flex rounded-full bg-orange-500/10 px-2.5 py-1 font-semibold text-orange-900 ring-1 ring-orange-500/20 dark:text-orange-100">
+                          Amazon matched {amazonStats.matched.toLocaleString()} / {amazonStats.total.toLocaleString()}
+                        </span>
+                        <span className="inline-flex rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground ring-1 ring-border/60">
+                          SKU {amazonStats.skuDetected.toLocaleString()} · Qty {amazonStats.quantityDetected.toLocaleString()} · Courier {amazonStats.courierDetected.toLocaleString()} · Payment {amazonStats.paymentDetected.toLocaleString()}
+                        </span>
+                      </>
+                    ) : null}
+                    {amazonStats.unmatched > 0 ? (
+                      <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:text-amber-100">
+                        Invoice required to fetch SKU
+                      </span>
+                    ) : null}
+                    {marketplaceStats.invalid > 0 ? (
+                      <span className="inline-flex rounded-full bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:text-amber-100">
+                        {marketplaceStats.invalid.toLocaleString()} labels need review
+                      </span>
+                    ) : null}
+                  </div>
+                  {amazonStats.total > 0 ? (
+                    <span className="text-muted-foreground">
+                      Amazon labels may include separate tax invoice pages.
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
-              {amazonStats.unmatched > 0 ? (
-                <p className="-mt-2 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold leading-snug text-amber-800 dark:text-amber-200">
-                  Invoice required to fetch SKU.
-                </p>
-              ) : null}
-            </>
+            </div>
           ) : null}
           {pdfSources.length > 0 ? (
-            <div className="mb-4 rounded-2xl border border-border/55 bg-muted/20 p-3 shadow-elevate-xs ring-1 ring-black/[0.03] dark:bg-muted/10 dark:ring-white/[0.04]">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[12px] font-semibold tracking-tight text-foreground">
-                  Uploaded PDFs
-                </p>
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Remove duplicates without resetting the run.
-                </p>
-              </div>
+            <details className="group mb-4 rounded-xl border border-border/45 bg-muted/12 px-3 py-2.5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[12px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+                <span>
+                  Sources · {pdfSources.length.toLocaleString()} PDF{pdfSources.length === 1 ? "" : "s"}
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground group-open:hidden">
+                  Manage uploads
+                </span>
+                <span className="hidden text-[11px] font-medium text-muted-foreground group-open:inline">
+                  Hide
+                </span>
+              </summary>
               <div className="mt-3 flex flex-wrap gap-2">
                 {pdfSources.map((src) => {
                   const stat =
@@ -2943,7 +3064,7 @@ export function MeeshoLabelExportTool() {
                   );
                 })}
               </div>
-            </div>
+            </details>
           ) : null}
           <section
             className={cn(
@@ -2973,7 +3094,7 @@ export function MeeshoLabelExportTool() {
                       id="labels-grid-heading"
                       className="text-[15px] font-semibold tracking-tight text-foreground"
                     >
-                      Labels
+                      Filter
                     </h2>
                     <span className="shrink-0 text-[12px] font-medium tabular-nums text-muted-foreground">
                       {filteredLabels.length.toLocaleString()}
@@ -2987,7 +3108,7 @@ export function MeeshoLabelExportTool() {
                         id="labels-grid-heading"
                         className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
                       >
-                        Labels
+                        Filter labels
                       </h2>
                       <span className="hidden text-muted-foreground/80 sm:inline" aria-hidden>
                         ·
@@ -2998,7 +3119,7 @@ export function MeeshoLabelExportTool() {
                       </span>
                     </div>
                     <p className="mt-1.5 hidden max-w-lg text-[12px] leading-snug text-muted-foreground md:block">
-                      Filter · download selection only.
+                      Narrow the batch, select rows, then export the selection.
                     </p>
                   </>
                 )}
@@ -3237,7 +3358,7 @@ export function MeeshoLabelExportTool() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {selectedTotal.toLocaleString()} selected ·{" "}
-                  {filteredLabels.length.toLocaleString()} labels loaded
+                  {filteredLabels.length.toLocaleString()} visible
                 </span>
                 <Button
                   type="button"
