@@ -119,12 +119,12 @@ export async function exportPdfPagesFromMultiSourceOrdered(
     if (step.overlayText?.trim()) {
       const { width, height } = copied.getSize();
       const text = step.overlayText.trim();
-      const fontSize = Math.max(11, Math.min(16, width / Math.max(18, text.length * 0.55)));
+      const fontSize = Math.max(12, Math.min(18, width / Math.max(16, text.length * 0.5)));
       const textWidth = font.widthOfTextAtSize(text, fontSize);
-      const boxW = Math.min(width * 0.72, textWidth + 24);
-      const boxH = fontSize + 12;
-      const x = (width - boxW) / 2;
-      const y = Math.max(42, height * 0.28);
+      const boxW = Math.min(width * 0.48, textWidth + 28);
+      const boxH = fontSize + 14;
+      const x = Math.max(18, width - boxW - width * 0.08);
+      const y = Math.max(40, height * 0.11);
       copied.drawRectangle({
         x,
         y,

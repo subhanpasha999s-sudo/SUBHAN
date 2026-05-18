@@ -174,6 +174,27 @@ function extractSku(rawText: string): string {
 
 function extractQuantity(rawText: string): number | null {
   const t = compactText(rawText);
+  const hsnUnitQtyNet = t.match(
+    /\bHSN\s*:\s*\d+\s+(?:₹|Rs\.?|INR)?\s*[\d,.]+\s+(\d{1,4})\s+(?:₹|Rs\.?|INR)?\s*[\d,.]+/i
+  );
+  if (hsnUnitQtyNet?.[1]) {
+    const n = Number.parseInt(hsnUnitQtyNet[1], 10);
+    if (Number.isFinite(n)) return n;
+  }
+
+  const invoiceTableQty = t.match(
+    /\bDescription\b.+?\bUnit\s+Price\b.+?\bQty\b.+?\bNet\s+Amount\b.+?\bHSN\s*:\s*\d+(.{0,180}?)(?:\bTOTAL\b|\bAmount\s+in\s+Words\b|$)/i
+  );
+  if (invoiceTableQty?.[1]) {
+    const amountQtyAmount = invoiceTableQty[1].match(
+      /(?:₹|Rs\.?|INR)?\s*[\d,.]+\s+(\d{1,4})\s+(?:₹|Rs\.?|INR)?\s*[\d,.]+/i
+    );
+    if (amountQtyAmount?.[1]) {
+      const n = Number.parseInt(amountQtyAmount[1], 10);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+
   const hsnQtyPrice = t.match(/\bHSN\s*:\s*\d+\s+(\d{1,4})\s*[₹Rs. ]?\d/i);
   if (hsnQtyPrice?.[1]) {
     const n = Number.parseInt(hsnQtyPrice[1], 10);
@@ -279,7 +300,7 @@ export function amazonShippingOverlayText(row: MeeshoLabelRecord): string | unde
   const sku = row.listing_sku.trim();
   if (!sku) return undefined;
   const qty = row.quantity == null ? "Unknown" : row.quantity.toLocaleString();
-  return `${sku} x ${qty}`;
+  return `${sku} × ${qty}`;
 }
 
 export function containsAmazonRows(rows: readonly MeeshoLabelRecord[]): boolean {
