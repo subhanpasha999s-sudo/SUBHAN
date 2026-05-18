@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { MappingStatusFilter } from "@/types/sku-mapping-module";
 import { cn } from "@/lib/utils";
@@ -57,12 +56,12 @@ export function SkuMappingWorkspaceToolbar({
   lastSyncedAtForMappings: string | null;
 }) {
   const chip = cn(
-    "rounded-full px-3 py-1 text-[12px] font-semibold transition-colors",
-    "border border-border/80 bg-muted/35 text-foreground shadow-sm hover:bg-muted/55"
+    "rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors",
+    "border border-border/70 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
   );
   const chipActive = cn(
-    "rounded-full px-3 py-1 text-[12px] font-semibold ring-2 ring-primary ring-offset-2 ring-offset-background",
-    "border border-primary bg-primary/10 text-foreground"
+    "rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-sm",
+    "border border-primary/65 bg-primary text-primary-foreground"
   );
 
   const statusLabel =
@@ -77,120 +76,101 @@ export function SkuMappingWorkspaceToolbar({
             : "Auto-save on";
 
   return (
-    <div className="space-y-4 rounded-xl border border-border/80 bg-card p-4 shadow-elevate-xs sm:p-5">
-      {/* Progress */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] tabular-nums">
+    <div className="rounded-2xl border border-border/70 bg-muted/18 p-4 shadow-elevate-xs sm:p-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(260px,0.78fr)_minmax(360px,1fr)] xl:items-end">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Total
+              <p className="text-[12px] font-semibold text-foreground">
+                Mapping progress
               </p>
-              <p className="font-semibold text-foreground">
-                {total.toLocaleString()}
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                {mapped.toLocaleString()} of {total.toLocaleString()} listings assigned
               </p>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Matched
-              </p>
-              <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                {mapped.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Remaining
-              </p>
-              <p className="font-semibold text-amber-800 dark:text-amber-400">
-                {remaining.toLocaleString()}
-              </p>
+            <div className="text-right text-[22px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
+              {Math.round(completedPercent)}%
             </div>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between gap-4 text-[11px] tabular-nums text-muted-foreground">
-              <span>Mapping progress</span>
-              <span className="font-medium text-foreground">
-                {Math.round(completedPercent)}%
-              </span>
-            </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-background shadow-inner"
+            role="progressbar"
+            aria-valuenow={Math.round(completedPercent)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             <div
-              className="h-2 overflow-hidden rounded-full bg-muted shadow-inner"
-              role="progressbar"
-              aria-valuenow={Math.round(completedPercent)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary/95 to-primary shadow-sm transition-[width] duration-500 ease-out motion-reduce:transition-none"
-                style={{
-                  width: `${Math.min(100, Math.max(0, completedPercent))}%`,
-                }}
+              className="h-full rounded-full bg-gradient-to-r from-primary/95 to-emerald-400 shadow-sm transition-[width] duration-500 ease-out motion-reduce:transition-none"
+              style={{
+                width: `${Math.min(100, Math.max(0, completedPercent))}%`,
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px] tabular-nums">
+            <span className="rounded-full border border-border/70 bg-background/55 px-2.5 py-1 text-muted-foreground">
+              Total <span className="font-semibold text-foreground">{total.toLocaleString()}</span>
+            </span>
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-50">
+              Matched <span className="font-semibold">{mapped.toLocaleString()}</span>
+            </span>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-50">
+              Open <span className="font-semibold">{remaining.toLocaleString()}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative min-w-[220px] flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                value={searchValue}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search listing or master SKU"
+                className="h-11 rounded-xl border-border/80 bg-background/70 pl-9 text-[13px] shadow-sm"
               />
             </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {(
+                [
+                  ["all", "All"] as const,
+                  ["mapped", "Matched"] as const,
+                  ["unmapped", "Open"] as const,
+                ] satisfies readonly [MappingStatusFilter, string][]
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onStatusFilterChange(key)}
+                  className={statusFilter === key ? chipActive : chip}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col items-start gap-1.5 sm:items-end">
-          <Badge
-            variant="outline"
-            className={cn(
-              "border-border/70 bg-muted/30 font-medium normal-case tracking-normal",
-              autosaveState === "syncing" && "animate-pulse"
-            )}
-          >
-            {autosaveState === "syncing" ? (
-              <>
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-                {statusLabel}
-              </>
-            ) : (
-              statusLabel
-            )}
-          </Badge>
-          <p className="text-[11px] text-muted-foreground">
-            Mapping last synced:{" "}
-            <span className="tabular-nums text-foreground/90">
-              {formatSyncedLabel(lastSyncedAtForMappings)}
-            </span>
-          </p>
-        </div>
-      </div>
-
-      {/* Search + filter */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="min-w-[200px] flex-1 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Search listing or master SKU
-          </p>
-          <Input
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Type to narrow rows…"
-            className="h-10 rounded-md border-input bg-background text-[13px]"
-          />
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Filter
-          </span>
-          {(
-            [
-              ["all", "All"] as const,
-              ["mapped", "Matched"] as const,
-              ["unmapped", "SKU Missing"] as const,
-            ] satisfies readonly [MappingStatusFilter, string][]
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onStatusFilterChange(key)}
-              className={
-                statusFilter === key ? chipActive : chip
-              }
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border border-border/70 bg-background/55 px-2.5 py-1 font-medium",
+                autosaveState === "syncing" && "text-primary"
+              )}
             >
-              {label}
-            </button>
-          ))}
+              {autosaveState === "syncing" ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+              ) : null}
+              {statusLabel}
+            </span>
+            <span>
+              Last sync{" "}
+              <span className="tabular-nums text-foreground/90">
+                {formatSyncedLabel(lastSyncedAtForMappings)}
+              </span>
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -342,13 +342,21 @@ export function SkuMasterFirstPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-elevate-xs">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-elevate-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold tracking-tight text-foreground">
+            Master SKU rows
+          </p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Create one master SKU, then attach all matching listing SKUs to it.
+          </p>
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="min-h-10 flex-1 rounded-md px-3.5 text-[13px] font-medium shadow-sm hover:bg-muted sm:flex-initial"
+            className="min-h-10 flex-1 rounded-xl px-3.5 text-[13px] font-medium shadow-sm hover:bg-muted sm:flex-initial"
             disabled={globalBusy}
             onClick={() =>
               setMasterRows((rows) => [newEmptyMasterRow(), ...rows])
@@ -360,7 +368,7 @@ export function SkuMasterFirstPanel({
           <Button
             type="button"
             size="sm"
-            className="min-h-10 flex-[2] rounded-md px-5 text-[13px] font-semibold shadow-sm hover:bg-primary/90 sm:flex-initial"
+            className="min-h-10 flex-[2] rounded-xl px-5 text-[13px] font-semibold shadow-sm hover:bg-primary/90 sm:flex-initial"
             disabled={
               globalBusy || flushSaveBusy || uploadedSkus.length === 0
             }
@@ -371,32 +379,20 @@ export function SkuMasterFirstPanel({
         </div>
       </div>
 
-      <p className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
-        Add each{" "}
-        <span className="font-medium text-foreground">master SKU name</span>, choose{" "}
-        <span className="font-medium text-foreground">Select listings</span>, then attach listings.
-        Signed-in workspaces{" "}
-        <span className="font-semibold text-foreground">sync automatically every few seconds</span>
-        . Use <span className="font-medium text-foreground">Save now</span> after large edits when you want an immediate confirmation.
-        {!remoteAvailable && cloudConfigured ? (
-          <span className="text-muted-foreground">
-            {" "}
-            First save may ask you to verify email once—then cloud sync kicks in quietly.
-          </span>
-        ) : null}
-        {!remoteAvailable && !cloudConfigured ? (
-          <span className="text-muted-foreground">
-            {" "}
-            Configure Supabase in Settings—or stay on-device only.
-          </span>
-        ) : null}
-      </p>
+      {!remoteAvailable ? (
+        <p className="rounded-xl border border-border/65 bg-muted/22 px-3.5 py-2.5 text-[12px] leading-relaxed text-muted-foreground">
+          Work is saved on this device.{" "}
+          {cloudConfigured
+            ? "Sign in once to sync this map for future runs."
+            : "Add cloud keys in Settings when you want team backup."}
+        </p>
+      ) : null}
 
       {mappingStatusFilter === "unmapped" ? (
         <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-elevate-sm">
           <div className="border-b border-border bg-muted/30 px-4 py-3 text-[13px]">
             <p className="font-semibold text-foreground">
-              SKU Missing (
+              Open listing SKUs (
               <span className="tabular-nums">
                 {unmappedSkusFiltered.length.toLocaleString()}
               </span>
@@ -483,17 +479,13 @@ export function SkuMasterFirstPanel({
               <div className="px-6 py-14 text-center">
                 <p className="text-[15px] font-medium text-foreground">
                   {masterRows.length === 0
-                    ? "Start with a SKU row"
+                    ? "Create your first master SKU"
                     : "No rows match this filter"}
                 </p>
                 <p className="mt-1.5 text-[13px] text-muted-foreground">
                   {masterRows.length === 0 ? (
                     <>
-                      Use{" "}
-                      <span className="font-medium text-foreground">
-                        Add SKU row
-                      </span>
-                      , or pull fresh mappings when signed in.
+                      Add a row, type the master SKU, then select the listing SKUs that belong to it.
                     </>
                   ) : (
                     "Clear the toolbar search or widen the workspace filter chips."

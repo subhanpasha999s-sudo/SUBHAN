@@ -1325,7 +1325,7 @@ export function SkuMappingModule() {
             { label: "SKU Mapping" },
           ]}
           title="SKU Mapping"
-          description="Link each listing SKU to a master once. Every future label export auto-filters by SKU — no manual sorting needed."
+          description="Build your master SKU map once. Tulmin remembers it and keeps every future label run ready to filter."
           badges={headerBadges}
           actions={
             <div className="flex flex-wrap items-center gap-2">
@@ -1495,15 +1495,20 @@ export function SkuMappingModule() {
       ) : null}
 
       {uploadedSkus.length > 0 ? (
-        <WorkspaceSurfaceCard padding="px-6 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <p className="text-[15px] font-semibold tracking-tight text-foreground">
-                {uploadedSkus.length.toLocaleString()} listing SKUs imported
-              </p>
+        <WorkspaceSurfaceCard padding="px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0 space-y-3">
+              <div>
+                <p className="text-[12px] font-semibold uppercase text-primary">
+                  Import ready
+                </p>
+                <h2 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
+                  {uploadedSkus.length.toLocaleString()} listing SKUs loaded
+                </h2>
+              </div>
               {uploadMeta?.columnUsed ? (
                 <p className="text-[13px] text-muted-foreground">
-                  Column{" "}
+                  Detected from column{" "}
                   <span className="font-mono font-medium text-foreground">
                     {uploadMeta.columnUsed}
                   </span>
@@ -1523,21 +1528,26 @@ export function SkuMappingModule() {
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[12px] font-semibold tabular-nums text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/45 dark:text-emerald-50">
-                <span
-                  className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"
-                  aria-hidden
-                />
-                {counts.mapped.toLocaleString()} mapped
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[12px] font-semibold tabular-nums text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-50">
-                <span
-                  className="size-1.5 rounded-full bg-amber-400 dark:bg-amber-500"
-                  aria-hidden
-                />
-                {counts.unmapped.toLocaleString()} open
-              </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="grid min-w-[230px] grid-cols-2 overflow-hidden rounded-2xl border border-border/70 bg-muted/20">
+                <div className="border-r border-border/60 px-4 py-3">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Mapped
+                  </p>
+                  <p className="mt-1 text-[20px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                    {counts.mapped.toLocaleString()}
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Open
+                  </p>
+                  <p className="mt-1 text-[20px] font-semibold tabular-nums text-amber-800 dark:text-amber-400">
+                    {counts.unmapped.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger
                   type="button"
@@ -1579,15 +1589,18 @@ export function SkuMappingModule() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             </div>
           </div>
           {workspaceFileLabel.trim() ? (
-            <p className="mt-4 text-[12px] text-muted-foreground">
-              Source file:{" "}
-              <span className="font-semibold text-foreground">
+            <details className="mt-4 rounded-xl border border-border/60 bg-muted/18 px-3 py-2 text-[12px] text-muted-foreground">
+              <summary className="cursor-pointer list-none font-medium text-foreground">
+                Source file
+              </summary>
+              <p className="mt-1 break-all">
                 {workspaceFileLabel}
-              </span>
-            </p>
+              </p>
+            </details>
           ) : null}
         </WorkspaceSurfaceCard>
       ) : workspaceBootBusy && remoteAvailable && userId ? (
@@ -1610,7 +1623,7 @@ export function SkuMappingModule() {
       ) : null}
 
       {uploadedSkus.length > 0 ? (
-        <WorkspaceSurfaceCard padding="p-5 sm:p-6">
+        <WorkspaceSurfaceCard padding="p-4 sm:p-5">
           <SkuMappingWorkspaceToolbar
             total={uploadedSkus.length}
             mapped={counts.mapped}

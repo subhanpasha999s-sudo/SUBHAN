@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -51,12 +51,12 @@ export function SkuSpreadsheetUploadZone({
           e.target.value = "";
         }}
       />
-      <div className="flex flex-col gap-5 px-6 py-9">
-        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:gap-6 sm:text-left">
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-5">
+      <div className="flex flex-col gap-5 px-5 py-6 sm:px-6 sm:py-7">
+        <div className="flex flex-col gap-5 text-left lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div
               className={cn(
-                "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted/50 shadow-inner",
+                "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border/80 bg-background/65 shadow-inner",
                 busy && "border-primary/30 bg-primary/10"
               )}
             >
@@ -70,19 +70,30 @@ export function SkuSpreadsheetUploadZone({
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-[17px] font-semibold tracking-tight text-foreground">
-                Import listing file
+              <p className="text-[18px] font-semibold tracking-tight text-foreground">
+                Import your listing SKUs
               </p>
               <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
-                Upload your Meesho <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
-                file here — CSV or Excel, drop or browse.
+                Drop the Meesho <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
+                file here. Tulmin reads the listing SKUs and prepares them for mapping.
               </p>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {["CSV or Excel", "Column F", "Starts row 3"].map((item) => (
+                  <span
+                    key={item}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+                  >
+                    <CheckCircle2 className="size-3.5 text-emerald-500" aria-hidden />
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           <Button
             type="button"
             size="lg"
-            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold sm:min-h-10"
+            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold shadow-elevate-sm"
             disabled={disabled || busy}
             onClick={() => inputRef.current?.click()}
             aria-describedby="sku-upload-meesho-steps"
@@ -92,33 +103,35 @@ export function SkuSpreadsheetUploadZone({
           </Button>
         </div>
 
-        <div
+        <details
           id="sku-upload-meesho-steps"
-          className="rounded-xl border border-border/60 bg-muted/25 px-4 py-4 text-left text-[13px] leading-relaxed text-muted-foreground dark:bg-muted/15 sm:px-5"
+          className="group rounded-xl border border-border/60 bg-background/45 px-4 py-3 text-left text-[13px] leading-relaxed text-muted-foreground"
         >
-          <p className="font-medium text-foreground">
-            Upload your Meesho &quot;Existing Stock Upload&quot; file here to automatically fetch all SKUs for mapping.
-          </p>
-          <p className="mt-3 font-semibold text-foreground">How to find the correct file</p>
-          <ol className="mt-2 list-decimal space-y-1.5 pl-5 marker:font-semibold marker:text-foreground">
-            <li>Go to your Meesho Supplier Panel</li>
-            <li>Open &quot;Inventory&quot; from the left sidebar</li>
-            <li>Click on &quot;Bulk Stock Update&quot;</li>
-            <li>
-              Download the file:{" "}
-              <span className="font-semibold text-foreground">&quot;Existing Stock Upload File&quot;</span>
-            </li>
-            <li>Upload that file here</li>
+          <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground outline-none transition-colors hover:text-primary">
+            Need help finding the Meesho file?
+            <span className="ml-2 text-muted-foreground group-open:hidden">Show steps</span>
+            <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide steps</span>
+          </summary>
+          <ol className="mt-3 grid gap-2 pl-0 sm:grid-cols-5">
+            {[
+              "Open Meesho Supplier Panel",
+              "Go to Inventory",
+              "Choose Bulk Stock Update",
+              "Download Existing Stock Upload File",
+              "Upload it here",
+            ].map((step, index) => (
+              <li
+                key={step}
+                className="rounded-lg border border-border/55 bg-muted/20 px-3 py-2 text-[12px]"
+              >
+                <span className="mb-1 block font-mono text-[11px] font-semibold text-primary">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                {step}
+              </li>
+            ))}
           </ol>
-          <p className="mt-3 text-foreground/90">
-            Tulmin automatically detects SKUs from this sheet and helps you map them to your Master SKU quickly.
-          </p>
-          <p className="mt-3 border-t border-border/55 pt-3 text-[12px] text-muted-foreground">
-            Tulmin expects Meesho-style layout: SKUs in{" "}
-            <span className="font-mono font-medium text-foreground">column F</span>, starting{" "}
-            <span className="font-mono font-medium text-foreground">row 3</span> (rows 1–2 skipped).
-          </p>
-        </div>
+        </details>
       </div>
     </div>
   );
