@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   CheckCircle2,
-  Clipboard,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -25,7 +24,6 @@ export function SkuSpreadsheetUploadZone({
   onFile,
 }: SkuSpreadsheetUploadZoneProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [copied, setCopied] = React.useState(false);
   const sampleRows = React.useMemo(
     () => [
       "Fill it with your marketplace SKU",
@@ -71,21 +69,6 @@ export function SkuSpreadsheetUploadZone({
       `<!doctype html><html><head><meta charset="utf-8" /></head><body><table>${cells}</table></body></html>`,
       "application/vnd.ms-excel;charset=utf-8"
     );
-  }
-
-  async function copySheetFormat() {
-    const text = sampleRows.join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      downloadBlob(
-        "tulmin-sku-sample.tsv",
-        text,
-        "text/tab-separated-values;charset=utf-8"
-      );
-    }
   }
 
   return (
@@ -138,7 +121,7 @@ export function SkuSpreadsheetUploadZone({
               </p>
               <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
                 Download the sample file and fill it with your marketplace SKU.
-                Tulmin will use them as master SKUs to filter labels.
+                Tulmin will use those SKUs to map with master SKU.
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
                 {["Only SKU data", "CSV or Excel", "Private by default"].map((item) => (
@@ -178,17 +161,6 @@ export function SkuSpreadsheetUploadZone({
             </Button>
             <Button
               type="button"
-              variant="outline"
-              size="lg"
-              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
-              disabled={disabled || busy}
-              onClick={() => void copySheetFormat()}
-            >
-              <Clipboard className="mr-2 size-4" aria-hidden />
-              {copied ? "Copied" : "Copy sheet"}
-            </Button>
-            <Button
-              type="button"
               size="lg"
               className="min-h-11 shrink-0 px-5 text-[13px] font-semibold shadow-elevate-sm"
               disabled={disabled || busy}
@@ -206,7 +178,7 @@ export function SkuSpreadsheetUploadZone({
           className="group rounded-xl border border-border/60 bg-background/45 px-4 py-3 text-left text-[13px] leading-relaxed text-muted-foreground"
         >
           <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground outline-none transition-colors hover:text-primary">
-            Need to download SKUs from a marketplace?
+            Don&apos;t know where to find your Marketplace SKU? Here&apos;s a quick guide.
             <span className="ml-2 text-muted-foreground group-open:hidden">Show guides</span>
             <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide guides</span>
           </summary>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, CircleHelp, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,6 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { SkuMasterFirstRow, MappingStatusFilter } from "@/types/sku-mapping-module";
 import { newEmptyMasterRow } from "@/lib/sku-mapping-module/master-first-helpers";
 import {
@@ -344,9 +349,23 @@ export function SkuMasterFirstPanel({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-elevate-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[15px] font-semibold tracking-tight text-foreground">
-            Master SKU rows
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
+              Master SKU rows
+            </p>
+            <Tooltip>
+              <TooltipTrigger
+                type="button"
+                className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="What is a master SKU?"
+              >
+                <CircleHelp className="size-4" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[260px] text-center">
+                A master SKU is your main product name. Tulmin links marketplace SKUs to it so label filters stay simple.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
             Create one master SKU, then attach all matching listing SKUs to it.
           </p>
