@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CheckCircle2,
+  Clipboard,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -24,6 +25,16 @@ export function SkuSpreadsheetUploadZone({
   onFile,
 }: SkuSpreadsheetUploadZoneProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = React.useState(false);
+  const sampleRows = React.useMemo(
+    () => [
+      "Fill it with your marketplace SKU",
+      "PS-PI-BL-0199",
+      "TSHIRT-BLACK-M",
+      "AMZ-BOWL-001",
+    ],
+    []
+  );
 
   async function handleFiles(files: FileList | null) {
     const f = files?.[0];
@@ -31,22 +42,50 @@ export function SkuSpreadsheetUploadZone({
     await onFile(f);
   }
 
-  function downloadSampleCsv() {
-    const csv = [
-      "SKU",
-      "PS-PI-BL-0199",
-      "TSHIRT-BLACK-M",
-      "AMZ-BOWL-001",
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  function downloadBlob(fileName: string, body: string, type: string) {
+    const blob = new Blob([body], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "tulmin-sku-sample.csv";
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadSampleCsv() {
+    downloadBlob(
+      "tulmin-sku-sample.csv",
+      sampleRows.join("\n"),
+      "text/csv;charset=utf-8"
+    );
+  }
+
+  function downloadSampleExcel() {
+    const cells = sampleRows
+      .map((value) => `<tr><td>${value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</td></tr>`)
+      .join("");
+    downloadBlob(
+      "tulmin-sku-sample.xls",
+      `<!doctype html><html><head><meta charset="utf-8" /></head><body><table>${cells}</table></body></html>`,
+      "application/vnd.ms-excel;charset=utf-8"
+    );
+  }
+
+  async function copySheetFormat() {
+    const text = sampleRows.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      downloadBlob(
+        "tulmin-sku-sample.tsv",
+        text,
+        "text/tab-separated-values;charset=utf-8"
+      );
+    }
   }
 
   return (
@@ -98,8 +137,8 @@ export function SkuSpreadsheetUploadZone({
                 Import only the SKUs you want to map
               </p>
               <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
-                Use Tulmin&apos;s simple sample file with one{" "}
-                <span className="font-semibold text-foreground">SKU</span> column. No full stock file needed.
+                Download the sample file and fill it with your marketplace SKU.
+                Tulmin will use them as master SKUs to filter labels.
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
                 {["Only SKU data", "CSV or Excel", "Private by default"].map((item) => (
@@ -114,28 +153,52 @@ export function SkuSpreadsheetUploadZone({
               </div>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold"
-            disabled={disabled || busy}
-            onClick={downloadSampleCsv}
-          >
-            <Download className="mr-2 size-4" aria-hidden />
-            Sample CSV
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold shadow-elevate-sm"
-            disabled={disabled || busy}
-            onClick={() => inputRef.current?.click()}
-            aria-describedby="sku-upload-meesho-steps"
-          >
-            <Upload className="mr-2 size-4" aria-hidden />
-            Choose file
-          </Button>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
+              disabled={disabled || busy}
+              onClick={downloadSampleExcel}
+            >
+              <Download className="mr-2 size-4" aria-hidden />
+              Sample Excel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
+              disabled={disabled || busy}
+              onClick={downloadSampleCsv}
+            >
+              <Download className="mr-2 size-4" aria-hidden />
+              Sample CSV
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
+              disabled={disabled || busy}
+              onClick={() => void copySheetFormat()}
+            >
+              <Clipboard className="mr-2 size-4" aria-hidden />
+              {copied ? "Copied" : "Copy sheet"}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              className="min-h-11 shrink-0 px-5 text-[13px] font-semibold shadow-elevate-sm"
+              disabled={disabled || busy}
+              onClick={() => inputRef.current?.click()}
+              aria-describedby="sku-upload-meesho-steps"
+            >
+              <Upload className="mr-2 size-4" aria-hidden />
+              Choose file
+            </Button>
+          </div>
         </div>
 
         <details
@@ -151,15 +214,15 @@ export function SkuSpreadsheetUploadZone({
             {[
               {
                 title: "Meesho",
-                steps: "Supplier Panel -> Inventory -> Bulk Stock Update -> download Existing Stock Upload File.",
+                steps: "Login -> Inventory -> Bulk Stock Update -> Download Existing Inventory File -> Copy all SKU -> Paste into Sample File",
               },
               {
                 title: "Flipkart",
-                steps: "Seller Hub -> Listings / Inventory -> export active listings or product catalog with seller SKU.",
+                steps: "Login -> Listings/Inventory -> Bulk Actions -> Export Listings Report -> Copy all SKU -> Paste into Sample File",
               },
               {
                 title: "Amazon",
-                steps: "Seller Central -> Inventory Reports / Manage Inventory -> download a report with seller SKU.",
+                steps: "Login -> Inventory -> Manage All Inventory -> Export Inventory Report -> Copy all SKU -> Paste into Sample File",
               },
             ].map((guide) => (
               <div

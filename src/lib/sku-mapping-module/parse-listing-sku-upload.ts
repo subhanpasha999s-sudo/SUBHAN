@@ -3,7 +3,8 @@
 import { isLikelyNonListingSkuLabel } from "@/lib/sku-mapping-module/sku-close-match";
 
 /**
- * Primary upload path: Tulmin's neutral sample file with a `SKU` column.
+ * Primary upload path: Tulmin's neutral sample file with a marketplace SKU
+ * heading.
  * Fallback path: Meesho inventory export layout where listing SKUs are in
  * column F, row 3 onward.
  */
@@ -14,6 +15,7 @@ const LISTING_SKU_FIRST_DATA_ROW_0 = LISTING_SKU_FIRST_DATA_ROW_1_BASED - 1;
 /** Shown in UI / toasts alongside row counts */
 export const LISTING_SKU_COLUMN_LABEL = "SKU column";
 const MEESHO_LISTING_SKU_COLUMN_LABEL = "Column F (Meesho stock export)";
+const TULMIN_SAMPLE_SKU_HEADER = "Fill it with your marketplace SKU";
 
 export type ParseListingSkuResult = {
   listingSkus: string[];
@@ -53,6 +55,8 @@ function isSkuHeader(value: string): boolean {
   const h = normalizeHeader(value);
   return (
     h === "sku" ||
+    h === normalizeHeader(TULMIN_SAMPLE_SKU_HEADER) ||
+    h === "marketplacesku" ||
     h === "listingsku" ||
     h === "sellersku" ||
     h === "msku" ||
