@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Upload,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +29,24 @@ export function SkuSpreadsheetUploadZone({
     const f = files?.[0];
     if (!f) return;
     await onFile(f);
+  }
+
+  function downloadSampleCsv() {
+    const csv = [
+      "SKU",
+      "PS-PI-BL-0199",
+      "TSHIRT-BLACK-M",
+      "AMZ-BOWL-001",
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tulmin-sku-sample.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -71,14 +95,14 @@ export function SkuSpreadsheetUploadZone({
             </div>
             <div className="space-y-1">
               <p className="text-[18px] font-semibold tracking-tight text-foreground">
-                Import your listing SKUs
+                Import only the SKUs you want to map
               </p>
               <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
-                Drop the Meesho <span className="font-semibold text-foreground">&quot;Existing Stock Upload&quot;</span>{" "}
-                file here. Tulmin reads the listing SKUs and prepares them for mapping.
+                Use Tulmin&apos;s simple sample file with one{" "}
+                <span className="font-semibold text-foreground">SKU</span> column. No full stock file needed.
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
-                {["CSV or Excel", "Column F", "Starts row 3"].map((item) => (
+                {["Only SKU data", "CSV or Excel", "Private by default"].map((item) => (
                   <span
                     key={item}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
@@ -90,6 +114,17 @@ export function SkuSpreadsheetUploadZone({
               </div>
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="min-h-11 shrink-0 px-5 text-[13px] font-semibold"
+            disabled={disabled || busy}
+            onClick={downloadSampleCsv}
+          >
+            <Download className="mr-2 size-4" aria-hidden />
+            Sample CSV
+          </Button>
           <Button
             type="button"
             size="lg"
@@ -108,29 +143,41 @@ export function SkuSpreadsheetUploadZone({
           className="group rounded-xl border border-border/60 bg-background/45 px-4 py-3 text-left text-[13px] leading-relaxed text-muted-foreground"
         >
           <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground outline-none transition-colors hover:text-primary">
-            Need help finding the Meesho file?
-            <span className="ml-2 text-muted-foreground group-open:hidden">Show steps</span>
-            <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide steps</span>
+            Need to download SKUs from a marketplace?
+            <span className="ml-2 text-muted-foreground group-open:hidden">Show guides</span>
+            <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide guides</span>
           </summary>
-          <ol className="mt-3 grid gap-2 pl-0 sm:grid-cols-5">
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
             {[
-              "Open Meesho Supplier Panel",
-              "Go to Inventory",
-              "Choose Bulk Stock Update",
-              "Download Existing Stock Upload File",
-              "Upload it here",
-            ].map((step, index) => (
-              <li
-                key={step}
-                className="rounded-lg border border-border/55 bg-muted/20 px-3 py-2 text-[12px]"
+              {
+                title: "Meesho",
+                steps: "Supplier Panel -> Inventory -> Bulk Stock Update -> download Existing Stock Upload File.",
+              },
+              {
+                title: "Flipkart",
+                steps: "Seller Hub -> Listings / Inventory -> export active listings or product catalog with seller SKU.",
+              },
+              {
+                title: "Amazon",
+                steps: "Seller Central -> Inventory Reports / Manage Inventory -> download a report with seller SKU.",
+              },
+            ].map((guide) => (
+              <div
+                key={guide.title}
+                className="rounded-xl border border-border/55 bg-muted/20 px-3 py-3"
               >
-                <span className="mb-1 block font-mono text-[11px] font-semibold text-primary">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                {step}
-              </li>
+                <p className="text-[12px] font-semibold text-foreground">
+                  {guide.title}
+                </p>
+                <p className="mt-1.5 text-[12px] leading-relaxed">
+                  {guide.steps}
+                </p>
+              </div>
             ))}
-          </ol>
+          </div>
+          <p className="mt-3 text-[12px]">
+            After download, keep or copy just the SKU column into the Tulmin sample file, then upload it here.
+          </p>
         </details>
       </div>
     </div>
