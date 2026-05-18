@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowRight,
   BadgeCheck,
   BookOpenText,
   ChevronsLeft,
@@ -53,26 +52,26 @@ type NavGroup = { id: string; label: string; items: NavDef[] };
 const NAV_GROUPS: NavGroup[] = [
   {
     id: "flow",
-    label: "Dispatch Flow",
+    label: "Flow",
     items: [
       {
         href: "/mapping",
         label: "SKU Mapping",
-        description: "Link listings to master SKUs",
+        description: "Map listing SKUs once",
         icon: Link2,
         step: "01",
       },
       {
         href: "/export-labels",
         label: "Run Labels",
-        description: "Upload, filter, and export PDFs",
+        description: "Filter and export PDFs",
         icon: FileDown,
         step: "02",
       },
       {
         href: "/blog",
         label: "Playbooks",
-        description: "Guides for faster dispatch",
+        description: "Dispatch guides",
         icon: BookOpenText,
         step: "03",
       },
@@ -141,16 +140,16 @@ function SidebarNavButton({
       <span
         className={cn(
           "relative flex shrink-0 items-center justify-center rounded-xl transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth",
-          collapsed ? "size-10" : "size-9",
+          collapsed ? "size-10" : "size-8",
           active
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_12px_28px_-16px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.25)]"
-            : "bg-sidebar-foreground/[0.045] text-sidebar-foreground/55 ring-1 ring-sidebar-foreground/[0.05] group-hover:bg-sidebar-accent group-hover:text-sidebar-foreground/90"
+            ? "bg-sidebar-primary/95 text-sidebar-primary-foreground shadow-[0_10px_24px_-18px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.18)]"
+            : "bg-sidebar-foreground/[0.035] text-sidebar-foreground/50 ring-1 ring-sidebar-foreground/[0.045] group-hover:bg-sidebar-accent/70 group-hover:text-sidebar-foreground/88"
         )}
       >
         <Icon
           className={cn(
             "shrink-0 transition-transform duration-200 ease-smooth",
-            collapsed ? "size-[18px]" : "size-[17px]",
+            collapsed ? "size-[18px]" : "size-[16px]",
             active && "scale-[1.03] motion-reduce:scale-100"
           )}
           strokeWidth={1.75}
@@ -160,16 +159,16 @@ function SidebarNavButton({
       {!collapsed && (
         <span className="min-w-0 flex-1 text-left leading-tight">
           <span className="flex min-w-0 items-center gap-2">
-            <span className="min-w-0 truncate text-[13px] font-semibold text-sidebar-foreground">
+            <span className="min-w-0 truncate text-[13px] font-semibold text-sidebar-foreground/92">
               {item.label}
             </span>
             {item.step ? (
-              <span className="rounded-md bg-sidebar-foreground/[0.055] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-sidebar-foreground/48 ring-1 ring-sidebar-foreground/10">
+              <span className="rounded-md bg-sidebar-foreground/[0.045] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-sidebar-foreground/42 ring-1 ring-sidebar-foreground/8">
                 {item.step}
               </span>
             ) : null}
           </span>
-          <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/45">
+          <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/42">
             {item.description}
           </span>
         </span>
@@ -193,21 +192,21 @@ function SidebarNavButton({
     collapsed
       ? "mx-auto h-12 w-12 justify-center rounded-2xl p-0"
       : cn(
-          "gap-3 rounded-2xl py-2.5 pl-2 pr-2.5",
-          comfortTouch && "min-h-[3.65rem] py-3"
+          "gap-3 rounded-xl py-2 pl-2 pr-2.5",
+          comfortTouch && "min-h-[3.25rem] py-2.5"
         ),
     item.soon && "cursor-not-allowed opacity-55",
     active &&
       !item.soon &&
       cn(
-        "bg-sidebar-accent/75 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.08),0_0_0_1px_rgb(91_156_247/0.18),0_14px_32px_-22px_rgb(59_130_246/0.55)]",
-        "after:pointer-events-none after:absolute after:right-3 after:top-1/2 after:size-1.5 after:-translate-y-1/2 after:rounded-full after:bg-sidebar-primary after:shadow-[0_0_18px_rgb(96_165_250/0.8)] after:content-['']",
-        collapsed && "after:right-0.5",
-        "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(96_165_250/0.16),0_14px_34px_-22px_rgb(59_130_246/0.55)]"
+        "bg-sidebar-accent/70 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.055),0_0_0_1px_rgb(91_156_247/0.14)]",
+        "before:pointer-events-none before:absolute before:left-0 before:top-1/2 before:h-6 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary before:content-['']",
+        collapsed && "before:left-0.5",
+        "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.045),0_0_0_1px_rgb(96_165_250/0.13)]"
       ),
     !active &&
       !item.soon &&
-      "text-sidebar-foreground/72 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.045)]"
+      "text-sidebar-foreground/68 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.035)]"
   );
 
   if (item.soon || !item.href) {
@@ -277,24 +276,22 @@ function SidebarNavBody({
   return (
     <>
       {NAV_GROUPS.map((group, gi) => (
-        <div key={group.id} className={cn(gi > 0 && "mt-6")}>
+        <div key={group.id} className={cn(gi > 0 && "mt-5")}>
           {!collapsed && (
             <div
               className={cn(
-                "mb-2 flex items-center gap-2 px-1",
+                "mb-2 px-1",
                 SIDEBAR_PAD_X
               )}
             >
-              <span className="h-px flex-1 bg-sidebar-border/35" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/38">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/34">
                 {group.label}
               </span>
-              <span className="h-px flex-1 bg-sidebar-border/35" />
             </div>
           )}
           <div
             className={cn(
-              "flex flex-col gap-1",
+              "flex flex-col gap-0.5",
               collapsed ? "px-2" : SIDEBAR_PAD_X
             )}
           >
@@ -343,11 +340,11 @@ function SidebarChrome({
       {/* Header */}
       <header
         className={cn(
-          "flex shrink-0 flex-col gap-3 border-b border-sidebar-border/25 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]",
+          "flex shrink-0 flex-col gap-3 border-b border-sidebar-border/18 pb-3.5 pt-[calc(0.9rem+env(safe-area-inset-top,0px))]",
           navCollapsed && variant === "desktop"
             ? "items-center px-2"
             : SIDEBAR_PAD_X,
-          variant === "desktop" && "lg:pt-5",
+          variant === "desktop" && "lg:pt-4",
           variant === "mobile" && "relative pr-14"
         )}
       >
@@ -376,23 +373,22 @@ function SidebarChrome({
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 <div
-                  className="relative flex size-[40px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sidebar-primary/95 via-[#4f86dd] to-[#6a5be8] shadow-[0_12px_30px_-16px_rgb(59_130_246/0.9)] ring-1 ring-white/15"
+                  className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-primary shadow-[inset_0_1px_0_rgb(255_255_255/0.055)] ring-1 ring-sidebar-border/45"
                   aria-hidden
                 >
-                  <span className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.28),transparent_38%)]" />
-                  <Layers2 className="size-[20px] text-sidebar-primary-foreground" strokeWidth={1.85} />
+                  <Layers2 className="size-[18px]" strokeWidth={1.85} />
                 </div>
                 <div className="min-w-0 flex-1 leading-tight">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
                       Tulmin
                     </p>
-                    <span className="rounded-md bg-sidebar-foreground/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/52 ring-1 ring-sidebar-foreground/10">
+                    <span className="rounded-md bg-sidebar-foreground/[0.045] px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-sidebar-foreground/45 ring-1 ring-sidebar-foreground/8">
                       SaaS
                     </span>
                   </div>
-                  <p className="mt-1 truncate text-[11px] font-medium text-sidebar-foreground/48">
-                    Marketplace dispatch workspace
+                  <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/42">
+                    Dispatch workspace
                   </p>
                 </div>
               </div>
@@ -427,11 +423,19 @@ function SidebarChrome({
                 </Button>
               )}
             </div>
-            <div className="rounded-2xl border border-sidebar-border/35 bg-sidebar-foreground/[0.035] p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.045)]">
-              <div className="flex items-start gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) openOptionalSignIn();
+              }}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border/30 bg-sidebar-foreground/[0.025] px-2.5 py-2 text-left shadow-[inset_0_1px_0_rgb(255_255_255/0.035)]",
+                !user && "transition-colors hover:bg-sidebar-accent/45"
+              )}
+            >
                 <span
                   className={cn(
-                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl ring-1",
+                    "flex size-7 shrink-0 items-center justify-center rounded-lg ring-1",
                     user
                       ? "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200"
                       : "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200"
@@ -444,58 +448,21 @@ function SidebarChrome({
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-semibold text-sidebar-foreground">
-                    {user ? "Cloud workspace active" : "Local workspace"}
+                  <p className="truncate text-[11.5px] font-semibold text-sidebar-foreground/88">
+                    {user ? "Cloud sync active" : "Local workspace"}
                   </p>
-                  <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/48">
-                    {user ? "Maps sync across browsers" : "Sign in to back up maps"}
+                  <p className="mt-0.5 truncate text-[10px] font-medium text-sidebar-foreground/42">
+                    {user ? "Maps backed up" : "Sign in to back up maps"}
                   </p>
                 </div>
-              </div>
-            </div>
+            </button>
           </>
         )}
       </header>
 
-      {showExpandedChrome ? (
-        <div className={cn("border-b border-sidebar-border/20 py-4", SIDEBAR_PAD_X)}>
-          <Link
-            href="/mapping"
-            prefetch={false}
-            onClick={onNavNavigate}
-            className={cn(
-              "group relative overflow-hidden rounded-2xl border border-sidebar-primary/20",
-              "flex min-h-[4.75rem] items-center gap-3 bg-sidebar-primary px-3.5 text-sidebar-primary-foreground",
-              "shadow-[0_22px_54px_-34px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.18)]",
-              "transition-[transform,box-shadow,background-color] duration-200 ease-smooth hover:shadow-[0_26px_64px_-36px_rgb(59_130_246/1)] active:scale-[0.99]"
-            )}
-            data-tour="sku-map-link"
-          >
-            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/35" aria-hidden />
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/16 ring-1 ring-white/20">
-              <Link2 className="size-5" strokeWidth={1.8} aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold">Start SKU mapping</span>
-              <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-primary-foreground/72">
-                Set the rules once
-              </span>
-            </span>
-            <ArrowRight className="size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={1.8} aria-hidden />
-          </Link>
-          <div className="mt-3 flex items-center gap-2 px-1 text-[10.5px] font-semibold text-sidebar-foreground/42">
-            <span className="text-sidebar-primary">Map</span>
-            <span className="h-px flex-1 bg-sidebar-border/35" />
-            <span>Run</span>
-            <span className="h-px flex-1 bg-sidebar-border/35" />
-            <span>Export</span>
-          </div>
-        </div>
-      ) : null}
-
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
         <nav
-          className="flex flex-col pb-5 pt-4"
+          className={cn("flex flex-col pb-5", showExpandedChrome ? "pt-4" : "pt-3")}
           aria-label={variant === "mobile" ? "Main navigation" : undefined}
         >
           <Suspense
@@ -527,10 +494,10 @@ function SidebarChrome({
 
       <footer
         className={cn(
-          "mt-auto shrink-0 border-t border-sidebar-border/30 bg-sidebar/45 px-4 py-4 backdrop-blur-sm",
+          "mt-auto shrink-0 border-t border-sidebar-border/18 bg-sidebar/35 px-4 py-3 backdrop-blur-sm",
           variant === "mobile"
             ? "pb-[max(1rem,env(safe-area-inset-bottom))]"
-            : "pb-5",
+            : "pb-4",
           navCollapsed ? "px-2" : SIDEBAR_PAD_X
         )}
       >
@@ -550,16 +517,13 @@ function SidebarChrome({
               openOptionalSignIn();
               onNavNavigate?.();
             }}
-            className="group flex min-h-12 w-full items-center gap-3 rounded-2xl bg-sidebar-primary/12 px-3 text-left text-[13px] font-semibold text-sidebar-primary ring-1 ring-sidebar-primary/18 transition-colors hover:bg-sidebar-primary/16"
+            className="group flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-[12px] font-semibold text-sidebar-foreground/75 ring-1 ring-sidebar-border/25 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_24px_-16px_rgb(59_130_246/0.95)]">
-              <CircleUserRound className="size-[17px]" strokeWidth={1.7} aria-hidden />
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sidebar-foreground/[0.04] text-sidebar-primary ring-1 ring-sidebar-border/25">
+              <CircleUserRound className="size-[15px]" strokeWidth={1.7} aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate">Sign in to sync</span>
-              <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/48">
-                Back up SKU mappings
-              </span>
+              <span className="block truncate">Sync workspace</span>
             </span>
           </button>
         ) : authReady && user ? (
@@ -639,7 +603,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
           "bg-sidebar-rail backdrop-blur-md supports-[backdrop-filter]:bg-sidebar/88",
           "shadow-sidebar-panel transition-[width] duration-300 ease-panel motion-reduce:transition-none",
-          collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[17.5rem]"
+          collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[16.25rem]"
         )}
       >
         <SidebarChrome
@@ -678,7 +642,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
           "transition-[padding] duration-300 ease-panel motion-reduce:transition-none",
-          collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[17.5rem]"
+          collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[16.25rem]"
         )}
       >
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_82%_52%_at_50%_-14%,rgb(59_130_246/0.045),transparent_56%)] dark:bg-[radial-gradient(ellipse_78%_46%_at_50%_-10%,rgb(96_165_250/0.05),transparent_55%)]" />
