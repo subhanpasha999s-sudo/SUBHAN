@@ -220,6 +220,11 @@ function clearPersistedSkuUpload(userId: string | undefined) {
   }
 }
 
+function clearPersistedSkuWorkspaceShell(userId: string | undefined) {
+  clearPersistedSkuUpload(userId);
+  clearSkuWorkspaceLocalCache(userId);
+}
+
 const SESSION_RESUME_DISMISS_KEY = "lable:sku-mapping:dismiss-resume-session";
 
 /** Session + enrichment cache for SKU listing workspace bundles. */
@@ -480,11 +485,17 @@ export function SkuMappingModule() {
       columnUsed: string | null;
     } | null => readPersistedSkuUpload(userId);
 
+    const hasDeviceMap = countLocalDraftMappings(readSkuMappingLocalDraft()) > 0;
+
     async function hydrateWorkspace() {
       if (!remoteAvailable) {
         setWorkspaceBootBusy(true);
         try {
           if (cancelled) return;
+          if (!hasDeviceMap) {
+            clearPersistedSkuWorkspaceShell(userId);
+            return;
+          }
           const cache = readSkuWorkspaceLocalCache(userId);
           const legacy = pickLegacyEnvelope();
           const listings =
@@ -599,7 +610,7 @@ export function SkuMappingModule() {
               cloudUpdatedIso: cloudListing.updated_at,
             };
           }
-        } else if (cached?.listingSkus.length) {
+        } else if (!cloudWs.ok && hasDeviceMap && cached?.listingSkus.length) {
           chosen = {
             listingSkus: cached.listingSkus,
             scannedRows: cached.scannedRows || cached.listingSkus.length,
@@ -622,7 +633,7 @@ export function SkuMappingModule() {
               detail: null,
             });
           });
-        } else if (legacy?.listingSkus.length) {
+        } else if (!cloudWs.ok && hasDeviceMap && legacy?.listingSkus.length) {
           const wid =
             crypto.randomUUID?.() ?? `ws-${Date.now().toString(36)}`;
           chosen = {
@@ -661,6 +672,8 @@ export function SkuMappingModule() {
               detail: null,
             });
           });
+        } else if (cloudWs.ok && !cloudListing) {
+          clearPersistedSkuWorkspaceShell(userId);
         }
 
         if (chosen && !cancelled) {
