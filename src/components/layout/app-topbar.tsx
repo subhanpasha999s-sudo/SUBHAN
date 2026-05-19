@@ -42,7 +42,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/mapping")) {
     return {
       title: "SKU Mapping",
-      subtitle: "Group marketplace SKUs once. Filter labels faster every run.",
+      subtitle: "",
       ctaHref: "/export-labels",
       ctaLabel: "Run labels",
     };
@@ -157,11 +157,11 @@ export function AppTopbar({
 
             <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
               <div className="flex min-w-0 items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
                   <Sparkles className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                  <h1 className="truncate text-[20px] font-semibold leading-tight tracking-tight text-foreground">
                     {title}
                   </h1>
                   {subtitle ? (
