@@ -89,13 +89,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico?v=3", type: "image/x-icon", sizes: "16x16 32x32" },
-      { url: "/favicon.png?v=3", type: "image/png", sizes: "32x32" },
-      { url: "/brand/tulmin-logo-64.png?v=3", type: "image/png", sizes: "64x64" },
+      { url: "/brand/tulmin-logo-64.png?v=4", type: "image/png", sizes: "64x64" },
     ],
-    shortcut: [{ url: "/favicon.ico?v=3", type: "image/x-icon" }],
+    shortcut: [{ url: "/brand/tulmin-logo-64.png?v=4", type: "image/png" }],
     apple: [
-      { url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=4", sizes: "180x180", type: "image/png" },
     ],
   },
   appleWebApp: {
@@ -154,6 +152,7 @@ export default function RootLayout({
   const themeBoot = `(function(){try{var k=${JSON.stringify(
     THEME_STORAGE_KEY
   )};var p=localStorage.getItem(k)||"system";var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
+  const faviconBoot = `(function(){try{var href="/brand/tulmin-logo-64.png?v=4";document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(el){el.parentNode&&el.parentNode.removeChild(el)});["icon","shortcut icon"].forEach(function(rel){var link=document.createElement("link");link.rel=rel;link.type="image/png";link.sizes="64x64";link.href=href;document.head.appendChild(link)});var apple=document.createElement("link");apple.rel="apple-touch-icon";apple.sizes="180x180";apple.href="/apple-touch-icon.png?v=4";document.head.appendChild(apple);}catch(e){}})();`;
 
   return (
     <html
@@ -168,6 +167,9 @@ export default function RootLayout({
       >
         <Script id="theme-boot" strategy="beforeInteractive">
           {themeBoot}
+        </Script>
+        <Script id="favicon-boot" strategy="beforeInteractive">
+          {faviconBoot}
         </Script>
         <Script
           id="seo-jsonld"
