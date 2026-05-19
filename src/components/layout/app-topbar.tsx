@@ -9,6 +9,7 @@ import {
   FileDown,
   Link2,
   MenuIcon,
+  Sparkles,
 } from "lucide-react";
 
 import {
@@ -41,7 +42,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/mapping")) {
     return {
       title: "SKU Mapping",
-      subtitle: "Link listings to master SKUs once, reuse forever",
+      subtitle: "Group marketplace SKUs once. Filter labels faster every run.",
       ctaHref: "/export-labels",
       ctaLabel: "Run labels",
     };
@@ -155,18 +156,21 @@ export function AppTopbar({
             </div>
 
             <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
+                  <Sparkles className="size-[18px]" strokeWidth={1.8} aria-hidden />
+                </div>
                 <div className="min-w-0">
                   <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
                     {title}
                   </h1>
                   {subtitle ? (
-                    <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground/90">
+                    <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground/90">
                       {subtitle}
                     </p>
                   ) : null}
                 </div>
-                <div className="hidden items-center gap-1 rounded-full border border-border/45 bg-card/70 p-1 shadow-elevate-xs xl:flex">
+                <div className="hidden items-center gap-1 rounded-2xl border border-border/55 bg-card/75 p-1.5 shadow-elevate-sm ring-1 ring-white/[0.035] xl:flex">
                   {TOPBAR_FLOW.map((item) => {
                     const active = flowItemActive(pathname, item.href);
                     const Icon = item.icon;
@@ -176,10 +180,10 @@ export function AppTopbar({
                         href={item.href}
                         prefetch={false}
                         className={cn(
-                          "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-[background-color,color,box-shadow] duration-200 ease-smooth",
+                          "inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-[background-color,color,box-shadow,transform] duration-200 ease-smooth hover:-translate-y-px",
                           active
-                            ? "bg-primary text-primary-foreground shadow-[0_10px_24px_-16px_rgb(63_108_255/0.9)]"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                            ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-18px_rgb(63_108_255/0.95)]"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground hover:shadow-elevate-xs"
                         )}
                       >
                         <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
@@ -201,7 +205,7 @@ export function AppTopbar({
               prefetch={false}
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
-                "hidden h-10 rounded-full px-4 text-[13px] font-semibold sm:inline-flex"
+                "hidden h-10 rounded-2xl px-4 text-[13px] font-semibold shadow-[0_16px_34px_-22px_rgb(63_108_255/0.95)] ring-1 ring-primary/20 sm:inline-flex"
               )}
             >
               {ctaLabel}
