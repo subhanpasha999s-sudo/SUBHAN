@@ -34,7 +34,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/export-labels")) {
     return {
       title: "Run Labels",
-      subtitle: "Upload, filter, and export dispatch-ready PDFs",
+      subtitle: "",
       ctaHref: "/mapping",
       ctaLabel: "Map SKUs",
     };
