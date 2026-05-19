@@ -1312,15 +1312,15 @@ export function SkuMappingModule() {
     ? null
     : !userId ? (
     <span className="inline-flex max-w-xl flex-wrap items-center gap-x-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[12px] text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/45 dark:text-amber-50">
-      Everything stays on this device until you choose backup. Optional:{" "}
+      Saved on this device.{" "}
       <button
         type="button"
         onClick={openOptionalSignIn}
         className="interaction-press rounded px-0.5 font-semibold text-primary underline-offset-2 hover:bg-primary/10 hover:underline"
       >
-        Sign in or create an account
+        Sign in to back up
       </button>{" "}
-      to store your SKU map in your private cloud workspace—free forever.
+      your SKU map.
     </span>
   ) : (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-50">
