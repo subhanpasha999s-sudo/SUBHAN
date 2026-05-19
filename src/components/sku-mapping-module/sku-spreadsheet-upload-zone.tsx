@@ -139,7 +139,7 @@ export function SkuSpreadsheetUploadZone({
                       <CircleHelp className="size-3.5" aria-hidden />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[260px] text-center">
-                      Master SKU is one name for the same product. Add all marketplace SKU codes under it, then filter labels easily.
+                      One product can have many marketplace SKUs. Master SKU groups them together for easy label filtering.
                     </TooltipContent>
                   </Tooltip>
                 </span>
