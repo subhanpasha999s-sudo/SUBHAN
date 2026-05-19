@@ -7,6 +7,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDown,
   ArrowUp,
+  Archive,
   Check,
   ChevronDown,
   Download,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
+import { ShippingLabelCropper } from "@/components/label-cropper/shipping-label-cropper";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -63,6 +65,15 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
+import {
+  analyzeCropperPdfBytes,
+  cropEntriesToPdf,
+  zipCroppedPdfs,
+  type CropExportEntry,
+  type CropMode,
+  type CropperDocument,
+  type CropperPage,
+} from "@/lib/label-cropper/shipping-label-cropper";
 import {
   amazonShippingOverlayText,
   containsAmazonRows,
@@ -1641,7 +1652,7 @@ function LabelsMobileCards({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex min-h-10 items-center gap-2 px-1">
+      <div className="flex min-h-10 items-center gap-2 px-3">
         <Checkbox
           checked={allInViewSelected}
           disabled={globalBusy || rows.length === 0}
@@ -1667,7 +1678,7 @@ function LabelsMobileCards({
           </p>
         ) : (
           <div
-            className="relative px-0 py-1"
+            className="relative py-1"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
           >
             {virtualizer.getVirtualItems().map((vi) => {
@@ -1682,7 +1693,7 @@ function LabelsMobileCards({
                   key={r.id}
                   data-index={vi.index}
                   ref={virtualizer.measureElement}
-                  className="virtual-row absolute left-0 right-0 top-0 px-0"
+                  className="virtual-row absolute left-0 right-0 top-0"
                   style={{
                     transform: `translate3d(0, ${vi.start}px, 0)`,
                   }}
@@ -1817,6 +1828,13 @@ export function MeeshoLabelExportTool() {
   const [bulkSkuZipState, setBulkSkuZipState] = React.useState<BulkSkuZipState | null>(
     null
   );
+  const [cropperDocs, setCropperDocs] = React.useState<CropperDocument[]>([]);
+  const [cropperBusy, setCropperBusy] = React.useState(false);
+  const [cropExportBusy, setCropExportBusy] = React.useState(false);
+  const [processingMode, setProcessingMode] =
+    React.useState<"filter" | "crop" | "filter_crop">("filter");
+  const [autoCropMode, setAutoCropMode] = React.useState<CropMode>("shipping");
+  const [manualCropOpen, setManualCropOpen] = React.useState(false);
 
   const exportMarkFingerprint = React.useMemo(() => {
     if (rows.length === 0) return "";
@@ -2357,6 +2375,7 @@ export function MeeshoLabelExportTool() {
     const remainingIds = new Set(rematchedRows.map((row) => row.id));
 
     setPdfSources(remainingSources);
+    setCropperDocs((prev) => prev.filter((doc) => doc.id !== importId));
     setAmazonInvoices(remainingInvoices);
     setRows(rematchedRows);
     setSelected((prev) => {
@@ -2497,6 +2516,27 @@ export function MeeshoLabelExportTool() {
     setRows(mergedRows);
     setAmazonInvoices(mergedInvoices);
     setPdfSources(mergedSources);
+    if (nextSources.length > 0) {
+      setCropperBusy(true);
+      void Promise.all(
+        nextSources.map((src) =>
+          analyzeCropperPdfBytes({
+            id: src.id,
+            fileName: src.fileName,
+            bytes: src.pdfBytes,
+          })
+        )
+      )
+        .then((docs) => {
+          setCropperDocs((prev) => [...prev, ...docs]);
+        })
+        .catch((err) => {
+          notify.warning("Crop preview is limited for this PDF", {
+            description: err instanceof Error ? err.message : "Filtering still works.",
+          });
+        })
+        .finally(() => setCropperBusy(false));
+    }
     setSourceName(
       mergedSources.length === 1
         ? mergedSources[0].fileName.replace(/\.pdf$/i, "")
@@ -2822,54 +2862,121 @@ export function MeeshoLabelExportTool() {
   const ready = rows.length > 0 && pdfSources.length > 0 && !parsing;
   const mapBusy = parsing || bulkSkuZipState != null;
 
+  function cropFileBase(docName: string, pageNumber: number) {
+    return `${docName.replace(/\.pdf$/i, "").replace(/[^a-z0-9._-]+/gi, "-")}-p${pageNumber}`;
+  }
+
+  function filteredPageKeySet(): Set<string> | null {
+    if (processingMode !== "filter_crop") return null;
+    const keys = new Set<string>();
+    for (const row of filteredLabels) keys.add(`${row.importId}:${row.rawPageIndex}`);
+    return keys;
+  }
+
+  function cropEntriesForPage(doc: CropperDocument, page: CropperPage, mode: CropMode): CropExportEntry[] {
+    const base = cropFileBase(doc.fileName, page.pageNumber);
+    if (mode === "shipping") {
+      if (page.kind === "invoice") return [];
+      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultShippingRect, fileName: `${base}-shipping.pdf` }];
+    }
+    if (mode === "invoice") {
+      if (page.kind === "shipping") return [];
+      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultInvoiceRect, fileName: `${base}-invoice.pdf` }];
+    }
+    if (mode === "full") {
+      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}-full.pdf` }];
+    }
+    if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
+      return [
+        { doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}-shipping.pdf` },
+        { doc, pageIndex: page.pairedInvoicePageIndex, rect: page.defaultFullRect, fileName: `${base}-invoice.pdf` },
+      ];
+    }
+    if (page.kind === "combined") {
+      return [
+        { doc, pageIndex: page.pageIndex, rect: page.defaultShippingRect, fileName: `${base}-shipping.pdf` },
+        { doc, pageIndex: page.pageIndex, rect: page.defaultInvoiceRect, fileName: `${base}-invoice.pdf` },
+      ];
+    }
+    return [{ doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}.pdf` }];
+  }
+
+  function buildAutoCropEntries(mode = autoCropMode): CropExportEntry[] {
+    const allowed = filteredPageKeySet();
+    const out: CropExportEntry[] = [];
+    for (const doc of cropperDocs) {
+      for (const page of doc.pages) {
+        if (allowed && !allowed.has(`${doc.id}:${page.pageIndex}`)) continue;
+        out.push(...cropEntriesForPage(doc, page, mode));
+      }
+    }
+    return out;
+  }
+
+  async function downloadAutoCropPdf() {
+    const entries = buildAutoCropEntries();
+    if (entries.length === 0) {
+      notify.info("No crop pages available yet.");
+      return;
+    }
+    setCropExportBusy(true);
+    try {
+      const pdf = await cropEntriesToPdf(entries);
+      triggerPdfDownload(pdf, "tulmin-auto-cropped-labels.pdf");
+      notify.success("Cropped PDF downloaded.");
+    } catch (err) {
+      notify.error("Could not crop PDF", {
+        description: describeExportFailure(err),
+      });
+    } finally {
+      setCropExportBusy(false);
+    }
+  }
+
+  async function downloadAutoCropZip() {
+    const entries = buildAutoCropEntries();
+    if (entries.length === 0) {
+      notify.info("No crop pages available yet.");
+      return;
+    }
+    setCropExportBusy(true);
+    try {
+      const groups = entries.map((entry) => ({ fileName: entry.fileName, entries: [entry] }));
+      const zip = await zipCroppedPdfs(groups);
+      triggerZipDownload(zip, "tulmin-auto-cropped-labels.zip");
+      notify.success("Cropped ZIP downloaded.");
+    } catch (err) {
+      notify.error("Could not create ZIP", {
+        description: describeExportFailure(err),
+      });
+    } finally {
+      setCropExportBusy(false);
+    }
+  }
+
   return (
     <WorkspaceModulePageStack>
-      <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-7">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:items-stretch">
-          <div className="flex min-w-0 flex-col justify-between gap-5">
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <WorkflowStepPill step="1" label="Import" active={!ready || parsing} />
-                <WorkflowStepPill step="2" label="Filter" active={ready && selectedTotal === 0} />
-                <WorkflowStepPill step="3" label="Export" active={ready && selectedTotal > 0} />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[12px] font-semibold text-muted-foreground">
-                  Dispatch workbench
-                </p>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Upload once. Filter cleanly. Download only what dispatch needs.
-                </h2>
-                <p className="max-w-xl text-[14px] leading-6 text-muted-foreground">
-                  Drop Meesho, Flipkart, and Amazon PDFs together. Amazon tax invoices are paired automatically when available.
-                </p>
-              </div>
+      <WorkspaceSurfaceCard padding="p-4 sm:p-5 lg:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <WorkflowStepPill step="1" label="Import" active={!ready || parsing} />
+              <WorkflowStepPill step="2" label="Filter" active={ready && selectedTotal === 0} />
+              <WorkflowStepPill step="3" label="Export" active={ready && selectedTotal > 0} />
             </div>
             {rows.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 text-center sm:max-w-lg">
+              <div className="grid grid-cols-3 gap-2 sm:min-w-[22rem]">
                 <RunMetric label="Labels" value={rows.length.toLocaleString()} />
                 <RunMetric label="Visible" value={filteredLabels.length.toLocaleString()} tone="good" />
                 <RunMetric label="Selected" value={selectedTotal.toLocaleString()} tone={selectedTotal > 0 ? "amazon" : "default"} />
               </div>
-            ) : (
-              <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-muted-foreground">
-                <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-violet-800 dark:text-violet-100">
-                  Meesho
-                </span>
-                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-blue-800 dark:text-blue-100">
-                  Flipkart
-                </span>
-                <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-orange-900 dark:text-orange-100">
-                  Amazon + invoices
-                </span>
-              </div>
-            )}
+            ) : null}
           </div>
 
           <div
             data-tour="import-pdf"
             className={cn(
-              "relative flex min-h-[15rem] flex-col justify-center rounded-2xl border border-dashed border-border/75 bg-muted/18 p-5 transition-[border-color,box-shadow,background-color] hover:border-primary/40 hover:bg-muted/25 dark:bg-muted/10",
+              "relative grid gap-4 rounded-2xl border border-dashed border-border/70 bg-muted/14 p-4 transition-[border-color,box-shadow,background-color] hover:border-primary/45 hover:bg-muted/20 dark:bg-muted/10 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5",
               parsing && "pointer-events-none opacity-80"
             )}
             onDragEnter={(e) => e.preventDefault()}
@@ -2887,77 +2994,263 @@ export function MeeshoLabelExportTool() {
               disabled={parsing}
               onChange={onFileInput}
             />
-            <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 text-center">
-              {parsing ? (
-                <>
-                  <div className="flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-                    <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
+            {parsing ? (
+              <>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+                    <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[17px] font-semibold tracking-tight text-foreground">
-                      Reading your PDFs
-                    </p>
-                    <p className="text-[13px] leading-snug text-muted-foreground">
-                      Detecting marketplace, payment, courier, SKU, and quantity.
+                  <div className="min-w-0">
+                    <h1 className="text-[18px] font-semibold tracking-tight text-foreground">
+                      Reading PDFs
+                    </h1>
+                    <p className="mt-0.5 text-[12px] font-medium text-muted-foreground">
+                      Detecting SKU, qty, courier, and payment.
                     </p>
                   </div>
-                  {parseProgress ? (
-                    <div className="w-full max-w-[260px] space-y-2">
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        Page {parseProgress[0]} / {parseProgress[1]}
-                      </p>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
-                        <div
-                          className="h-full rounded-full bg-primary/80 transition-[width] duration-300 ease-out"
-                          style={{
-                            width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
-                          }}
-                        />
-                      </div>
+                </div>
+                {parseProgress ? (
+                  <div className="w-full min-w-[10rem] space-y-2 sm:w-56">
+                    <p className="text-right text-xs tabular-nums text-muted-foreground">
+                      {parseProgress[0]} / {parseProgress[1]}
+                    </p>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
+                      <div
+                        className="h-full rounded-full bg-primary/80 transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
+                        }}
+                      />
                     </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <div className="flex size-14 items-center justify-center rounded-2xl border border-border bg-background shadow-inner">
-                    <FileUp className="size-7 text-primary" strokeWidth={1.35} aria-hidden />
                   </div>
-                  <div className="space-y-1.5">
-                    <p className="text-[18px] font-semibold tracking-tight text-foreground">
-                      Import marketplace PDFs
-                    </p>
-                    <p className="text-[13px] leading-snug text-muted-foreground">
-                      Meesho, Flipkart, Amazon labels, and Amazon tax invoices can be uploaded in one batch.
-                    </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-inner">
+                    <FileUp className="size-5 text-primary" strokeWidth={1.6} aria-hidden />
                   </div>
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="mt-1 min-h-11 min-w-[168px] font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:min-h-10"
-                    disabled={parsing}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Choose PDFs
-                  </Button>
-                </>
-              )}
-            </div>
+                  <div className="min-w-0">
+                    <h1 className="text-[18px] font-semibold tracking-tight text-foreground sm:text-xl">
+                      Import labels
+                    </h1>
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-800 ring-1 ring-violet-500/20 dark:text-violet-100">
+                        Meesho
+                      </span>
+                      <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-800 ring-1 ring-blue-500/20 dark:text-blue-100">
+                        Flipkart
+                      </span>
+                      <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-900 ring-1 ring-orange-500/20 dark:text-orange-100">
+                        Amazon
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="min-h-11 w-full justify-center font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
+                  disabled={parsing}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose PDFs
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </WorkspaceSurfaceCard>
 
+      {rows.length > 0 ? (
+        <WorkspaceSurfaceCard padding="p-4 sm:p-5">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+                  Processing
+                </p>
+                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">
+                  Choose output
+                </h2>
+                <p className="max-w-xl text-[12px] font-medium leading-5 text-muted-foreground">
+                  Keep the full filter workflow, auto-crop clean shipping labels, or crop only the labels currently selected by filters.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex rounded-full border border-border/55 bg-background/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                  {cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} pages ready
+                </span>
+                {cropperBusy ? (
+                  <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                    Detecting crop areas
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-2 lg:grid-cols-3">
+              {[
+                ["filter", "Filter only", "Use SKU, courier, quantity, payment, and marketplace filters.", "Standard export"],
+                ["crop", "Crop labels", "Auto-detect label or invoice areas from uploaded PDFs.", "Fastest crop"],
+                ["filter_crop", "Filter + crop", "Filter first, then crop only the matching label pages.", "Best for dispatch"],
+              ].map(([key, title, body, meta]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={cn(
+                    "group relative min-h-[7.25rem] overflow-hidden rounded-2xl border p-4 text-left transition-all",
+                    processingMode === key
+                      ? "border-primary/85 bg-primary/10 text-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.22)]"
+                      : "border-border/65 bg-background/55 text-muted-foreground hover:border-border hover:bg-muted/35 hover:text-foreground"
+                  )}
+                  onClick={() => setProcessingMode(key as typeof processingMode)}
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-semibold tracking-tight">{title}</span>
+                      <span className="mt-2 block max-w-[19rem] text-[12px] leading-5 text-muted-foreground">{body}</span>
+                    </span>
+                    <span
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                        processingMode === key
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border/70 bg-background/70 text-transparent group-hover:text-muted-foreground"
+                      )}
+                    >
+                      <Check className="size-3.5" strokeWidth={2.4} aria-hidden />
+                    </span>
+                  </span>
+                  <span className="absolute bottom-3 left-4 rounded-full bg-muted/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {meta}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {processingMode !== "filter" ? (
+              <div className="rounded-2xl border border-border/60 bg-muted/12 p-3 sm:p-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-stretch">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-[12px] font-semibold text-foreground">Crop target</p>
+                      <p className="hidden text-[11px] font-medium text-muted-foreground sm:block">
+                        Auto-detect keeps barcode and QR quality intact.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      {[
+                        ["shipping", "Shipping label", "AWB, barcode, address, courier, SKU, Qty"],
+                        ["invoice", "Tax invoice", "Invoice section; Amazon matched by Order ID"],
+                        ["both", "Label + invoice", "Export matching shipping label and invoice"],
+                      ].map(([key, title, body]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className={cn(
+                            "rounded-xl border px-3 py-3 text-left transition-colors",
+                            autoCropMode === key
+                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/15"
+                              : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
+                          )}
+                          onClick={() => setAutoCropMode(key as CropMode)}
+                        >
+                          <span className="flex items-center justify-between gap-2 text-[12px] font-semibold">
+                            {title}
+                            {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
+                          </span>
+                          <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">{body}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col justify-between gap-3 rounded-xl border border-border/55 bg-background/50 p-3 xl:w-[18rem]">
+                    <div className="space-y-1">
+                      <p className="text-[12px] font-semibold text-foreground">
+                        {processingMode === "filter_crop" ? "Filtered crop" : "Crop all pages"}
+                      </p>
+                      <p className="text-[11px] leading-5 text-muted-foreground">
+                        {processingMode === "filter_crop"
+                          ? `${filteredLabels.length.toLocaleString()} filtered label(s) will be cropped.`
+                          : `${cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} PDF page(s) will be cropped.`}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-xl text-[12px] font-semibold"
+                        disabled={cropExportBusy || cropperDocs.length === 0}
+                        onClick={() => void downloadAutoCropPdf()}
+                      >
+                        {cropExportBusy ? (
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <Download className="mr-1.5 size-3.5" aria-hidden />
+                        )}
+                        PDF
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-10 rounded-xl text-[12px] font-semibold"
+                        disabled={cropExportBusy || cropperDocs.length === 0}
+                        onClick={() => void downloadAutoCropZip()}
+                      >
+                        {cropExportBusy ? (
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <Archive className="mr-1.5 size-3.5" aria-hidden />
+                        )}
+                        ZIP
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <details className="mt-3 rounded-xl border border-border/55 bg-background/45 px-3 py-2.5 text-[12px]">
+                  <summary className="cursor-pointer list-none font-semibold text-foreground">
+                    Advanced Options
+                    <span className="ml-2 text-muted-foreground">Manual Crop</span>
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
+                      Use manual crop only when auto-detection needs adjustment. Drag and resize the crop box page-wise, or apply the same crop to all pages.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-xl text-[12px] font-semibold"
+                      disabled={cropperDocs.length === 0}
+                      onClick={() => setManualCropOpen((v) => !v)}
+                    >
+                      Manual Crop
+                    </Button>
+                    {manualCropOpen ? (
+                      <ShippingLabelCropper initialDocs={cropperDocs} embedded />
+                    ) : null}
+                  </div>
+                </details>
+              </div>
+            ) : null}
+          </div>
+        </WorkspaceSurfaceCard>
+      ) : null}
+
       {ready ? (
-        <WorkspaceSurfaceCard padding="p-5 sm:p-6 lg:p-8">
+        <WorkspaceSurfaceCard padding="p-4 sm:p-5 lg:p-6">
           {rows.length > 0 ? (
             <div className="mb-5 space-y-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-[12px] font-semibold text-muted-foreground">Current run</p>
-                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                    {filteredLabels.length.toLocaleString()} labels ready to filter
+                  <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                    {filteredLabels.length.toLocaleString()} labels
                   </h2>
-                  <p className="max-w-2xl text-[13px] leading-5 text-muted-foreground">
-                    Source PDFs stay unchanged. Select rows below, then download a merged PDF or SKU-wise ZIP.
+                  <p className="max-w-2xl text-[12px] font-medium leading-5 text-muted-foreground sm:text-[13px]">
+                    Filter, select, download.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[28rem]">

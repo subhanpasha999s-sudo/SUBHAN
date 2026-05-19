@@ -9,12 +9,12 @@ import {
   CheckCircle2,
   Clock3,
   FileText,
-  Layers2,
   PackageCheck,
   Sparkles,
   Truck,
 } from "lucide-react";
 
+import { TulminLogoMark } from "@/components/brand/tulmin-logo";
 import {
   BLOG_GLOBAL_CTA,
   blogCanonical,
@@ -222,9 +222,7 @@ function ArticleVisual({
       <div className="flex h-full min-h-[320px] flex-col bg-[linear-gradient(135deg,rgb(95_134_255/0.16),rgb(14_165_233/0.07)_48%,rgb(16_185_129/0.11))] p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/45 bg-card/88 p-3 text-foreground shadow-elevate-xs dark:border-white/10 dark:bg-slate-950/70 dark:text-white">
           <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Layers2 className="size-4" strokeWidth={1.8} />
-            </span>
+            <TulminLogoMark className="size-9" />
             <div>
               <p className="text-sm font-semibold">Tulmin workflow</p>
               <p className="text-[11px] text-muted-foreground dark:text-slate-300">Filter · verify · export</p>

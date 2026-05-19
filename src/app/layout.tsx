@@ -88,7 +88,10 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+      { url: "/brand/tulmin-logo-64.png", type: "image/png", sizes: "64x64" },
+    ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],

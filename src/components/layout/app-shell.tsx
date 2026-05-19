@@ -12,7 +12,6 @@ import {
   CircleUserRound,
   Cloud,
   FileDown,
-  Layers2,
   Link2,
   LockKeyhole,
   Settings2,
@@ -20,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 
+import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
@@ -365,33 +365,21 @@ function SidebarChrome({
             >
               <ChevronsLeft className="size-5 rotate-180" strokeWidth={1.85} />
             </button>
-            <span className="rounded-lg bg-sidebar-foreground/[0.055] px-2 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-sidebar-foreground/70 ring-1 ring-sidebar-border/35">
-              TM
-            </span>
+            <TulminLogoMark className="size-9" />
           </>
         ) : (
           <>
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <div
-                  className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-primary shadow-[inset_0_1px_0_rgb(255_255_255/0.055)] ring-1 ring-sidebar-border/45"
-                  aria-hidden
-                >
-                  <Layers2 className="size-[18px]" strokeWidth={1.85} />
-                </div>
-                <div className="min-w-0 flex-1 leading-tight">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-                      Tulmin
-                    </p>
-                    <span className="rounded-md bg-sidebar-foreground/[0.045] px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-sidebar-foreground/45 ring-1 ring-sidebar-foreground/8">
-                      SaaS
-                    </span>
-                  </div>
-                  <p className="mt-0.5 truncate text-[10.5px] font-medium text-sidebar-foreground/42">
-                    Dispatch workspace
-                  </p>
-                </div>
+                <TulminBrand
+                  markClassName="size-9"
+                  titleClassName="text-[15px] text-sidebar-foreground"
+                  subtitleClassName="mt-0.5 text-[10.5px] font-medium text-sidebar-foreground/42"
+                  subtitle="Dispatch workspace"
+                  textClassName="flex-1"
+                  className="min-w-0 flex-1"
+                  priority
+                />
               </div>
               {variant === "desktop" ? (
                 <Button

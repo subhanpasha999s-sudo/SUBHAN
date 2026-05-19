@@ -9,9 +9,9 @@ import {
   FileDown,
   Link2,
   MenuIcon,
-  Sparkles,
 } from "lucide-react";
 
+import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
 import {
   WORKSPACE_GUTTERS,
   WORKSPACE_MAX_W,
@@ -146,20 +146,18 @@ export function AppTopbar({
               <MenuIcon className="size-[22px]" aria-hidden />
             </Button>
 
-            <div className="flex min-w-0 flex-1 flex-col justify-center truncate lg:hidden">
-              <span className="block truncate text-[14px] font-semibold leading-tight tracking-tight text-foreground">
-                Tulmin
-              </span>
-              <span className="mt-px block truncate text-[11px] font-medium text-muted-foreground">
-                Smart label filtering for marketplace sellers
-              </span>
-            </div>
+            <TulminBrand
+              className="min-w-0 flex-1 lg:hidden"
+              markClassName="size-9"
+              titleClassName="text-[14px] leading-tight text-foreground"
+              subtitleClassName="mt-px text-[11px] font-medium text-muted-foreground"
+              subtitle="Smart label filtering for marketplace sellers"
+              priority
+            />
 
             <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
               <div className="flex min-w-0 items-center gap-4">
-                <div className="motion-lift flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
-                  <Sparkles className="size-[18px]" strokeWidth={1.8} aria-hidden />
-                </div>
+                <TulminLogoMark className="motion-lift size-11" />
                 <div className="min-w-0">
                   <h1 className="truncate text-[20px] font-semibold leading-tight tracking-tight text-foreground">
                     {title}

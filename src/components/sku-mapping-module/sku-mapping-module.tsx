@@ -18,7 +18,6 @@ import {
   WorkspaceModulePageStack,
   WorkspaceSurfaceCard,
 } from "@/components/layout/workspace-layout";
-import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -1308,75 +1307,67 @@ export function SkuMappingModule() {
     openOptionalSignIn();
   }
 
-  const headerBadges = !cloudConfigured
+  const workspaceStatusBadge = !cloudConfigured
     ? null
     : !userId ? (
-    <span className="inline-flex max-w-xl flex-wrap items-center gap-x-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[12px] text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/45 dark:text-amber-50">
-      Saved on this device.{" "}
+    <span className="inline-flex max-w-full flex-wrap items-center gap-x-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/45 dark:text-amber-50">
+      Local only.{" "}
       <button
         type="button"
         onClick={openOptionalSignIn}
         className="interaction-press rounded px-0.5 font-semibold text-primary underline-offset-2 hover:bg-primary/10 hover:underline"
       >
-        Sign in to back up
+        Sign in
       </button>{" "}
-      your SKU map.
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-50">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-50">
       <span className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden />
-      Workspace synced
+      Synced
     </span>
+  );
+
+  const hasWorkspaceActions =
+    (remoteAvailable && pendingLocalOnlyCount > 0) || (cloudConfigured && Boolean(userId));
+
+  const workspaceActions = (
+    <>
+      {remoteAvailable && pendingLocalOnlyCount > 0 ? (
+        <Button
+          type="button"
+          size="sm"
+          className="h-8 rounded-lg px-2.5 text-[11px] font-semibold disabled:opacity-40"
+          disabled={pushDraftBusy || globalBusy}
+          onClick={() => void pushLocalDraftToCloud()}
+        >
+          {pushDraftBusy ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+          ) : null}
+          Sync drafts ({pendingLocalOnlyCount})
+        </Button>
+      ) : null}
+      {cloudConfigured && userId ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-lg px-2.5 text-[11px] font-semibold"
+          disabled={snapshotRefreshing}
+          onClick={() => void onManualRefresh()}
+        >
+          {snapshotRefreshing ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <RefreshCw className="mr-1.5 size-3.5" aria-hidden />
+          )}
+          Refresh
+        </Button>
+      ) : null}
+    </>
   );
 
   return (
     <>
-      <div data-tour="sku-map-link">
-        <ModulePageHeader
-          breadcrumb={[
-            { label: "Labels", href: "/export-labels" },
-            { label: "SKU Mapping" },
-          ]}
-          title="SKU Mapping"
-          description="Build your master SKU map once. Tulmin remembers it and keeps every future label run ready to filter."
-          badges={headerBadges}
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              {remoteAvailable && pendingLocalOnlyCount > 0 ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="font-semibold disabled:opacity-40"
-                  disabled={pushDraftBusy || globalBusy}
-                  onClick={() => void pushLocalDraftToCloud()}
-                >
-                  {pushDraftBusy ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                  ) : null}
-                  Sync local drafts ({pendingLocalOnlyCount})
-                </Button>
-              ) : null}
-              {cloudConfigured && userId ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={snapshotRefreshing}
-                  onClick={() => void onManualRefresh()}
-                >
-                  {snapshotRefreshing ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RefreshCw className="mr-2 size-4" aria-hidden />
-                  )}
-                  Refresh workspace
-                </Button>
-              ) : null}
-            </div>
-          }
-        />
-      </div>
-
       <Dialog
         open={resumeWorkspaceOpen}
         onOpenChange={(open) => {
@@ -1493,12 +1484,12 @@ export function SkuMappingModule() {
       </Dialog>
 
       <WorkspaceModulePageStack>
-      <WorkspaceSurfaceCard padding="p-5 sm:p-6">
         <SkuSpreadsheetUploadZone
           busy={parseBusy}
           onFile={(f) => void ingestFile(f)}
+          statusSlot={workspaceStatusBadge}
+          actionsSlot={hasWorkspaceActions ? workspaceActions : null}
         />
-      </WorkspaceSurfaceCard>
 
       {snapshotLoading && cloudConfigured && userId ? (
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-6 py-4 text-[13px] text-muted-foreground shadow-layer-card ring-1 ring-border/15">

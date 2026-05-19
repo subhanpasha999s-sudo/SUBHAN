@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 import { ExportLabelsBody } from "./export-labels-body";
@@ -45,14 +44,5 @@ export const metadata: Metadata = {
 };
 
 export default function ExportLabelsPage() {
-  return (
-    <>
-      <ModulePageHeader
-        breadcrumb={[{ label: "Labels" }]}
-        title="Run Labels"
-        description="Upload Meesho, Flipkart, and Amazon PDFs together. Tulmin detects labels and invoices, filters by SKU, qty, payment, and courier, then exports the exact dispatch-ready set."
-      />
-      <ExportLabelsBody />
-    </>
-  );
+  return <ExportLabelsBody />;
 }

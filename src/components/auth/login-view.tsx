@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast as notify } from "sonner";
 
+import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -194,15 +195,13 @@ export function LoginView() {
             <div className="absolute inset-0 opacity-70 [background:radial-gradient(900px_circle_at_18%_14%,rgba(56,189,248,0.18),transparent_48%),radial-gradient(700px_circle_at_78%_32%,rgba(99,102,241,0.12),transparent_48%)] dark:opacity-60 dark:[background:radial-gradient(900px_circle_at_18%_14%,rgba(56,189,248,0.20),transparent_48%),radial-gradient(700px_circle_at_78%_32%,rgba(99,102,241,0.16),transparent_48%)]" />
             <div className="relative">
               <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-slate-950 text-base font-bold tracking-tight text-white shadow-sm ring-1 ring-black/10 dark:bg-white dark:text-slate-950 dark:ring-white/15">
-                  L
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[15px] font-semibold tracking-tight">Tulmin</p>
-                  <p className="mt-0.5 text-[12px] text-slate-600 dark:text-white/70">
-                    Dispatch clarity for high-volume teams.
-                  </p>
-                </div>
+                <TulminBrand
+                  markClassName="size-11"
+                  titleClassName="text-[15px] text-slate-950 dark:text-white"
+                  subtitleClassName="mt-0.5 text-[12px] font-medium text-slate-600 dark:text-white/70"
+                  subtitle="Dispatch clarity for high-volume teams."
+                  priority
+                />
               </div>
 
               <h1 className="mt-10 text-balance text-3xl font-semibold tracking-tight">
@@ -240,9 +239,7 @@ export function LoginView() {
                     Access your workspace securely. Choose email code or password.
                   </CardDescription>
                 </div>
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/10 lg:hidden">
-                  L
-                </div>
+                <TulminLogoMark className="size-10 lg:hidden" />
               </div>
             </CardHeader>
 

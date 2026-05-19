@@ -1,7 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Label">
-  <rect width="32" height="32" rx="8" fill="#0f172a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tulmin">
   <path
-    fill="#fff"
-    d="M9.5 8.75h8.05c4.02 0 6.45 2.24 6.45 5.72 0 2.94-2.06 5.06-5.52 5.62l6.52 8.91h-3.9l-5.93-8.56h-.04v8.56H9.5V8.75Zm7.93 10.52c2.43 0 3.8-1.2 3.8-3.06 0-1.93-1.34-3.06-3.73-3.06h-3.74v6.12h3.67Z"
+    d="M103 190v119c0 18 14 32 32 32h240c18 0 32-14 32-32V158c0-18-14-32-32-32H116"
+    fill="none"
+    stroke="#91b9c7"
+    stroke-width="34"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M286 218h120c18 0 32 14 32 32v104c0 18-14 32-32 32H189c-18 0-32-14-32-32V238c0-18 14-32 32-32h239"
+    fill="none"
+    stroke="#ffc154"
+    stroke-width="34"
+    stroke-linecap="round"
+    stroke-linejoin="round"
   />
 </svg>

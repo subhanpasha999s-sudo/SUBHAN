@@ -12,7 +12,6 @@ import {
   Clock3,
   Cloud,
   FileDown,
-  Layers2,
   Link2,
   LockKeyhole,
   PackageCheck,
@@ -24,6 +23,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -112,9 +112,7 @@ function ProductPreview() {
       <div className="border-b border-slate-200/70 bg-slate-50/85 px-4 py-3 dark:border-white/10 dark:bg-white/[0.035]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-2xl bg-[#335cff] text-white shadow-[0_14px_34px_-20px_rgb(51_92_255/0.95)]">
-              <Layers2 className="size-4" strokeWidth={1.8} aria-hidden />
-            </span>
+            <TulminLogoMark className="size-9" />
             <div>
               <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
                 SKU Mapping
@@ -224,15 +222,12 @@ export default async function HomePage() {
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#f7f9fc]/82 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/78">
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Tulmin home">
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-[#335cff] text-white shadow-[0_12px_28px_-18px_rgb(51_92_255/0.95)]">
-              <Layers2 className="size-5" strokeWidth={1.85} aria-hidden />
-            </span>
-            <span className="leading-tight">
-              <span className="block text-[15px] font-semibold tracking-tight">Tulmin</span>
-              <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Dispatch SaaS
-              </span>
-            </span>
+            <TulminBrand
+              markClassName="size-10"
+              titleClassName="text-[15px] text-slate-950 dark:text-white"
+              subtitleClassName="text-[11px] text-slate-500 dark:text-slate-400"
+              priority
+            />
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex dark:text-slate-300">
             <a href="#workflow" className="hover:text-slate-950 dark:hover:text-white">

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  CheckCircle2,
   CircleHelp,
   Download,
   FileSpreadsheet,
@@ -22,12 +21,16 @@ export interface SkuSpreadsheetUploadZoneProps {
   disabled?: boolean;
   busy?: boolean;
   onFile: (file: File) => void | Promise<void>;
+  statusSlot?: React.ReactNode;
+  actionsSlot?: React.ReactNode;
 }
 
 export function SkuSpreadsheetUploadZone({
   disabled,
   busy,
   onFile,
+  statusSlot,
+  actionsSlot,
 }: SkuSpreadsheetUploadZoneProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = React.useState(false);
@@ -82,7 +85,7 @@ export function SkuSpreadsheetUploadZone({
   return (
     <div
       className={cn(
-        "motion-lift relative overflow-hidden rounded-[14px] border border-dashed border-border bg-gradient-to-b from-muted/30 to-muted/10 transition-[transform,border-color,background-color,box-shadow,opacity] hover:border-primary/35 dark:from-muted/20 dark:to-muted/5",
+        "relative overflow-hidden rounded-2xl border border-dashed border-border bg-muted/14 transition-[border-color,background-color,box-shadow,opacity] hover:border-primary/40 hover:bg-muted/20 dark:bg-muted/10",
         dragActive &&
           "border-primary/60 bg-primary/[0.055] shadow-[0_0_0_4px_rgb(63_108_255/0.10),0_24px_70px_-44px_rgb(63_108_255/0.95)]",
         busy && "pointer-events-none opacity-70",
@@ -115,7 +118,6 @@ export function SkuSpreadsheetUploadZone({
         aria-hidden
       >
         <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/65 to-transparent" />
-        <div className="absolute left-1/2 top-0 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
       </div>
       <input
         ref={inputRef}
@@ -128,93 +130,159 @@ export function SkuSpreadsheetUploadZone({
           e.target.value = "";
         }}
       />
-      <div className="flex flex-col gap-5 px-5 py-6 sm:px-6 sm:py-7">
-        <div className="flex flex-col gap-5 text-left lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div
-              className={cn(
-                "flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border/80 bg-background/65 shadow-inner",
-                busy && "border-primary/30 bg-primary/10"
-              )}
-            >
-              {busy ? (
-                <Loader2 className="size-7 animate-spin text-primary" aria-hidden />
-              ) : (
-                <FileSpreadsheet
-                  className="size-7 text-muted-foreground"
-                  strokeWidth={1.35}
-                />
-              )}
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
+        {(statusSlot || actionsSlot) ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">{statusSlot}</div>
+            {actionsSlot ? (
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                {actionsSlot}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={cn(
+              "flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-background/70 shadow-inner",
+              busy && "border-primary/30 bg-primary/10"
+            )}
+          >
+            {busy ? (
+              <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
+            ) : (
+              <FileSpreadsheet
+                className="size-5 text-primary"
+                strokeWidth={1.6}
+              />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <h1 className="text-[18px] font-semibold tracking-tight text-foreground sm:text-xl">
+                Import SKUs
+              </h1>
+              <span className="inline-flex items-center gap-1 align-middle">
+                <Tooltip>
+                  <TooltipTrigger
+                    type="button"
+                    className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="What is a master SKU?"
+                  >
+                    <CircleHelp className="size-3.5" aria-hidden />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px] text-center">
+                    One product can have many marketplace SKUs. Master SKU groups them together for easy label filtering.
+                  </TooltipContent>
+                </Tooltip>
+              </span>
             </div>
-            <div className="space-y-1">
-              <p className="text-[18px] font-semibold tracking-tight text-foreground">
-                Import only the SKUs you want to map
-              </p>
-              <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
-                Download the sample file and fill it with your marketplace SKU.
-                Tulmin will use those SKUs to map with{" "}
-                <span className="inline-flex items-center gap-1 align-middle">
-                  <span>master SKU</span>
+            <p className="mt-1 text-[12px] font-medium text-muted-foreground sm:text-[13px]">
+              Download a template, fill listing SKUs, then upload it back.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-2.5 lg:grid-cols-3">
+          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
+                1
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold leading-tight text-foreground">
+                  Download template
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
+                  Excel or CSV
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 w-full shrink-0 rounded-xl px-3 text-[12px] font-semibold"
+                disabled={disabled || busy}
+                onClick={downloadSampleExcel}
+              >
+                <Download className="mr-1.5 size-3.5" aria-hidden />
+                Excel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 w-full shrink-0 rounded-xl px-3 text-[12px] font-semibold"
+                disabled={disabled || busy}
+                onClick={downloadSampleCsv}
+              >
+                <Download className="mr-1.5 size-3.5" aria-hidden />
+                CSV
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
+                2
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold leading-tight text-foreground">
+                  Fill your marketplace SKU
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
+                  Paste one SKU per row
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <div>SKU</div>
+              <div>PS-PI-BL-0199</div>
+              <div>TSHIRT-BLACK-M</div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
+                3
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[13px] font-semibold leading-tight text-foreground">
+                    Upload filled file
+                  </p>
                   <Tooltip>
                     <TooltipTrigger
                       type="button"
-                      className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label="What is a master SKU?"
+                      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="Why upload the filled SKU file?"
                     >
                       <CircleHelp className="size-3.5" aria-hidden />
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[260px] text-center">
-                      One product can have many marketplace SKUs. Master SKU groups them together for easy label filtering.
+                    <TooltipContent side="top" className="max-w-[280px] text-left">
+                      Upload your filled template so Tulmin can read each marketplace SKU. Then you can group those listing SKUs under one master SKU, so future labels for the same product are found and filtered together.
                     </TooltipContent>
                   </Tooltip>
-                </span>
-                .
-              </p>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {["Only SKU data", "CSV or Excel", "Private by default"].map((item) => (
-                  <span
-                    key={item}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
-                  >
-                    <CheckCircle2 className="size-3.5 text-emerald-500" aria-hidden />
-                    {item}
-                  </span>
-                ))}
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
+                  Start mapping
+                </p>
               </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 lg:justify-end">
             <Button
               type="button"
-              variant="outline"
-              size="lg"
-              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
-              disabled={disabled || busy}
-              onClick={downloadSampleExcel}
-            >
-              <Download className="mr-2 size-4" aria-hidden />
-              Sample Excel
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="min-h-11 shrink-0 px-4 text-[13px] font-semibold"
-              disabled={disabled || busy}
-              onClick={downloadSampleCsv}
-            >
-              <Download className="mr-2 size-4" aria-hidden />
-              Sample CSV
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              className="min-h-11 shrink-0 px-5 text-[13px] font-semibold shadow-elevate-sm"
+              size="sm"
+              className="h-10 w-full shrink-0 rounded-xl px-4 text-[12px] font-semibold shadow-elevate-sm"
               disabled={disabled || busy}
               onClick={() => inputRef.current?.click()}
               aria-describedby="sku-upload-meesho-steps"
             >
-              <Upload className="mr-2 size-4" aria-hidden />
+              <Upload className="mr-1.5 size-3.5" aria-hidden />
               Choose file
             </Button>
           </div>
@@ -222,26 +290,26 @@ export function SkuSpreadsheetUploadZone({
 
         <details
           id="sku-upload-meesho-steps"
-          className="group rounded-xl border border-border/60 bg-background/45 px-4 py-3 text-left text-[13px] leading-relaxed text-muted-foreground"
+          className="group rounded-xl border border-border/55 bg-background/45 px-3 py-2.5 text-left text-[12px] leading-relaxed text-muted-foreground"
         >
-          <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground outline-none transition-colors hover:text-primary">
+          <summary className="cursor-pointer list-none font-semibold text-foreground outline-none transition-colors hover:text-primary">
             Don&apos;t know where to find your Marketplace SKU? Here&apos;s a quick guide.
-            <span className="ml-2 text-muted-foreground group-open:hidden">Show guides</span>
-            <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide guides</span>
+            <span className="ml-2 text-muted-foreground group-open:hidden">Show</span>
+            <span className="ml-2 hidden text-muted-foreground group-open:inline">Hide</span>
           </summary>
           <div className="mt-3 grid gap-3 lg:grid-cols-3">
             {[
               {
                 title: "Meesho",
-                steps: "Login -> Inventory -> Bulk Stock Update -> Download Existing Inventory File -> Copy all SKU -> Paste into Sample File",
+                steps: "Inventory -> Bulk Stock Update -> Download Existing Inventory File",
               },
               {
                 title: "Flipkart",
-                steps: "Login -> Listings/Inventory -> Bulk Actions -> Export Listings Report -> Copy all SKU -> Paste into Sample File",
+                steps: "Listings/Inventory -> Bulk Actions -> Export Listings Report",
               },
               {
                 title: "Amazon",
-                steps: "Login -> Inventory -> Manage All Inventory -> Export Inventory Report -> Copy all SKU -> Paste into Sample File",
+                steps: "Inventory -> Manage All Inventory -> Export Inventory Report",
               },
             ].map((guide) => (
               <div
@@ -258,7 +326,7 @@ export function SkuSpreadsheetUploadZone({
             ))}
           </div>
           <p className="mt-3 text-[12px]">
-            After download, keep or copy just the SKU column into the Tulmin sample file, then upload it here.
+            Keep just the SKU column in the sample file, then upload it here.
           </p>
         </details>
       </div>
