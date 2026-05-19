@@ -139,7 +139,7 @@ export function SkuSpreadsheetUploadZone({
                       <CircleHelp className="size-3.5" aria-hidden />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[260px] text-center">
-                      Master SKU is your main product SKU. Tulmin connects marketplace SKUs to it for easier label filtering.
+                      Master SKU is one name for the same product. Add all marketplace SKU codes under it, then filter labels easily.
                     </TooltipContent>
                   </Tooltip>
                 </span>

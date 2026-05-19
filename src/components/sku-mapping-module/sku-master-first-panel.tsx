@@ -362,7 +362,7 @@ export function SkuMasterFirstPanel({
                 <CircleHelp className="size-4" aria-hidden />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[260px] text-center">
-                A master SKU is your main product name. Tulmin links marketplace SKUs to it so label filters stay simple.
+                Master SKU is one name for the same product. Add all marketplace SKU codes under it, then filter labels easily.
               </TooltipContent>
             </Tooltip>
           </div>
