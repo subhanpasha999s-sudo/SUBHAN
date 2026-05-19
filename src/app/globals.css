@@ -288,13 +288,13 @@
     --chart-5: #f59e0b;
 
     /** Sidebar — cool enterprise rail (Zoho-style layering vs.canvas) */
-    --sidebar: #eef3fb;
+    --sidebar: #f2f6fd;
     --sidebar-foreground: #0f172a;
     --sidebar-primary: #3f6cff;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: rgba(15, 23, 42, 0.06);
+    --sidebar-accent: rgba(63, 108, 255, 0.1);
     --sidebar-accent-foreground: #0f172a;
-    --sidebar-border: rgba(100, 116, 139, 0.35);
+    --sidebar-border: rgba(91, 120, 166, 0.46);
     --sidebar-ring: #4a74ff;
     /** Active nav row top edge (readable on light + dark rails) */
     --sidebar-inset-highlight: rgba(15, 23, 42, 0.06);

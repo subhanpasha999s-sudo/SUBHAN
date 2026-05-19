@@ -142,8 +142,8 @@ function SidebarNavButton({
           "relative flex shrink-0 items-center justify-center rounded-xl transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth",
           collapsed ? "size-10" : "size-8",
           active
-            ? "bg-sidebar-primary/95 text-sidebar-primary-foreground shadow-[0_10px_24px_-18px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.18)]"
-            : "bg-sidebar-foreground/[0.035] text-sidebar-foreground/50 ring-1 ring-sidebar-foreground/[0.045] group-hover:bg-sidebar-accent/70 group-hover:text-sidebar-foreground/88"
+            ? "bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] shadow-[0_10px_24px_-18px_rgb(59_130_246/0.95),inset_0_1px_0_rgb(255_255_255/0.18)]"
+            : "bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)] text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--sidebar-primary)_12%,transparent)] group-hover:text-[var(--sidebar-foreground)]"
         )}
       >
         <Icon
@@ -190,7 +190,7 @@ function SidebarNavButton({
     "group relative flex w-full touch-manipulation items-center outline-none select-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]",
     navInteraction,
     collapsed
-      ? "mx-auto h-12 w-12 justify-center rounded-2xl p-0"
+      ? "mx-auto h-12 w-12 justify-center rounded-2xl border border-transparent p-0"
       : cn(
           "gap-3 rounded-xl py-2 pl-2 pr-2.5",
           comfortTouch && "min-h-[3.25rem] py-2.5"
@@ -199,14 +199,15 @@ function SidebarNavButton({
     active &&
       !item.soon &&
       cn(
-        "bg-sidebar-accent/70 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.055),0_0_0_1px_rgb(91_156_247/0.14)]",
+        "bg-[var(--sidebar-accent)] text-sidebar-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.055),0_0_0_1px_rgb(91_156_247/0.14)]",
         "before:pointer-events-none before:absolute before:left-0 before:top-1/2 before:h-6 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary before:content-['']",
-        collapsed && "before:left-0.5",
+        collapsed &&
+          "border-[color-mix(in_srgb,var(--sidebar-primary)_34%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-primary)_12%,transparent)] before:left-0.5",
         "dark:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.045),0_0_0_1px_rgb(96_165_250/0.13)]"
       ),
     !active &&
       !item.soon &&
-      "text-sidebar-foreground/68 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.035)]"
+      "text-sidebar-foreground/68 hover:bg-[var(--sidebar-accent)] hover:text-sidebar-foreground hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.035)]"
   );
 
   if (item.soon || !item.href) {
