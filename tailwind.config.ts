@@ -21,8 +21,8 @@ const config: Config = {
       },
       /** Avoid `ease-[cubic-bezier(...)]` — Tailwind 3 warns (ambiguous vs other utilities). */
       transitionTimingFunction: {
-        smooth: "cubic-bezier(0.16, 1, 0.3, 1)",
-        panel: "cubic-bezier(0.33, 1, 0.68, 1)",
+        smooth: "cubic-bezier(0.22, 1, 0.36, 1)",
+        panel: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
       colors: {
         border: "var(--border)",

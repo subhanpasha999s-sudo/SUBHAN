@@ -40,7 +40,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                 duration: 4_800,
                 classNames: {
                   toast:
-                    "rounded-2xl border border-border bg-popover px-4 py-3 font-sans text-[13px] text-popover-foreground shadow-xl backdrop-blur-sm max-w-[min(24rem,calc(100vw-5rem))]",
+                    "rounded-2xl border border-border bg-popover px-4 py-3 font-sans text-[13px] text-popover-foreground shadow-elevate-md backdrop-blur-md max-w-[min(24rem,calc(100vw-5rem))]",
                 },
               }}
             />

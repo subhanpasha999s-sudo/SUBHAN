@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonEase =
-  "duration-200 ease-smooth motion-reduce:transition-none motion-reduce:duration-0"
+  "duration-150 ease-smooth motion-reduce:transition-none motion-reduce:duration-0"
 
 const buttonVariants = cva(
   cn(
@@ -12,6 +12,7 @@ const buttonVariants = cva(
     "transition-[transform,background-color,border-color,color,box-shadow,opacity]",
     buttonEase,
     "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/35",
+    "motion-safe:hover:-translate-y-px",
     "motion-safe:active:not-aria-[haspopup]:scale-[0.985] motion-reduce:active:scale-100",
     "disabled:pointer-events-none disabled:opacity-50",
     "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",

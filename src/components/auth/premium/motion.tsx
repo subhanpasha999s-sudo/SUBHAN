@@ -20,11 +20,10 @@ export function FadeIn({
       className={cn(className)}
       initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1], delay }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1], delay }}
       {...props}
     >
       {children}
     </motion.div>
   );
 }
-

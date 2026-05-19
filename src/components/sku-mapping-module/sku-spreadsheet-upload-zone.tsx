@@ -30,6 +30,7 @@ export function SkuSpreadsheetUploadZone({
   onFile,
 }: SkuSpreadsheetUploadZoneProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = React.useState(false);
   const sampleRows = React.useMemo(
     () => [
       "Fill it with your marketplace SKU",
@@ -43,6 +44,7 @@ export function SkuSpreadsheetUploadZone({
   async function handleFiles(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
+    setDragActive(false);
     await onFile(f);
   }
 
@@ -80,18 +82,41 @@ export function SkuSpreadsheetUploadZone({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[14px] border border-dashed border-border bg-gradient-to-b from-muted/30 to-muted/10 transition-[border-color,background-color] hover:border-primary/35 dark:from-muted/20 dark:to-muted/5",
+        "motion-lift relative overflow-hidden rounded-[14px] border border-dashed border-border bg-gradient-to-b from-muted/30 to-muted/10 transition-[transform,border-color,background-color,box-shadow,opacity] hover:border-primary/35 dark:from-muted/20 dark:to-muted/5",
+        dragActive &&
+          "border-primary/60 bg-primary/[0.055] shadow-[0_0_0_4px_rgb(63_108_255/0.10),0_24px_70px_-44px_rgb(63_108_255/0.95)]",
         busy && "pointer-events-none opacity-70",
         disabled && "opacity-50"
       )}
-      onDragEnter={(e) => e.preventDefault()}
-      onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        if (!disabled && !busy) setDragActive(true);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (!disabled && !busy) setDragActive(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        setDragActive(false);
+      }}
       onDrop={(e) => {
         e.preventDefault();
+        setDragActive(false);
         if (disabled || busy) return;
         void handleFiles(e.dataTransfer.files);
       }}
     >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 ease-smooth",
+          (dragActive || busy) && "opacity-100"
+        )}
+        aria-hidden
+      >
+        <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/65 to-transparent" />
+        <div className="absolute left-1/2 top-0 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
+      </div>
       <input
         ref={inputRef}
         type="file"
