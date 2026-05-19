@@ -29,7 +29,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/:icon(favicon.ico|favicon.png|icon.svg|apple-touch-icon.png|apple-touch-icon-precomposed.png)",
+        source: "/:icon(favicon.ico|favicon.png|icon.svg|tulmin-favicon.svg|tulmin-favicon-32.png|tulmin-favicon-64.png|apple-touch-icon.png|apple-touch-icon-precomposed.png)",
         headers: [
           {
             key: "Cache-Control",

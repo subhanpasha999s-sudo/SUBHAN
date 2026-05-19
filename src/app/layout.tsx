@@ -89,11 +89,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/brand/tulmin-logo-64.png?v=4", type: "image/png", sizes: "64x64" },
+      { url: "/tulmin-favicon.svg?v=1", type: "image/svg+xml", sizes: "any" },
+      { url: "/tulmin-favicon-64.png?v=1", type: "image/png", sizes: "64x64" },
     ],
-    shortcut: [{ url: "/brand/tulmin-logo-64.png?v=4", type: "image/png" }],
+    shortcut: [{ url: "/tulmin-favicon-64.png?v=1", type: "image/png" }],
     apple: [
-      { url: "/apple-touch-icon.png?v=4", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=1", sizes: "180x180", type: "image/png" },
     ],
   },
   appleWebApp: {
@@ -152,7 +153,7 @@ export default function RootLayout({
   const themeBoot = `(function(){try{var k=${JSON.stringify(
     THEME_STORAGE_KEY
   )};var p=localStorage.getItem(k)||"system";var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
-  const faviconBoot = `(function(){try{var href="/brand/tulmin-logo-64.png?v=4";document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(el){el.parentNode&&el.parentNode.removeChild(el)});["icon","shortcut icon"].forEach(function(rel){var link=document.createElement("link");link.rel=rel;link.type="image/png";link.sizes="64x64";link.href=href;document.head.appendChild(link)});var apple=document.createElement("link");apple.rel="apple-touch-icon";apple.sizes="180x180";apple.href="/apple-touch-icon.png?v=4";document.head.appendChild(apple);}catch(e){}})();`;
+  const faviconBoot = `(function(){try{var href="/tulmin-favicon-64.png?v=1";document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(el){el.parentNode&&el.parentNode.removeChild(el)});["icon","shortcut icon"].forEach(function(rel){var link=document.createElement("link");link.rel=rel;link.type="image/png";link.sizes="64x64";link.href=href;document.head.appendChild(link)});var svg=document.createElement("link");svg.rel="icon";svg.type="image/svg+xml";svg.sizes="any";svg.href="/tulmin-favicon.svg?v=1";document.head.appendChild(svg);var apple=document.createElement("link");apple.rel="apple-touch-icon";apple.sizes="180x180";apple.href="/apple-touch-icon.png?v=1";document.head.appendChild(apple);}catch(e){}})();`;
 
   return (
     <html
