@@ -57,9 +57,14 @@ export type CropExportEntry = {
   fileName: string;
 };
 
+type PositionedTextItem = {
+  text: string;
+  top: number;
+};
+
 const FULL_RECT: CropRect = { x: 0, y: 0, width: 1, height: 1 };
-const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height: 0.64 };
-const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.64, width: 0.97, height: 0.35 };
+const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height: 0.58 };
+const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.58, width: 0.97, height: 0.41 };
 const FLIPKART_SHIPPING_RECT: CropRect = { x: 0.01, y: 0.005, width: 0.98, height: 0.78 };
 const FLIPKART_INVOICE_RECT: CropRect = { x: 0.01, y: 0.78, width: 0.98, height: 0.215 };
 
@@ -83,6 +88,73 @@ function textFromItems(textContent: TextContent) {
     }
   }
   return out;
+}
+
+function positionedTextItems(textContent: TextContent, pageHeight: number): PositionedTextItem[] {
+  const out: PositionedTextItem[] = [];
+  for (const item of textContent.items) {
+    if (!item || typeof item !== "object" || !("str" in item) || typeof item.str !== "string") {
+      continue;
+    }
+    if (!("transform" in item) || !Array.isArray(item.transform)) continue;
+    const y = Number(item.transform[5]);
+    if (!Number.isFinite(y) || pageHeight <= 0) continue;
+    out.push({
+      text: item.str,
+      top: clamp01(1 - y / pageHeight),
+    });
+  }
+  return out;
+}
+
+function invoiceBoundaryFromText(items: readonly PositionedTextItem[]): number | null {
+  const normalizedItems = items.map((item) => ({
+    ...item,
+    normalized: item.text.replace(/\s+/g, " ").trim().toLowerCase(),
+  }));
+  const strongMarkers = normalizedItems
+    .filter((item) =>
+      /\btax\s*invoice\b/.test(item.normalized) ||
+      /\binvoice\s*(no|number|date)\b/.test(item.normalized) ||
+      /\btaxable\s+value\b/.test(item.normalized) ||
+      /\bhsn\b/.test(item.normalized)
+    )
+    .map((item) => item.top)
+    .filter((top) => top > 0.18 && top < 0.95)
+    .sort((a, b) => a - b);
+  if (strongMarkers.length > 0) return strongMarkers[0];
+
+  const invoiceWordMarkers = normalizedItems
+    .filter((item) => item.normalized === "tax" || item.normalized === "invoice")
+    .map((item) => item.top)
+    .filter((top) => top > 0.18 && top < 0.95)
+    .sort((a, b) => a - b);
+  for (let i = 0; i < invoiceWordMarkers.length - 1; i++) {
+    if (Math.abs(invoiceWordMarkers[i] - invoiceWordMarkers[i + 1]) < 0.025) {
+      return Math.min(invoiceWordMarkers[i], invoiceWordMarkers[i + 1]);
+    }
+  }
+  return null;
+}
+
+function rectsSplitAtInvoice(
+  rects: ReturnType<typeof defaultRects>,
+  items: readonly PositionedTextItem[]
+) {
+  const boundary = invoiceBoundaryFromText(items);
+  if (boundary == null) return rects;
+  const safeBoundary = Math.max(0.28, Math.min(0.88, boundary - 0.012));
+  const shipping = clampCropRect({
+    ...rects.shipping,
+    height: safeBoundary - rects.shipping.y,
+  });
+  const invoiceY = Math.min(0.96, safeBoundary + 0.006);
+  const invoice = clampCropRect({
+    ...rects.invoice,
+    y: invoiceY,
+    height: 1 - invoiceY - 0.005,
+  });
+  return { ...rects, shipping, invoice };
 }
 
 function detectMarketplace(rawText: string): ResolvedCropperMarketplace {
@@ -115,7 +187,11 @@ function defaultRects(marketplace: ResolvedCropperMarketplace) {
   };
 }
 
-function analyzePageText(rawText: string, pageIndex: number): Omit<CropperPage, "width" | "height"> {
+function analyzePageText(
+  rawText: string,
+  pageIndex: number,
+  positionedItems: readonly PositionedTextItem[] = []
+): Omit<CropperPage, "width" | "height"> {
   const amazonPage = parseAmazonPage(rawText, pageIndex);
   if (amazonPage.type === "shipping_label") {
     const rects = defaultRects("amazon");
@@ -156,7 +232,11 @@ function analyzePageText(rawText: string, pageIndex: number): Omit<CropperPage, 
 
   const marketplace = detectMarketplace(rawText);
   const extracted = extractMeeshoFields(rawText);
-  const rects = defaultRects(marketplace);
+  const baseRects = defaultRects(marketplace);
+  const rects =
+    marketplace === "meesho" || marketplace === "flipkart"
+      ? rectsSplitAtInvoice(baseRects, positionedItems)
+      : baseRects;
   return {
     pageIndex,
     pageNumber: pageIndex + 1,
@@ -189,8 +269,9 @@ export async function analyzeCropperPdfBytes(opts: {
     const viewport = page.getViewport({ scale: 1 });
     const textContent = await page.getTextContent();
     const rawText = textFromItems(textContent);
+    const positionedItems = positionedTextItems(textContent, viewport.height);
     pages.push({
-      ...analyzePageText(rawText, i - 1),
+      ...analyzePageText(rawText, i - 1, positionedItems),
       width: viewport.width,
       height: viewport.height,
     });

@@ -68,6 +68,7 @@ import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   analyzeCropperPdfBytes,
   cropEntriesToPdf,
+  renderCropperPagePreview,
   zipCroppedPdfs,
   type CropExportEntry,
   type CropMode,
@@ -1835,6 +1836,11 @@ export function MeeshoLabelExportTool() {
     React.useState<"filter" | "crop" | "filter_crop">("filter");
   const [autoCropMode, setAutoCropMode] = React.useState<CropMode>("shipping");
   const [manualCropOpen, setManualCropOpen] = React.useState(false);
+  const [autoCropPreview, setAutoCropPreview] = React.useState<{
+    pageUrl: string;
+    rect: CropExportEntry["rect"];
+    label: string;
+  } | null>(null);
 
   const exportMarkFingerprint = React.useMemo(() => {
     if (rows.length === 0) return "";
@@ -2998,6 +3004,42 @@ export function MeeshoLabelExportTool() {
     }
   }
 
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadPreview() {
+      if (processingMode === "filter" || cropperDocs.length === 0) {
+        setAutoCropPreview(null);
+        return;
+      }
+      const [entry] = buildAutoCropEntries(autoCropMode);
+      if (!entry) {
+        setAutoCropPreview(null);
+        return;
+      }
+      try {
+        const pageUrl = await renderCropperPagePreview(entry.doc, entry.pageIndex, 0.7);
+        if (cancelled) return;
+        setAutoCropPreview({
+          pageUrl,
+          rect: entry.rect,
+          label:
+            autoCropMode === "invoice"
+              ? "Auto Detect Tax Invoice"
+              : autoCropMode === "both"
+                ? "Auto Detect Shipping Label + Tax Invoice"
+                : "Auto Detect Shipping Label",
+        });
+      } catch {
+        if (!cancelled) setAutoCropPreview(null);
+      }
+    }
+    void loadPreview();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preview follows crop inputs and document readiness.
+  }, [processingMode, autoCropMode, cropperDocs, filteredLabels]);
+
   return (
     <WorkspaceModulePageStack>
       <WorkspaceSurfaceCard padding="p-4 sm:p-5 lg:p-6">
@@ -3174,9 +3216,8 @@ export function MeeshoLabelExportTool() {
                     <p className="text-[12px] font-semibold text-foreground">Crop target</p>
                     <div className="flex flex-wrap gap-1.5">
                       {[
-                        ["shipping", "Shipping label"],
-                        ["invoice", "Tax invoice"],
-                        ["both", "Label + invoice"],
+                        ["shipping", "Auto Detect Shipping Label"],
+                        ["invoice", "Auto Detect Tax Invoice"],
                       ].map(([key, title]) => (
                         <button
                           key={key}
@@ -3242,6 +3283,30 @@ export function MeeshoLabelExportTool() {
                     )}
                   </div>
                 </div>
+
+                {autoCropPreview ? (
+                  <div className="mt-3 rounded-xl border border-border/55 bg-background/45 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-[12px] font-semibold text-foreground">Preview crop</p>
+                      <p className="truncate text-[11px] font-medium text-muted-foreground">
+                        {autoCropPreview.label}
+                      </p>
+                    </div>
+                    <div className="relative max-h-[18rem] overflow-hidden rounded-lg border border-border/50 bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- pdf.js renders a local data URL preview. */}
+                      <img src={autoCropPreview.pageUrl} alt="Auto crop preview" className="block w-full" />
+                      <div
+                        className="pointer-events-none absolute border-2 border-primary bg-primary/10 shadow-[0_0_0_9999px_rgb(2_6_23/0.46)]"
+                        style={{
+                          left: `${autoCropPreview.rect.x * 100}%`,
+                          top: `${autoCropPreview.rect.y * 100}%`,
+                          width: `${autoCropPreview.rect.width * 100}%`,
+                          height: `${autoCropPreview.rect.height * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
                 <details className="mt-2 rounded-xl border border-border/50 bg-background/35 px-3 py-2 text-[12px]">
                   <summary className="cursor-pointer list-none font-semibold text-muted-foreground">
