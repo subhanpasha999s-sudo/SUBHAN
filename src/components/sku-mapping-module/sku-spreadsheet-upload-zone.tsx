@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   CheckCircle2,
+  CircleHelp,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -10,6 +11,11 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface SkuSpreadsheetUploadZoneProps {
@@ -121,7 +127,23 @@ export function SkuSpreadsheetUploadZone({
               </p>
               <p className="max-w-xl text-[13px] leading-snug text-muted-foreground">
                 Download the sample file and fill it with your marketplace SKU.
-                Tulmin will use those SKUs to map with master SKU.
+                Tulmin will use those SKUs to map with{" "}
+                <span className="inline-flex items-center gap-1 align-middle">
+                  <span>master SKU</span>
+                  <Tooltip>
+                    <TooltipTrigger
+                      type="button"
+                      className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="What is a master SKU?"
+                    >
+                      <CircleHelp className="size-3.5" aria-hidden />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[260px] text-center">
+                      Master SKU is your main product SKU. Tulmin connects marketplace SKUs to it for easier label filtering.
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                .
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
                 {["Only SKU data", "CSV or Excel", "Private by default"].map((item) => (
