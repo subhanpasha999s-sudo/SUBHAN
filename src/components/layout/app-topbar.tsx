@@ -50,7 +50,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/blog")) {
     return {
       title: "Playbooks",
-      subtitle: "Meesho seller workflows and operating guides",
+      subtitle: "",
       ctaHref: "/export-labels",
       ctaLabel: "Try workflow",
     };
@@ -58,7 +58,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/settings")) {
     return {
       title: "Settings",
-      subtitle: "Workspace, theme, and data controls",
+      subtitle: "",
       ctaHref: "/export-labels",
       ctaLabel: "Back to work",
     };
@@ -66,7 +66,7 @@ function pageChrome(pathname: string) {
   if (p.startsWith("/account")) {
     return {
       title: "Account",
-      subtitle: "Profile and cloud sync",
+      subtitle: "",
       ctaHref: "/export-labels",
       ctaLabel: "Back to work",
     };
@@ -121,7 +121,7 @@ export function AppTopbar({
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
-      <div className="border-b border-white/[0.05] bg-background/90 shadow-[0_12px_34px_-30px_rgb(15_23_42/0.5),inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 dark:bg-background/84 dark:border-white/[0.04] dark:shadow-[0_16px_40px_-34px_rgb(0_0_0/0.8),inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
+      <div className="motion-chrome-enter border-b border-white/[0.05] bg-background/90 shadow-[0_12px_34px_-30px_rgb(15_23_42/0.5),inset_0_-1px_0_0_rgb(148_163_184/0.05)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 dark:bg-background/84 dark:border-white/[0.04] dark:shadow-[0_16px_40px_-34px_rgb(0_0_0/0.8),inset_0_-1px_0_0_rgb(255_255_255/0.03)]">
         <div
           className={cn(
             "mx-auto flex w-full max-w-[100vw] items-center gap-3 sm:gap-4",
@@ -157,7 +157,7 @@ export function AppTopbar({
 
             <div className="hidden min-w-0 flex-col justify-center truncate lg:flex">
               <div className="flex min-w-0 items-center gap-4">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
+                <div className="motion-lift flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-[linear-gradient(135deg,rgb(63_108_255/0.24),rgb(16_185_129/0.12))] text-primary shadow-[0_16px_34px_-28px_rgb(63_108_255/0.9),inset_0_1px_0_rgb(255_255_255/0.12)]">
                   <Sparkles className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 </div>
                 <div className="min-w-0">
@@ -180,7 +180,7 @@ export function AppTopbar({
                         href={item.href}
                         prefetch={false}
                         className={cn(
-                          "inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-[background-color,color,box-shadow,transform] duration-200 ease-smooth hover:-translate-y-px",
+                          "motion-lift inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold",
                           active
                             ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-18px_rgb(63_108_255/0.95)]"
                             : "text-muted-foreground hover:bg-muted/70 hover:text-foreground hover:shadow-elevate-xs"
@@ -205,7 +205,7 @@ export function AppTopbar({
               prefetch={false}
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
-                "hidden h-10 rounded-2xl px-4 text-[13px] font-semibold shadow-[0_16px_34px_-22px_rgb(63_108_255/0.95)] ring-1 ring-primary/20 sm:inline-flex"
+                "motion-lift hidden h-10 rounded-2xl px-4 text-[13px] font-semibold shadow-[0_16px_34px_-22px_rgb(63_108_255/0.95)] ring-1 ring-primary/20 sm:inline-flex"
               )}
             >
               {ctaLabel}

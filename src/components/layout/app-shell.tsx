@@ -97,7 +97,7 @@ const EMPTY_SEARCH_PARAMS: URLSearchParamsLike = new URLSearchParams();
 
 const railEase = "cubic-bezier(0.32, 0.72, 0, 1)";
 const navInteraction =
-  "transition-[background-color,box-shadow,color,transform] duration-200 ease-smooth active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100";
+  "transition-[background-color,box-shadow,color,transform] duration-150 ease-smooth active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100";
 const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
 
 function navItemActive(pathname: string, sp: URLSearchParamsLike, item: NavDef): boolean {
@@ -359,7 +359,7 @@ function SidebarChrome({
               className={cn(
                 "flex size-12 items-center justify-center rounded-2xl border border-sidebar-border/45",
                 "bg-sidebar-accent/65 text-sidebar-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_34px_-24px_rgb(59_130_246/0.55)]",
-                "transition-[background-color,color,box-shadow,transform] duration-200 ease-smooth hover:bg-sidebar-accent hover:text-sidebar-primary active:scale-[0.98]",
+                "transition-[background-color,color,box-shadow,transform] duration-150 ease-smooth hover:-translate-y-0.5 hover:bg-sidebar-accent hover:text-sidebar-primary active:scale-[0.98]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]"
               )}
             >
@@ -603,7 +603,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           "hidden lg:flex lg:translate-x-0",
           "fixed inset-y-0 left-0 z-[38] flex-col text-sidebar-foreground",
           "bg-sidebar-rail backdrop-blur-md supports-[backdrop-filter]:bg-sidebar/88",
-          "shadow-sidebar-panel transition-[width] duration-300 ease-panel motion-reduce:transition-none",
+          "shadow-sidebar-panel transition-[width] duration-200 ease-panel will-change-[width] motion-reduce:transition-none",
           collapsedDesktop ? "lg:w-[4.875rem]" : "lg:w-[16.25rem]"
         )}
       >
@@ -625,7 +625,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cn(
             "relative flex h-full min-h-0 w-full flex-col rounded-r-[22px] border-r border-white/[0.06] bg-sidebar-rail",
             "pb-[env(safe-area-inset-bottom)] shadow-[16px_0_44px_-30px_rgb(0_0_0/0.42)] backdrop-blur-md supports-[backdrop-filter]:bg-sidebar/92",
-            "outline-none animate-in slide-in-from-left duration-300 ease-panel motion-reduce:animate-none motion-reduce:duration-0"
+            "outline-none animate-in slide-in-from-left duration-200 ease-panel motion-reduce:animate-none motion-reduce:duration-0"
           )}
         >
           <SidebarChrome
@@ -642,7 +642,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "relative flex min-h-app-screen min-w-0 flex-col bg-background pb-[env(safe-area-inset-bottom)]",
-          "transition-[padding] duration-300 ease-panel motion-reduce:transition-none",
+          "transition-[padding] duration-200 ease-panel motion-reduce:transition-none",
           collapsedDesktop ? "lg:pl-[4.875rem]" : "lg:pl-[16.25rem]"
         )}
       >
@@ -653,7 +653,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
         <main
           className={cn(
-            "mx-auto flex w-full min-h-0 flex-1 flex-col",
+            "motion-page-enter mx-auto flex w-full min-h-0 flex-1 flex-col",
             WORKSPACE_MAX_W,
             WORKSPACE_GUTTERS,
             "pb-8 pt-6 sm:pb-10 sm:pt-8 lg:pb-12 lg:pt-9"
