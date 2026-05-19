@@ -58,10 +58,10 @@ export type CropExportEntry = {
 };
 
 const FULL_RECT: CropRect = { x: 0, y: 0, width: 1, height: 1 };
-const MEESHO_SHIPPING_RECT: CropRect = { x: 0.045, y: 0.04, width: 0.91, height: 0.48 };
-const MEESHO_INVOICE_RECT: CropRect = { x: 0.045, y: 0.52, width: 0.91, height: 0.44 };
-const FLIPKART_SHIPPING_RECT: CropRect = { x: 0.04, y: 0.04, width: 0.92, height: 0.5 };
-const FLIPKART_INVOICE_RECT: CropRect = { x: 0.04, y: 0.52, width: 0.92, height: 0.44 };
+const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height: 0.64 };
+const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.64, width: 0.97, height: 0.35 };
+const FLIPKART_SHIPPING_RECT: CropRect = { x: 0.01, y: 0.005, width: 0.98, height: 0.78 };
+const FLIPKART_INVOICE_RECT: CropRect = { x: 0.01, y: 0.78, width: 0.98, height: 0.215 };
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));

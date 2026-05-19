@@ -2629,6 +2629,36 @@ export function MeeshoLabelExportTool() {
     }
     const idSet = new Set(Object.keys(selected));
     const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
+    if (processingMode === "filter_crop") {
+      const entries = cropEntriesForRows(exportedEnriched);
+      if (entries.length === 0) {
+        notify.info("No cropped label pages are ready for this selection.");
+        return;
+      }
+      try {
+        const out = await cropEntriesToPdf(entries);
+        triggerPdfDownload(out, buildSelectedExportFilename(exportedEnriched));
+        mergeExportedMastersFromRows(exportedEnriched);
+        notify.success("Exported cropped labels", {
+          description: `${entries.length.toLocaleString()} cropped page(s)`,
+        });
+        trackEvent("meesho_export_selected_succeeded", {
+          page_count: entries.length,
+          selected_count: selectedTotal,
+          visible_count: filteredLabels.length,
+          crop_mode: autoCropMode,
+        });
+      } catch (e) {
+        trackEvent("meesho_export_selected_failed", {
+          reason: "crop_export_error",
+          selected_count: selectedTotal,
+        });
+        notify.error("Couldn’t export cropped PDF yet", {
+          description: describeExportFailure(e),
+        });
+      }
+      return;
+    }
     const steps = rowsToPdfExportSteps(exportedEnriched);
 
     if (steps.length === 0) {
@@ -2710,11 +2740,18 @@ export function MeeshoLabelExportTool() {
 
       for (let i = 0; i < bucketList.length; i += 1) {
         const bucket = bucketList[i];
-        const steps = rowsToPdfExportSteps(bucket.rows);
-        if (steps.length === 0) continue;
 
         setBulkSkuZipState({ phase: "preparing", done: i + 1, total: bucketList.length });
-        const pdfOut = await exportPdfPagesFromMultiSourceOrdered(steps);
+        let pdfOut: Uint8Array | null = null;
+        if (processingMode === "filter_crop") {
+          const cropEntries = cropEntriesForRows(bucket.rows);
+          if (cropEntries.length === 0) continue;
+          pdfOut = await cropEntriesToPdf(cropEntries);
+        } else {
+          const steps = rowsToPdfExportSteps(bucket.rows);
+          if (steps.length === 0) continue;
+          pdfOut = await exportPdfPagesFromMultiSourceOrdered(steps);
+        }
         const base = makeSkuBucketFileLabel(bucket.masterSku);
         const fileBase = dedupeFilename(base, usedNames);
         zip.file(`${fileBase}.pdf`, pdfOut);
@@ -2868,8 +2905,12 @@ export function MeeshoLabelExportTool() {
 
   function filteredPageKeySet(): Set<string> | null {
     if (processingMode !== "filter_crop") return null;
+    return rowPageKeySet(filteredLabels);
+  }
+
+  function rowPageKeySet(sourceRows: readonly EnrichedMeeshoLabelRow[]): Set<string> {
     const keys = new Set<string>();
-    for (const row of filteredLabels) keys.add(`${row.importId}:${row.rawPageIndex}`);
+    for (const row of sourceRows) keys.add(`${row.importId}:${row.rawPageIndex}`);
     return keys;
   }
 
@@ -2901,8 +2942,7 @@ export function MeeshoLabelExportTool() {
     return [{ doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}.pdf` }];
   }
 
-  function buildAutoCropEntries(mode = autoCropMode): CropExportEntry[] {
-    const allowed = filteredPageKeySet();
+  function buildAutoCropEntries(mode = autoCropMode, allowed = filteredPageKeySet()): CropExportEntry[] {
     const out: CropExportEntry[] = [];
     for (const doc of cropperDocs) {
       for (const page of doc.pages) {
@@ -2911,6 +2951,10 @@ export function MeeshoLabelExportTool() {
       }
     }
     return out;
+  }
+
+  function cropEntriesForRows(sourceRows: readonly EnrichedMeeshoLabelRow[]): CropExportEntry[] {
+    return buildAutoCropEntries(autoCropMode, rowPageKeySet(sourceRows));
   }
 
   async function downloadAutoCropPdf() {
@@ -3065,25 +3109,22 @@ export function MeeshoLabelExportTool() {
 
       {rows.length > 0 ? (
         <WorkspaceSurfaceCard padding="p-4 sm:p-5">
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">
-                  Processing
-                </p>
-                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">
-                  Choose output
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-[16px] font-semibold tracking-tight text-foreground">
+                  Output
                 </h2>
-                <p className="max-w-xl text-[12px] font-medium leading-5 text-muted-foreground">
-                  Keep the full filter workflow, auto-crop clean shipping labels, or crop only the labels currently selected by filters.
+                <p className="mt-0.5 text-[12px] font-medium text-muted-foreground">
+                  Choose what to export from this upload.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex rounded-full border border-border/55 bg-background/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                <span className="inline-flex rounded-full border border-border/55 bg-background/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
                   {cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} pages ready
                 </span>
                 {cropperBusy ? (
-                  <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                  <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
                     <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
                     Detecting crop areas
                   </span>
@@ -3091,130 +3132,120 @@ export function MeeshoLabelExportTool() {
               </div>
             </div>
 
-            <div className="grid gap-2 lg:grid-cols-3">
+            <div className="grid gap-1.5 rounded-2xl border border-border/55 bg-background/45 p-1.5 sm:grid-cols-3">
               {[
-                ["filter", "Filter only", "Use SKU, courier, quantity, payment, and marketplace filters.", "Standard export"],
-                ["crop", "Crop labels", "Auto-detect label or invoice areas from uploaded PDFs.", "Fastest crop"],
-                ["filter_crop", "Filter + crop", "Filter first, then crop only the matching label pages.", "Best for dispatch"],
-              ].map(([key, title, body, meta]) => (
+                ["filter", "Filter only", "Use table filters, then export."],
+                ["crop", "Crop labels", "Crop every uploaded page."],
+                ["filter_crop", "Filter + crop", "Crop only matching labels."],
+              ].map(([key, title, body]) => (
                 <button
                   key={key}
                   type="button"
                   className={cn(
-                    "group relative min-h-[7.25rem] overflow-hidden rounded-2xl border p-4 text-left transition-all",
+                    "group flex min-h-[4.25rem] items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
                     processingMode === key
-                      ? "border-primary/85 bg-primary/10 text-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.22)]"
-                      : "border-border/65 bg-background/55 text-muted-foreground hover:border-border hover:bg-muted/35 hover:text-foreground"
+                      ? "border-primary/70 bg-primary/10 text-foreground"
+                      : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/35 hover:text-foreground"
                   )}
                   onClick={() => setProcessingMode(key as typeof processingMode)}
                 >
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-semibold tracking-tight">{title}</span>
-                      <span className="mt-2 block max-w-[19rem] text-[12px] leading-5 text-muted-foreground">{body}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                        processingMode === key
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/70 bg-background/70 text-transparent group-hover:text-muted-foreground"
-                      )}
-                    >
-                      <Check className="size-3.5" strokeWidth={2.4} aria-hidden />
-                    </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">{title}</span>
+                    <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">{body}</span>
                   </span>
-                  <span className="absolute bottom-3 left-4 rounded-full bg-muted/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {meta}
+                  <span
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                      processingMode === key
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border/70 text-transparent group-hover:text-muted-foreground"
+                    )}
+                  >
+                    <Check className="size-3" strokeWidth={2.4} aria-hidden />
                   </span>
                 </button>
               ))}
             </div>
 
             {processingMode !== "filter" ? (
-              <div className="rounded-2xl border border-border/60 bg-muted/12 p-3 sm:p-4">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-stretch">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-[12px] font-semibold text-foreground">Crop target</p>
-                      <p className="hidden text-[11px] font-medium text-muted-foreground sm:block">
-                        Auto-detect keeps barcode and QR quality intact.
-                      </p>
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-3">
+              <div className="rounded-2xl border border-border/60 bg-muted/10 p-3">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <p className="text-[12px] font-semibold text-foreground">Crop target</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {[
-                        ["shipping", "Shipping label", "AWB, barcode, address, courier, SKU, Qty"],
-                        ["invoice", "Tax invoice", "Invoice section; Amazon matched by Order ID"],
-                        ["both", "Label + invoice", "Export matching shipping label and invoice"],
-                      ].map(([key, title, body]) => (
+                        ["shipping", "Shipping label"],
+                        ["invoice", "Tax invoice"],
+                        ["both", "Label + invoice"],
+                      ].map(([key, title]) => (
                         <button
                           key={key}
                           type="button"
                           className={cn(
-                            "rounded-xl border px-3 py-3 text-left transition-colors",
+                            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition-colors",
                             autoCropMode === key
-                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/15"
+                              ? "border-primary bg-primary/10 text-foreground"
                               : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
                           )}
                           onClick={() => setAutoCropMode(key as CropMode)}
                         >
-                          <span className="flex items-center justify-between gap-2 text-[12px] font-semibold">
-                            {title}
-                            {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
-                          </span>
-                          <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">{body}</span>
+                          {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
+                          {title}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-col justify-between gap-3 rounded-xl border border-border/55 bg-background/50 p-3 xl:w-[18rem]">
-                    <div className="space-y-1">
-                      <p className="text-[12px] font-semibold text-foreground">
-                        {processingMode === "filter_crop" ? "Filtered crop" : "Crop all pages"}
-                      </p>
-                      <p className="text-[11px] leading-5 text-muted-foreground">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <p className="text-[11px] font-medium text-muted-foreground sm:min-w-[10rem]">
+                      <span className="font-semibold text-foreground">
+                        {processingMode === "filter_crop" ? "Filtered crop:" : "Crop all:"}
+                      </span>{" "}
                         {processingMode === "filter_crop"
-                          ? `${filteredLabels.length.toLocaleString()} filtered label(s) will be cropped.`
-                          : `${cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} PDF page(s) will be cropped.`}
+                          ? `${filteredLabels.length.toLocaleString()} labels`
+                          : `${cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} pages`}
+                    </p>
+                    {processingMode === "crop" ? (
+                      <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 rounded-xl text-[12px] font-semibold"
+                          disabled={cropExportBusy || cropperDocs.length === 0}
+                          onClick={() => void downloadAutoCropPdf()}
+                        >
+                          {cropExportBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Download className="mr-1.5 size-3.5" aria-hidden />
+                          )}
+                          PDF
+                        </Button>
+                        <Button
+                          type="button"
+                          className="h-10 rounded-xl text-[12px] font-semibold"
+                          disabled={cropExportBusy || cropperDocs.length === 0}
+                          onClick={() => void downloadAutoCropZip()}
+                        >
+                          {cropExportBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Archive className="mr-1.5 size-3.5" aria-hidden />
+                          )}
+                          ZIP
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        Select rows below, then use Download.
                       </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-xl text-[12px] font-semibold"
-                        disabled={cropExportBusy || cropperDocs.length === 0}
-                        onClick={() => void downloadAutoCropPdf()}
-                      >
-                        {cropExportBusy ? (
-                          <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <Download className="mr-1.5 size-3.5" aria-hidden />
-                        )}
-                        PDF
-                      </Button>
-                      <Button
-                        type="button"
-                        className="h-10 rounded-xl text-[12px] font-semibold"
-                        disabled={cropExportBusy || cropperDocs.length === 0}
-                        onClick={() => void downloadAutoCropZip()}
-                      >
-                        {cropExportBusy ? (
-                          <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <Archive className="mr-1.5 size-3.5" aria-hidden />
-                        )}
-                        ZIP
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                <details className="mt-3 rounded-xl border border-border/55 bg-background/45 px-3 py-2.5 text-[12px]">
-                  <summary className="cursor-pointer list-none font-semibold text-foreground">
-                    Advanced Options
-                    <span className="ml-2 text-muted-foreground">Manual Crop</span>
+                <details className="mt-2 rounded-xl border border-border/50 bg-background/35 px-3 py-2 text-[12px]">
+                  <summary className="cursor-pointer list-none font-semibold text-muted-foreground">
+                    Manual crop
                   </summary>
                   <div className="mt-3 space-y-3">
                     <p className="text-[12px] leading-relaxed text-muted-foreground">
@@ -3240,7 +3271,7 @@ export function MeeshoLabelExportTool() {
         </WorkspaceSurfaceCard>
       ) : null}
 
-      {ready ? (
+      {ready && processingMode !== "crop" ? (
         <WorkspaceSurfaceCard padding="p-4 sm:p-5 lg:p-6">
           {rows.length > 0 ? (
             <div className="mb-5 space-y-4">
