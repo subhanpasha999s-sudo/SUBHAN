@@ -3062,6 +3062,7 @@ export function MeeshoLabelExportTool() {
       rect,
       fileName,
       overlayText: amazonShippingCropOverlayText(page),
+      preservePage: page.marketplace === "amazon",
     });
 
     if (mode === "shipping") {
@@ -3075,6 +3076,7 @@ export function MeeshoLabelExportTool() {
           pageIndex: page.pairedInvoicePageIndex,
           rect: page.defaultFullRect,
           fileName: `${base}-invoice.pdf`,
+          preservePage: true,
         }];
       }
       if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
@@ -3089,7 +3091,13 @@ export function MeeshoLabelExportTool() {
     if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
       return [
         entryFor(page.defaultFullRect, `${base}-shipping.pdf`),
-        { doc, pageIndex: page.pairedInvoicePageIndex, rect: page.defaultFullRect, fileName: `${base}-invoice.pdf` },
+        {
+          doc,
+          pageIndex: page.pairedInvoicePageIndex,
+          rect: page.defaultFullRect,
+          fileName: `${base}-invoice.pdf`,
+          preservePage: true,
+        },
       ];
     }
     if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
@@ -3104,19 +3112,30 @@ export function MeeshoLabelExportTool() {
     return [entryFor(page.defaultFullRect, `${base}.pdf`)];
   }
 
-  function buildAutoCropEntries(mode = autoCropMode, allowed = filteredPageKeySet()): CropExportEntry[] {
+  function buildAutoCropEntries(
+    mode = autoCropMode,
+    allowed = filteredPageKeySet(),
+    amazonModeOverride?: CropMode
+  ): CropExportEntry[] {
     const out: CropExportEntry[] = [];
     for (const doc of cropperDocs) {
       for (const page of doc.pages) {
         if (allowed && !allowed.has(`${doc.id}:${page.pageIndex}`)) continue;
-        out.push(...cropEntriesForPage(doc, page, mode));
+        const pageMode = page.marketplace === "amazon" && amazonModeOverride
+          ? amazonModeOverride
+          : mode;
+        out.push(...cropEntriesForPage(doc, page, pageMode));
       }
     }
     return out;
   }
 
   function cropEntriesForRows(sourceRows: readonly EnrichedMeeshoLabelRow[]): CropExportEntry[] {
-    return buildAutoCropEntries(autoCropMode, rowPageKeySet(sourceRows));
+    return buildAutoCropEntries(
+      autoCropMode,
+      rowPageKeySet(sourceRows),
+      includeAmazonInvoicesInDownload ? "both" : "shipping"
+    );
   }
 
   async function downloadAutoCropPdf() {
