@@ -67,11 +67,6 @@ const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height:
 const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.58, width: 0.97, height: 0.41 };
 const FLIPKART_LABEL_X = 0.05;
 const FLIPKART_LABEL_WIDTH = 0.9;
-const FLIPKART_LABEL_PAGE_SIZE = {
-  width: 3 * 72,
-  height: 5 * 72,
-};
-const FLIPKART_LABEL_ASPECT = FLIPKART_LABEL_PAGE_SIZE.width / FLIPKART_LABEL_PAGE_SIZE.height;
 const FLIPKART_SHIPPING_RECT: CropRect = {
   x: FLIPKART_LABEL_X,
   y: 0.005,
@@ -190,7 +185,6 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
   const columnCurrentRuns = new Uint16Array(canvas.width);
   const columnMaxRuns = new Uint16Array(canvas.width);
   const rowMaxRuns = new Uint16Array(canvas.height);
-
   const scanHeight = Math.floor(canvas.height * 0.94);
   for (let y = 0; y < scanHeight; y++) {
     let rowCurrentRun = 0;
@@ -249,67 +243,14 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
     .reverse()
     .find((run) => run.end < canvas.height * 0.94 && run.start - (topRun?.start ?? 0) > canvas.height * 0.35);
 
-  let minX = leftRun ? Math.floor((leftRun.start + leftRun.end) / 2) : canvas.width;
-  let maxX = rightRun ? Math.ceil((rightRun.start + rightRun.end) / 2) : -1;
-  let minY = topRun ? Math.floor((topRun.start + topRun.end) / 2) : canvas.height;
-  let maxY = bottomRun ? Math.ceil((bottomRun.start + bottomRun.end) / 2) : -1;
-
-  if (maxX > minX) {
-    let contentTop = canvas.height;
-    let contentBottom = -1;
-    const left = Math.max(0, minX - 2);
-    const right = Math.min(canvas.width - 1, maxX + 2);
-    for (let y = 0; y < scanHeight; y++) {
-      if ((rowMaxRuns[y] ?? 0) < 24) continue;
-      for (let x = left; x <= right; x++) {
-        const idx = (y * canvas.width + x) * 4;
-        const red = data[idx] ?? 255;
-        const green = data[idx + 1] ?? 255;
-        const blue = data[idx + 2] ?? 255;
-        if (red < 220 && green < 220 && blue < 220) {
-          contentTop = Math.min(contentTop, y);
-          contentBottom = Math.max(contentBottom, y);
-          break;
-        }
-      }
-    }
-    if (contentBottom > contentTop) {
-      minY = contentTop;
-      maxY = contentBottom;
-    }
-  }
-
-  if (maxX <= minX || maxY <= minY) {
-    minX = canvas.width;
-    minY = canvas.height;
-    maxX = -1;
-    maxY = -1;
-    for (let y = 0; y < scanHeight; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const idx = (y * canvas.width + x) * 4;
-        const red = data[idx] ?? 255;
-        const green = data[idx + 1] ?? 255;
-        const blue = data[idx + 2] ?? 255;
-        if (red < 220 && green < 220 && blue < 220) {
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
-        }
-      }
-    }
-  }
-
+  if (!leftRun || !rightRun || !topRun || !bottomRun) return null;
+  const minX = Math.floor((leftRun.start + leftRun.end) / 2);
+  const maxX = Math.ceil((rightRun.start + rightRun.end) / 2);
+  const minY = Math.floor((topRun.start + topRun.end) / 2);
+  const maxY = Math.ceil((bottomRun.start + bottomRun.end) / 2);
   if (maxX <= minX || maxY <= minY) return null;
 
   const safePadding = 6;
-  const detectedWidth = maxX - minX + 1;
-  const detectedHeight = maxY - minY + 1;
-  const expectedHeight = detectedWidth / FLIPKART_LABEL_ASPECT;
-  if (detectedHeight > expectedHeight * 1.05) {
-    maxY = Math.min(maxY, Math.round(minY + expectedHeight - 1));
-  }
-
   const padX = safePadding / canvas.width;
   const padY = safePadding / canvas.height;
   return clampCropRect({
@@ -553,39 +494,6 @@ function rectToPdfBox(rect: CropRect, pageWidth: number, pageHeight: number) {
   };
 }
 
-function sameCropRect(a: CropRect, b: CropRect) {
-  return (
-    Math.abs(a.x - b.x) < 0.0001 &&
-    Math.abs(a.y - b.y) < 0.0001 &&
-    Math.abs(a.width - b.width) < 0.0001 &&
-    Math.abs(a.height - b.height) < 0.0001
-  );
-}
-
-function outputPageSizeForEntry(entry: CropExportEntry, box: ReturnType<typeof rectToPdfBox>) {
-  const page = entry.doc.pages[entry.pageIndex];
-  if (
-    page?.marketplace === "flipkart" &&
-    page.kind === "combined" &&
-    sameCropRect(entry.rect, page.defaultShippingRect)
-  ) {
-    return FLIPKART_LABEL_PAGE_SIZE;
-  }
-  return { width: box.width, height: box.height };
-}
-
-function drawSizeForPage(source: { width: number; height: number }, target: { width: number; height: number }) {
-  const scale = Math.min(target.width / source.width, target.height / source.height);
-  const width = source.width * scale;
-  const height = source.height * scale;
-  return {
-    x: (target.width - width) / 2,
-    y: (target.height - height) / 2,
-    width,
-    height,
-  };
-}
-
 export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
   const { PDFDocument } = await import("pdf-lib");
@@ -607,14 +515,12 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       right: box.right,
       top: box.top,
     });
-    const outputSize = outputPageSizeForEntry(entry, box);
-    const page = out.addPage([outputSize.width, outputSize.height]);
-    const drawBox = drawSizeForPage(box, outputSize);
+    const page = out.addPage([box.width, box.height]);
     page.drawPage(embedded, {
-      x: drawBox.x,
-      y: drawBox.y,
-      width: drawBox.width,
-      height: drawBox.height,
+      x: 0,
+      y: 0,
+      width: box.width,
+      height: box.height,
     });
   }
 
