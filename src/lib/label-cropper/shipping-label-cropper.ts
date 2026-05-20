@@ -286,20 +286,6 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
   });
 }
 
-function applyLabelBounds(rects: ReturnType<typeof defaultRects>, bounds: CropRect | null) {
-  if (!bounds) return rects;
-  return {
-    ...rects,
-    shipping: bounds,
-    invoice: clampCropRect({
-      ...rects.invoice,
-      x: bounds.x,
-      width: bounds.width,
-    }),
-    full: bounds,
-  };
-}
-
 function detectMarketplace(rawText: string): ResolvedCropperMarketplace {
   const t = rawText.replace(/\s+/g, " ");
   const amazon = parseAmazonPage(rawText, 0);
@@ -377,12 +363,20 @@ function analyzePageText(
   const marketplace = detectMarketplace(rawText);
   const extracted = extractMeeshoFields(rawText);
   const baseRects = defaultRects(marketplace);
-  const labelBoundRects =
-    marketplace === "flipkart" ? applyLabelBounds(baseRects, contentBounds) : baseRects;
   const rects =
-    marketplace === "meesho" || marketplace === "flipkart"
-      ? rectsSplitAtInvoice(labelBoundRects, positionedItems)
-      : labelBoundRects;
+    marketplace === "flipkart"
+      ? {
+          ...rectsSplitAtInvoice(baseRects, positionedItems),
+          ...(contentBounds
+            ? {
+                shipping: contentBounds,
+                full: contentBounds,
+              }
+            : {}),
+        }
+      : marketplace === "meesho"
+        ? rectsSplitAtInvoice(baseRects, positionedItems)
+        : baseRects;
   return {
     pageIndex,
     pageNumber: pageIndex + 1,
