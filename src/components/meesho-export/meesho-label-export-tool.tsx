@@ -507,6 +507,7 @@ function RunMetric({
 /** Label/page counts per mapped SKU in this PDF (not order quantity). */
 type MappedSkuLabelStats = {
   perName: Record<string, number>;
+  perUnmappedListingSku: Record<string, number>;
   unmapped: number;
   /** Every row (labels/pages) in this file. */
   total: number;
@@ -518,7 +519,19 @@ function mappedMasterFilterTriggerText(
 ): string {
   if (f.mode === "all") return `All (${stats.total.toLocaleString()})`;
   if (f.mode === "unmapped")
-    return `SKU Missing (${stats.unmapped.toLocaleString()})`;
+    return `Not mapped (${stats.unmapped.toLocaleString()})`;
+  if (f.mode === "unmapped_listing") {
+    const names = f.listingSkus;
+    if (names.length === 0) return `Not mapped (${stats.unmapped.toLocaleString()})`;
+    if (names.length === 1) {
+      const name = names[0];
+      const n = stats.perUnmappedListingSku[name] ?? 0;
+      return n > 0 ? `${name} · Not mapped (${n.toLocaleString()})` : `${name} · Not mapped`;
+    }
+    let sum = 0;
+    for (const name of names) sum += stats.perUnmappedListingSku[name] ?? 0;
+    return `${names.length} not mapped SKUs (${sum.toLocaleString()})`;
+  }
   const names = f.names;
   if (names.length === 0) return `All (${stats.total.toLocaleString()})`;
   if (names.length === 1) {
@@ -552,6 +565,108 @@ type MarketplaceFilterStats = {
 
 const MARKETPLACE_FILTER_VALUES = ["meesho", "flipkart", "amazon", "unknown"] as const;
 const PAYMENT_FILTER_VALUES = ["prepaid", "cod", "exchange", "unknown"] as const;
+
+type FilterFacet = "marketplace" | "mappedMaster" | "payment" | "quantity" | "partner";
+
+function filtersForFacetCounts(filters: MeeshoLabelFilters, facet: FilterFacet): MeeshoLabelFilters {
+  return {
+    ...filters,
+    marketplace: facet === "marketplace" ? "all" : filters.marketplace,
+    mappedMaster: facet === "mappedMaster" ? { mode: "all" } : filters.mappedMaster,
+    payment: facet === "payment" ? "all" : filters.payment,
+    qtyExact: facet === "quantity" ? null : filters.qtyExact,
+    partner: facet === "partner" ? "" : filters.partner,
+  };
+}
+
+function rowsForFacetCounts(
+  rows: EnrichedMeeshoLabelRow[],
+  filters: MeeshoLabelFilters,
+  facet: FilterFacet
+): EnrichedMeeshoLabelRow[] {
+  return applyMeeshoLabelFilters(rows, filtersForFacetCounts(filters, facet));
+}
+
+function buildMarketplaceFilterStats(rows: readonly EnrichedMeeshoLabelRow[]): MarketplaceFilterStats {
+  const perMarketplace: Record<MarketplaceKind, number> = {
+    meesho: 0,
+    flipkart: 0,
+    amazon: 0,
+    unknown: 0,
+  };
+  for (const row of rows) perMarketplace[row.marketplace] += 1;
+  return { total: rows.length, perMarketplace };
+}
+
+function buildMappedSkuLabelStats(rows: readonly EnrichedMeeshoLabelRow[]): MappedSkuLabelStats {
+  const perName: Record<string, number> = {};
+  const perUnmappedListingSku: Record<string, number> = {};
+  let unmapped = 0;
+  for (const row of rows) {
+    const master = row.master_sku?.trim();
+    if (!master) {
+      unmapped++;
+      const listingSku = row.listing_sku?.trim();
+      if (listingSku) perUnmappedListingSku[listingSku] = (perUnmappedListingSku[listingSku] ?? 0) + 1;
+      continue;
+    }
+    perName[master] = (perName[master] ?? 0) + 1;
+  }
+  return { perName, perUnmappedListingSku, unmapped, total: rows.length };
+}
+
+function buildQtyCarrierFilterStats(rows: readonly EnrichedMeeshoLabelRow[]): QtyCarrierFilterStats {
+  const perQty: Record<number, number> = {};
+  const perPartner: Record<string, number> = {};
+  const perPayment: Record<PaymentKind, number> = {
+    prepaid: 0,
+    cod: 0,
+    exchange: 0,
+    unknown: 0,
+  };
+  const partnerOrderQtySum: Record<string, number> = {};
+  let totalOrderQty = 0;
+  for (const row of rows) {
+    perPayment[row.payment] = (perPayment[row.payment] ?? 0) + 1;
+    const qty = row.quantity;
+    if (qty != null && Number.isFinite(qty)) {
+      perQty[qty] = (perQty[qty] ?? 0) + 1;
+      totalOrderQty += qty;
+    }
+    const partner = row.delivery_partner?.trim();
+    if (partner) {
+      perPartner[partner] = (perPartner[partner] ?? 0) + 1;
+      if (qty != null && Number.isFinite(qty)) {
+        partnerOrderQtySum[partner] = (partnerOrderQtySum[partner] ?? 0) + qty;
+      }
+    }
+  }
+  const quantitiesSortedDesc = Object.keys(perQty)
+    .map(Number)
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => {
+      const ca = perQty[a] ?? 0;
+      const cb = perQty[b] ?? 0;
+      if (cb !== ca) return cb - ca;
+      return a - b;
+    });
+  const partnersSortedDesc = Object.keys(perPartner).sort((a, b) => {
+    const ca = perPartner[a] ?? 0;
+    const cb = perPartner[b] ?? 0;
+    if (cb !== ca) return cb - ca;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
+  return {
+    totalLabels: rows.length,
+    totalOrderQty,
+    perQty,
+    perPartner,
+    perPayment,
+    partnerOrderQtySum,
+    quantitiesSortedDesc,
+    partnersSortedDesc,
+  };
+}
 
 function marketplaceLabel(value: MarketplaceKind | "all"): string {
   switch (value) {
@@ -731,12 +846,16 @@ function LabelPdfFilterFields({
   onMasterFilterAll,
   onMasterFilterUnmapped,
   onMasterFilterToggleMaster,
+  onMasterFilterToggleUnmappedSku,
   qtyFilter,
   onQtyFilter,
   partner,
   onPartner,
   distinctMasterNames,
-  qtyCarrierStats,
+  distinctUnmappedListingSkus,
+  paymentFilterStats,
+  qtyFilterStats,
+  carrierFilterStats,
   rowsLen,
   activeFilterCount,
   onClearFilters,
@@ -754,12 +873,16 @@ function LabelPdfFilterFields({
   onMasterFilterAll: () => void;
   onMasterFilterUnmapped: () => void;
   onMasterFilterToggleMaster: (name: string, checked: boolean) => void;
+  onMasterFilterToggleUnmappedSku: (sku: string, checked: boolean) => void;
   qtyFilter: string;
   onQtyFilter: (v: string) => void;
   partner: string;
   onPartner: (v: string) => void;
   distinctMasterNames: string[];
-  qtyCarrierStats: QtyCarrierFilterStats;
+  distinctUnmappedListingSkus: string[];
+  paymentFilterStats: QtyCarrierFilterStats;
+  qtyFilterStats: QtyCarrierFilterStats;
+  carrierFilterStats: QtyCarrierFilterStats;
   rowsLen: number;
   activeFilterCount: number;
   onClearFilters: () => void;
@@ -774,9 +897,11 @@ function LabelPdfFilterFields({
     isSheet ? "rounded-xl" : "rounded-full"
   );
   const marketplaceFilterValues = visibleMarketplaceFilterValues(marketplaceFilterStats);
-  const paymentFilterValues = visiblePaymentFilterValues(qtyCarrierStats);
+  const paymentFilterValues = visiblePaymentFilterValues(paymentFilterStats);
   const showUnmappedFilter =
-    mappedSkuLabelStats.unmapped > 0 || mappedMasterFilter.mode === "unmapped";
+    mappedSkuLabelStats.unmapped > 0 ||
+    mappedMasterFilter.mode === "unmapped" ||
+    mappedMasterFilter.mode === "unmapped_listing";
 
   const marketplaceBlock = (
     <div className="min-w-0">
@@ -856,11 +981,11 @@ function LabelPdfFilterFields({
           title="Payment mode detected from each label"
           className={cn(ctl, selectTriggerExtras)}
         >
-          <SelectValue placeholder={paymentFilterTriggerDisplay("all", qtyCarrierStats)}>
+          <SelectValue placeholder={paymentFilterTriggerDisplay("all", paymentFilterStats)}>
             {(v) =>
               paymentFilterTriggerDisplay(
                 typeof v === "string" ? v : "all",
-                qtyCarrierStats
+                paymentFilterStats
               )
             }
           </SelectValue>
@@ -883,8 +1008,8 @@ function LabelPdfFilterFields({
                 }
                 count={
                   value === "all"
-                    ? qtyCarrierStats.totalLabels
-                    : qtyCarrierStats.perPayment[value] ?? 0
+                    ? paymentFilterStats.totalLabels
+                    : paymentFilterStats.perPayment[value] ?? 0
                 }
               />
             </SelectItem>
@@ -951,13 +1076,38 @@ function LabelPdfFilterFields({
                 </span>
                 <span className="min-w-0 flex-1">
                   <FilterMenuCountRow
-                    primary={<span className="font-semibold">SKU Missing only</span>}
+                    primary={<span className="font-semibold">All not mapped</span>}
                     count={mappedSkuLabelStats.unmapped}
                   />
                 </span>
               </span>
             </DropdownMenuItem>
           ) : null}
+          {distinctUnmappedListingSkus.map((sku) => {
+            const picked =
+              mappedMasterFilter.mode === "unmapped_listing" &&
+              mappedMasterFilter.listingSkus.includes(sku);
+            return (
+              <DropdownMenuCheckboxItem
+                key={`unmapped-${sku}`}
+                checked={picked}
+                onCheckedChange={(c) => onMasterFilterToggleUnmappedSku(sku, Boolean(c))}
+                className="mx-0.5 rounded-lg py-2.5 pl-2 font-mono text-[13px] font-medium text-amber-950 dark:text-amber-200"
+              >
+                <FilterMenuCountRow
+                  primary={
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{sku}</span>
+                      <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+                        Not mapped
+                      </span>
+                    </span>
+                  }
+                  count={mappedSkuLabelStats.perUnmappedListingSku[sku] ?? 0}
+                />
+              </DropdownMenuCheckboxItem>
+            );
+          })}
           {distinctMasterNames.map((name) => {
             const picked =
               mappedMasterFilter.mode === "masters" &&
@@ -998,8 +1148,8 @@ function LabelPdfFilterFields({
           title="Qty on label · right = count"
           className={cn(ctl, selectTriggerExtras)}
         >
-          <SelectValue placeholder={qtyFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, qtyCarrierStats)}>
-            {(v) => qtyFilterTriggerDisplay(v, qtyCarrierStats)}
+          <SelectValue placeholder={qtyFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, qtyFilterStats)}>
+            {(v) => qtyFilterTriggerDisplay(v, qtyFilterStats)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent
@@ -1015,22 +1165,22 @@ function LabelPdfFilterFields({
           >
             <FilterMenuCountRow
               primary={<span className="font-semibold text-foreground">All quantities</span>}
-              count={qtyCarrierStats.totalLabels}
+              count={qtyFilterStats.totalLabels}
             />
           </SelectItem>
-          {qtyCarrierStats.quantitiesSortedDesc.map((q) => (
+          {qtyFilterStats.quantitiesSortedDesc.map((q) => (
             <SelectItem key={q} value={String(q)} className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium tabular-nums">
               <FilterMenuCountRow
                 primary={
                   <span className="font-semibold tracking-tight">{q.toLocaleString()}</span>
                 }
-                count={qtyCarrierStats.perQty[q] ?? 0}
+                count={qtyFilterStats.perQty[q] ?? 0}
               />
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {rowsLen > 0 && qtyCarrierStats.quantitiesSortedDesc.length === 0 ? (
+      {rowsLen > 0 && qtyFilterStats.quantitiesSortedDesc.length === 0 ? (
         <p
           className={cn(
             "font-medium leading-snug text-muted-foreground",
@@ -1060,8 +1210,8 @@ function LabelPdfFilterFields({
           title="Carrier · shown number = labels. Hover a chip or menu row for total qty."
           className={cn(ctl, selectTriggerExtras)}
         >
-          <SelectValue placeholder={carrierFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, qtyCarrierStats)}>
-            {(v) => carrierFilterTriggerDisplay(v, qtyCarrierStats)}
+          <SelectValue placeholder={carrierFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, carrierFilterStats)}>
+            {(v) => carrierFilterTriggerDisplay(v, carrierFilterStats)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent
@@ -1077,16 +1227,16 @@ function LabelPdfFilterFields({
           >
             <FilterMenuCountRow
               primary={<span className="font-semibold text-foreground">All carriers</span>}
-              count={qtyCarrierStats.totalLabels}
-              title={`${qtyCarrierStats.totalLabels.toLocaleString()} labels · ${qtyCarrierStats.totalOrderQty.toLocaleString()} total qty`}
+              count={carrierFilterStats.totalLabels}
+              title={`${carrierFilterStats.totalLabels.toLocaleString()} labels · ${carrierFilterStats.totalOrderQty.toLocaleString()} total qty`}
             />
           </SelectItem>
-          {qtyCarrierStats.partnersSortedDesc.map((p) => (
+          {carrierFilterStats.partnersSortedDesc.map((p) => (
             <SelectItem key={p} value={p} className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium">
               <FilterMenuCountRow
                 primary={<span className="font-medium">{p}</span>}
-                count={qtyCarrierStats.perPartner[p] ?? 0}
-                title={`${(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(qtyCarrierStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
+                count={carrierFilterStats.perPartner[p] ?? 0}
+                title={`${(carrierFilterStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(carrierFilterStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
               />
             </SelectItem>
           ))}
@@ -1115,8 +1265,8 @@ function LabelPdfFilterFields({
   if (isSheet) {
     const qtyChipMax = 12;
     const partnerChipMax = 10;
-    const qtyChipValues = qtyCarrierStats.quantitiesSortedDesc.slice(0, qtyChipMax);
-    const partnerChipValues = qtyCarrierStats.partnersSortedDesc.slice(0, partnerChipMax);
+    const qtyChipValues = qtyFilterStats.quantitiesSortedDesc.slice(0, qtyChipMax);
+    const partnerChipValues = carrierFilterStats.partnersSortedDesc.slice(0, partnerChipMax);
     const qtyFilterNum =
       qtyFilter === QTY_PARTNER_FILTER_ALL
         ? null
@@ -1129,9 +1279,9 @@ function LabelPdfFilterFields({
     const partnerNotOnChip =
       partner !== QTY_PARTNER_FILTER_ALL && !partnerChipValues.includes(partner);
     const showQtySelect =
-      qtyCarrierStats.quantitiesSortedDesc.length > qtyChipMax || qtyNotOnChip;
+      qtyFilterStats.quantitiesSortedDesc.length > qtyChipMax || qtyNotOnChip;
     const showPartnerSelect =
-      qtyCarrierStats.partnersSortedDesc.length > partnerChipMax || partnerNotOnChip;
+      carrierFilterStats.partnersSortedDesc.length > partnerChipMax || partnerNotOnChip;
 
     const chipScroller =
       "flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -1166,10 +1316,13 @@ function LabelPdfFilterFields({
             </MobileFilterChip>
             {showUnmappedFilter ? (
               <MobileFilterChip
-                active={mappedMasterFilter.mode === "unmapped"}
+                active={
+                  mappedMasterFilter.mode === "unmapped" ||
+                  mappedMasterFilter.mode === "unmapped_listing"
+                }
                 onClick={onMasterFilterUnmapped}
               >
-                SKU Missing
+                Not mapped
               </MobileFilterChip>
             ) : null}
           </div>
@@ -1185,7 +1338,7 @@ function LabelPdfFilterFields({
                 active={paymentFilter === value}
                 onClick={() => onPaymentFilter(value)}
               >
-                {paymentFilterTriggerDisplay(value, qtyCarrierStats)}
+                {paymentFilterTriggerDisplay(value, paymentFilterStats)}
               </MobileFilterChip>
             ))}
           </div>
@@ -1220,10 +1373,10 @@ function LabelPdfFilterFields({
             <MobileFilterChip
               active={partner === QTY_PARTNER_FILTER_ALL}
               onClick={() => onPartner(QTY_PARTNER_FILTER_ALL)}
-              title={`${qtyCarrierStats.totalLabels.toLocaleString()} labels · ${qtyCarrierStats.totalOrderQty.toLocaleString()} total qty`}
+              title={`${carrierFilterStats.totalLabels.toLocaleString()} labels · ${carrierFilterStats.totalOrderQty.toLocaleString()} total qty`}
             >
               <span className="tabular-nums">
-                All ({qtyCarrierStats.totalLabels.toLocaleString()})
+                All ({carrierFilterStats.totalLabels.toLocaleString()})
               </span>
             </MobileFilterChip>
             {partnerChipValues.map((p) => (
@@ -1231,10 +1384,10 @@ function LabelPdfFilterFields({
                 key={p}
                 active={partner === p}
                 onClick={() => onPartner(p)}
-                title={`${(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(qtyCarrierStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
+                title={`${(carrierFilterStats.perPartner[p] ?? 0).toLocaleString()} labels · ${(carrierFilterStats.partnerOrderQtySum[p] ?? 0).toLocaleString()} total qty`}
               >
                 <span className="max-w-[11rem] truncate text-left tabular-nums">
-                  {p} ({(qtyCarrierStats.perPartner[p] ?? 0).toLocaleString()})
+                  {p} ({(carrierFilterStats.perPartner[p] ?? 0).toLocaleString()})
                 </span>
               </MobileFilterChip>
             ))}
@@ -1586,7 +1739,7 @@ function LabelMappingStatusPill({ mapped }: { mapped: boolean }) {
       className="inline-flex items-center rounded-full bg-amber-500/[0.12] px-2 py-0.5 text-[11px] font-semibold leading-none tracking-tight text-amber-100 ring-1 ring-amber-400/30 shadow-[0_0_12px_-4px_rgb(251_191_36/0.35)]"
       title="No master · add in SKU Mapping"
     >
-      SKU Missing
+      Not mapped
     </span>
   );
 }
@@ -2001,6 +2154,32 @@ export function MeeshoLabelExportTool() {
     [rows, remoteListingToMaster]
   );
 
+  const filters: MeeshoLabelFilters = React.useMemo(() => {
+    const qtyExact =
+      qtyFilter === "__all__"
+        ? null
+        : (() => {
+            const n = Number.parseInt(qtyFilter, 10);
+            return Number.isFinite(n) ? n : null;
+          })();
+
+    return {
+      mappedMaster: mappedMasterFilter,
+      marketplace: marketplaceFilter,
+      payment: paymentFilter,
+      listingSearch: listingSearchForFilter,
+      qtyExact,
+      partner: partner === "__all__" ? "" : partner,
+    };
+  }, [
+    mappedMasterFilter,
+    marketplaceFilter,
+    paymentFilter,
+    listingSearchForFilter,
+    qtyFilter,
+    partner,
+  ]);
+
   const marketplaceStats = React.useMemo(() => {
     const stats = {
       meesho: 0,
@@ -2030,17 +2209,9 @@ export function MeeshoLabelExportTool() {
     };
   }, [amazonInvoices.length, enrichedRows]);
 
-  const marketplaceFilterStats = React.useMemo<MarketplaceFilterStats>(
-    () => ({
-      total: enrichedRows.length,
-      perMarketplace: {
-        meesho: marketplaceStats.meesho,
-        flipkart: marketplaceStats.flipkart,
-        amazon: marketplaceStats.amazon,
-        unknown: marketplaceStats.unknown,
-      },
-    }),
-    [enrichedRows.length, marketplaceStats]
+  const marketplaceFilterStats = React.useMemo(
+    () => buildMarketplaceFilterStats(rowsForFacetCounts(enrichedRows, filters, "marketplace")),
+    [enrichedRows, filters]
   );
 
   const marketplaceScopedRows = React.useMemo(() => {
@@ -2055,19 +2226,10 @@ export function MeeshoLabelExportTool() {
     }
   }, [marketplaceFilter, marketplaceFilterStats.perMarketplace]);
 
-  const mappedSkuLabelStats = React.useMemo<MappedSkuLabelStats>(() => {
-    const perName: Record<string, number> = {};
-    let unmapped = 0;
-    for (const r of marketplaceScopedRows) {
-      const nm = r.master_sku?.trim();
-      if (!nm) {
-        unmapped++;
-        continue;
-      }
-      perName[nm] = (perName[nm] ?? 0) + 1;
-    }
-    return { perName, unmapped, total: marketplaceScopedRows.length };
-  }, [marketplaceScopedRows]);
+  const mappedSkuLabelStats = React.useMemo(
+    () => buildMappedSkuLabelStats(rowsForFacetCounts(enrichedRows, filters, "mappedMaster")),
+    [enrichedRows, filters]
+  );
 
   const mappedRows = React.useMemo(
     () => partitionByMasterMapping(marketplaceScopedRows).mapped,
@@ -2078,7 +2240,13 @@ export function MeeshoLabelExportTool() {
     if (mappedMasterFilter.mode === "unmapped" && mappedSkuLabelStats.unmapped === 0) {
       setMappedMasterFilter({ mode: "all" });
     }
-  }, [mappedMasterFilter.mode, mappedSkuLabelStats.unmapped]);
+    if (
+      mappedMasterFilter.mode === "unmapped_listing" &&
+      mappedMasterFilter.listingSkus.every((sku) => !mappedSkuLabelStats.perUnmappedListingSku[sku])
+    ) {
+      setMappedMasterFilter({ mode: "all" });
+    }
+  }, [mappedMasterFilter, mappedSkuLabelStats.perUnmappedListingSku, mappedSkuLabelStats.unmapped]);
 
   /**
    * Mapped SKUs present in this PDF, ordered by how many labels match (most first),
@@ -2094,107 +2262,52 @@ export function MeeshoLabelExportTool() {
     });
   }, [mappedSkuLabelStats]);
 
-  /** Qty / carrier options with label counts; options sorted by prevalence (Zoho-style scans). */
-  const qtyCarrierStats = React.useMemo<QtyCarrierFilterStats>(() => {
-    const perQty: Record<number, number> = {};
-    const perPartner: Record<string, number> = {};
-    const perPayment: Record<PaymentKind, number> = {
-      prepaid: 0,
-      cod: 0,
-      exchange: 0,
-      unknown: 0,
-    };
-    const partnerOrderQtySum: Record<string, number> = {};
-    let totalOrderQty = 0;
-    for (const r of marketplaceScopedRows) {
-      perPayment[r.payment] = (perPayment[r.payment] ?? 0) + 1;
-      const q = r.quantity;
-      if (q != null && Number.isFinite(q)) {
-        perQty[q] = (perQty[q] ?? 0) + 1;
-        totalOrderQty += q;
-      }
-      const dp = r.delivery_partner?.trim();
-      if (dp) {
-        perPartner[dp] = (perPartner[dp] ?? 0) + 1;
-        if (q != null && Number.isFinite(q)) {
-          partnerOrderQtySum[dp] = (partnerOrderQtySum[dp] ?? 0) + q;
-        }
-      }
-    }
-    const quantitiesSortedDesc = Object.keys(perQty)
-      .map(Number)
-      .filter((n) => Number.isFinite(n))
-      .sort((a, b) => {
-        const ca = perQty[a] ?? 0;
-        const cb = perQty[b] ?? 0;
-        if (cb !== ca) return cb - ca;
-        return a - b;
-      });
-    const partnersSortedDesc = Object.keys(perPartner).sort((a, b) => {
-      const ca = perPartner[a] ?? 0;
-      const cb = perPartner[b] ?? 0;
+  const distinctUnmappedListingSkus = React.useMemo(() => {
+    const { perUnmappedListingSku } = mappedSkuLabelStats;
+    return Object.keys(perUnmappedListingSku).sort((a, b) => {
+      const ca = perUnmappedListingSku[a] ?? 0;
+      const cb = perUnmappedListingSku[b] ?? 0;
       if (cb !== ca) return cb - ca;
       return a.localeCompare(b, undefined, { sensitivity: "base" });
     });
-    return {
-      totalLabels: marketplaceScopedRows.length,
-      totalOrderQty,
-      perQty,
-      perPartner,
-      perPayment,
-      partnerOrderQtySum,
-      quantitiesSortedDesc,
-      partnersSortedDesc,
-    };
-  }, [marketplaceScopedRows]);
+  }, [mappedSkuLabelStats]);
+
+  const paymentFilterStats = React.useMemo(
+    () => buildQtyCarrierFilterStats(rowsForFacetCounts(enrichedRows, filters, "payment")),
+    [enrichedRows, filters]
+  );
+
+  const qtyFilterStats = React.useMemo(
+    () => buildQtyCarrierFilterStats(rowsForFacetCounts(enrichedRows, filters, "quantity")),
+    [enrichedRows, filters]
+  );
+
+  const carrierFilterStats = React.useMemo(
+    () => buildQtyCarrierFilterStats(rowsForFacetCounts(enrichedRows, filters, "partner")),
+    [enrichedRows, filters]
+  );
 
   React.useEffect(() => {
     if (qtyFilter === "__all__") return;
     const n = Number.parseInt(qtyFilter, 10);
-    if (!Number.isFinite(n) || qtyCarrierStats.perQty[n] === undefined) {
+    if (!Number.isFinite(n) || qtyFilterStats.perQty[n] === undefined) {
       setQtyFilter("__all__");
     }
-  }, [qtyCarrierStats.perQty, qtyFilter]);
+  }, [qtyFilterStats.perQty, qtyFilter]);
 
   React.useEffect(() => {
     if (partner === QTY_PARTNER_FILTER_ALL) return;
-    if (qtyCarrierStats.perPartner[partner] === undefined) {
+    if (carrierFilterStats.perPartner[partner] === undefined) {
       setPartner(QTY_PARTNER_FILTER_ALL);
     }
-  }, [partner, qtyCarrierStats.perPartner]);
+  }, [partner, carrierFilterStats.perPartner]);
 
   React.useEffect(() => {
     if (paymentFilter === "all") return;
-    if ((qtyCarrierStats.perPayment[paymentFilter] ?? 0) === 0) {
+    if ((paymentFilterStats.perPayment[paymentFilter] ?? 0) === 0) {
       setPaymentFilter("all");
     }
-  }, [paymentFilter, qtyCarrierStats.perPayment]);
-
-  const filters: MeeshoLabelFilters = React.useMemo(() => {
-    const qtyExact =
-      qtyFilter === "__all__"
-        ? null
-        : (() => {
-            const n = Number.parseInt(qtyFilter, 10);
-            return Number.isFinite(n) ? n : null;
-          })();
-
-    return {
-      mappedMaster: mappedMasterFilter,
-      marketplace: marketplaceFilter,
-      payment: paymentFilter,
-      listingSearch: listingSearchForFilter,
-      qtyExact,
-      partner: partner === "__all__" ? "" : partner,
-    };
-  }, [
-    mappedMasterFilter,
-    marketplaceFilter,
-    paymentFilter,
-    listingSearchForFilter,
-    qtyFilter,
-    partner,
-  ]);
+  }, [paymentFilter, paymentFilterStats.perPayment]);
 
   /** All PDF labels, enriched when mappings exist; filtered client-side (Zoho-style grid). */
   const filteredLabels = React.useMemo(() => {
@@ -2248,6 +2361,25 @@ export function MeeshoLabelExportTool() {
     []
   );
 
+  const onMasterFilterToggleUnmappedSku = React.useCallback(
+    (sku: string, checked: boolean) => {
+      setMappedMasterFilter((prev) => {
+        if (checked) {
+          if (prev.mode === "unmapped_listing") {
+            if (prev.listingSkus.includes(sku)) return prev;
+            return { mode: "unmapped_listing", listingSkus: [...prev.listingSkus, sku] };
+          }
+          return { mode: "unmapped_listing", listingSkus: [sku] };
+        }
+        if (prev.mode !== "unmapped_listing") return prev;
+        const next = prev.listingSkus.filter((n) => n !== sku);
+        if (next.length === 0) return { mode: "all" };
+        return { mode: "unmapped_listing", listingSkus: next };
+      });
+    },
+    []
+  );
+
   const clearLabelFilters = React.useCallback(() => {
     setMappedMasterFilter({ mode: "all" });
     setMarketplaceFilter("all");
@@ -2259,12 +2391,19 @@ export function MeeshoLabelExportTool() {
 
   React.useEffect(() => {
     setMappedMasterFilter((prev) => {
-      if (prev.mode !== "masters") return prev;
-      const valid = prev.names.filter((n) => distinctMasterNames.includes(n));
-      if (valid.length === prev.names.length) return prev;
-      return valid.length === 0 ? { mode: "all" } : { mode: "masters", names: valid };
+      if (prev.mode === "masters") {
+        const valid = prev.names.filter((n) => distinctMasterNames.includes(n));
+        if (valid.length === prev.names.length) return prev;
+        return valid.length === 0 ? { mode: "all" } : { mode: "masters", names: valid };
+      }
+      if (prev.mode === "unmapped_listing") {
+        const valid = prev.listingSkus.filter((n) => distinctUnmappedListingSkus.includes(n));
+        if (valid.length === prev.listingSkus.length) return prev;
+        return valid.length === 0 ? { mode: "all" } : { mode: "unmapped_listing", listingSkus: valid };
+      }
+      return prev;
     });
-  }, [distinctMasterNames]);
+  }, [distinctMasterNames, distinctUnmappedListingSkus]);
 
   React.useEffect(() => {
     const allowed = new Set(filteredLabels.map((r) => r.id));
@@ -3602,12 +3741,16 @@ export function MeeshoLabelExportTool() {
                         onMasterFilterAll={onMasterFilterAll}
                         onMasterFilterUnmapped={onMasterFilterUnmapped}
                         onMasterFilterToggleMaster={onMasterFilterToggleMaster}
+                        onMasterFilterToggleUnmappedSku={onMasterFilterToggleUnmappedSku}
                         qtyFilter={qtyFilter}
                         onQtyFilter={setQtyFilter}
                         partner={partner}
                         onPartner={setPartner}
                         distinctMasterNames={distinctMasterNames}
-                        qtyCarrierStats={qtyCarrierStats}
+                        distinctUnmappedListingSkus={distinctUnmappedListingSkus}
+                        paymentFilterStats={paymentFilterStats}
+                        qtyFilterStats={qtyFilterStats}
+                        carrierFilterStats={carrierFilterStats}
                         rowsLen={rows.length}
                         activeFilterCount={labelFilterActiveCount}
                         onClearFilters={clearLabelFilters}
@@ -3656,12 +3799,16 @@ export function MeeshoLabelExportTool() {
                     onMasterFilterAll={onMasterFilterAll}
                     onMasterFilterUnmapped={onMasterFilterUnmapped}
                     onMasterFilterToggleMaster={onMasterFilterToggleMaster}
+                    onMasterFilterToggleUnmappedSku={onMasterFilterToggleUnmappedSku}
                     qtyFilter={qtyFilter}
                     onQtyFilter={setQtyFilter}
                     partner={partner}
                     onPartner={setPartner}
                     distinctMasterNames={distinctMasterNames}
-                    qtyCarrierStats={qtyCarrierStats}
+                    distinctUnmappedListingSkus={distinctUnmappedListingSkus}
+                    paymentFilterStats={paymentFilterStats}
+                    qtyFilterStats={qtyFilterStats}
+                    carrierFilterStats={carrierFilterStats}
                     rowsLen={rows.length}
                     activeFilterCount={labelFilterActiveCount}
                     onClearFilters={clearLabelFilters}

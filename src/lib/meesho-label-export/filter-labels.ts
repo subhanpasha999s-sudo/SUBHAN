@@ -39,6 +39,7 @@ export function sortLabelsForGroupedExport(
 export type MappedSkuMasterFilter =
   | { mode: "all" }
   | { mode: "unmapped" }
+  | { mode: "unmapped_listing"; listingSkus: readonly string[] }
   | { mode: "masters"; names: readonly string[] };
 
 export interface MeeshoLabelFilters {
@@ -82,6 +83,9 @@ export function applyMeeshoLabelFilters(
     const mm = f.mappedMaster;
     if (mm.mode === "unmapped") {
       if ((r.master_sku ?? "").trim()) return false;
+    } else if (mm.mode === "unmapped_listing" && mm.listingSkus.length > 0) {
+      if ((r.master_sku ?? "").trim()) return false;
+      if (!rowMatchesMasterNames((r.listing_sku ?? "").trim(), mm.listingSkus)) return false;
     } else if (mm.mode === "masters" && mm.names.length > 0) {
       const rowM = (r.master_sku ?? "").trim();
       if (!rowM || !rowMatchesMasterNames(rowM, mm.names)) return false;
