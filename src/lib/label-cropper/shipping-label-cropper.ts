@@ -182,72 +182,45 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
   await page.render({ canvasContext: ctx, viewport, canvas }).promise;
 
   const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const columnCurrentRuns = new Uint16Array(canvas.width);
-  const columnMaxRuns = new Uint16Array(canvas.width);
-  const rowMaxRuns = new Uint16Array(canvas.height);
-  const scanHeight = Math.floor(canvas.height * 0.94);
-  for (let y = 0; y < scanHeight; y++) {
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < canvas.height; y++) {
+    let darkCount = 0;
     let rowCurrentRun = 0;
+    let rowMaxRun = 0;
     for (let x = 0; x < canvas.width; x++) {
       const idx = (y * canvas.width + x) * 4;
       const red = data[idx] ?? 255;
       const green = data[idx + 1] ?? 255;
       const blue = data[idx + 2] ?? 255;
       if (red < 220 && green < 220 && blue < 220) {
+        darkCount += 1;
         rowCurrentRun += 1;
-        columnCurrentRuns[x] += 1;
-        rowMaxRuns[y] = Math.max(rowMaxRuns[y] ?? 0, rowCurrentRun);
-        columnMaxRuns[x] = Math.max(columnMaxRuns[x] ?? 0, columnCurrentRuns[x] ?? 0);
+        rowMaxRun = Math.max(rowMaxRun, rowCurrentRun);
       } else {
         rowCurrentRun = 0;
-        columnCurrentRuns[x] = 0;
+      }
+    }
+
+    const isDottedCutLine = darkCount > canvas.width * 0.35 && rowMaxRun < canvas.width * 0.08;
+    if (isDottedCutLine) continue;
+
+    for (let x = 0; x < canvas.width; x++) {
+      const idx = (y * canvas.width + x) * 4;
+      const red = data[idx] ?? 255;
+      const green = data[idx + 1] ?? 255;
+      const blue = data[idx + 2] ?? 255;
+      if (red < 220 && green < 220 && blue < 220) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
       }
     }
   }
-
-  const findRuns = (counts: Uint16Array, threshold: number, minLength: number) => {
-    const runs: { start: number; end: number; peak: number }[] = [];
-    let start = -1;
-    let peak = 0;
-    for (let i = 0; i < counts.length; i++) {
-      if (counts[i] >= threshold) {
-        if (start < 0) start = i;
-        peak = Math.max(peak, counts[i] ?? 0);
-      } else if (start >= 0) {
-        if (i - start >= minLength) runs.push({ start, end: i - 1, peak });
-        start = -1;
-        peak = 0;
-      }
-    }
-    if (start >= 0 && counts.length - start >= minLength) {
-      runs.push({ start, end: counts.length - 1, peak });
-    }
-    return runs;
-  };
-
-  const verticalRuns = findRuns(
-    columnMaxRuns,
-    Math.max(40, Math.floor(canvas.height * 0.06)),
-    Math.max(1, Math.floor(canvas.width * 0.001))
-  );
-  const horizontalRuns = findRuns(
-    rowMaxRuns,
-    Math.max(40, Math.floor(canvas.width * 0.25)),
-    Math.max(1, Math.floor(canvas.height * 0.001))
-  );
-
-  const leftRun = verticalRuns.find((run) => run.start > canvas.width * 0.02);
-  const rightRun = [...verticalRuns].reverse().find((run) => run.end < canvas.width * 0.98);
-  const topRun = horizontalRuns.find((run) => run.start > canvas.height * 0.005);
-  const bottomRun = [...horizontalRuns]
-    .reverse()
-    .find((run) => run.end < canvas.height * 0.94 && run.start - (topRun?.start ?? 0) > canvas.height * 0.35);
-
-  if (!leftRun || !rightRun || !topRun || !bottomRun) return null;
-  const minX = Math.floor((leftRun.start + leftRun.end) / 2);
-  const maxX = Math.ceil((rightRun.start + rightRun.end) / 2);
-  const minY = Math.floor((topRun.start + topRun.end) / 2);
-  const maxY = Math.ceil((bottomRun.start + bottomRun.end) / 2);
   if (maxX <= minX || maxY <= minY) return null;
 
   const safePadding = 6;
