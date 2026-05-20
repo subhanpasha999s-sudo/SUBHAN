@@ -294,13 +294,20 @@ export function pairAmazonShippingRows(
   });
 }
 
+export function formatAmazonSkuQtyOverlayText(
+  skuValue: string,
+  quantity: number | null
+): string | undefined {
+  const sku = skuValue.trim();
+  if (!sku) return undefined;
+  const qty = quantity == null ? "Unknown" : quantity.toLocaleString();
+  return `${sku} × ${qty}`;
+}
+
 export function amazonShippingOverlayText(row: MeeshoLabelRecord): string | undefined {
   if (row.marketplace !== "amazon" || row.fileType !== "shipping_label") return undefined;
   if (row.matchStatus !== "Matched") return undefined;
-  const sku = row.listing_sku.trim();
-  if (!sku) return undefined;
-  const qty = row.quantity == null ? "Unknown" : row.quantity.toLocaleString();
-  return `${sku} × ${qty}`;
+  return formatAmazonSkuQtyOverlayText(row.listing_sku, row.quantity);
 }
 
 export function containsAmazonRows(rows: readonly MeeshoLabelRecord[]): boolean {

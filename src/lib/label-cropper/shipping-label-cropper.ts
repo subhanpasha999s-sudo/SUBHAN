@@ -4,6 +4,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
 import {
+  formatAmazonSkuQtyOverlayText,
   normalizeAmazonOrderId,
   parseAmazonPage,
 } from "@/lib/amazon-label-engine";
@@ -55,6 +56,7 @@ export type CropExportEntry = {
   pageIndex: number;
   rect: CropRect;
   fileName: string;
+  overlayText?: string;
 };
 
 type PositionedTextItem = {
@@ -408,6 +410,8 @@ export async function analyzeCropperPdfBytes(opts: {
     const rawText = textFromItems(textContent);
     const positionedItems = positionedTextItems(textContent, viewport.height);
     const marketplace = detectMarketplace(rawText);
+    // Amazon labels must remain exactly as Amazon supplies them: page 1 is the full
+    // shipping label, page 2 is the invoice. Tight visual bounds are only for Flipkart.
     const contentBounds = marketplace === "flipkart" ? await renderedLabelBounds(page) : null;
     pages.push({
       ...analyzePageText(rawText, i - 1, positionedItems, contentBounds),
@@ -430,6 +434,7 @@ export async function analyzeCropperPdfBytes(opts: {
     }
   }
 
+  const pageByIndex = new Map(pages.map((page) => [page.pageIndex, page]));
   for (const p of pages) {
     if (p.marketplace !== "amazon") continue;
     if (p.kind === "shipping" && p.orderId) {
@@ -452,6 +457,15 @@ export async function analyzeCropperPdfBytes(opts: {
     }
   }
 
+  for (const page of pages) {
+    if (page.marketplace !== "amazon" || page.kind !== "shipping") continue;
+    const invoicePageIndex = page.pairedInvoicePageIndex;
+    const invoice = invoicePageIndex == null ? null : pageByIndex.get(invoicePageIndex);
+    if (!invoice || invoice.marketplace !== "amazon" || invoice.kind !== "invoice") continue;
+    page.sku = invoice.sku;
+    page.quantity = invoice.quantity;
+  }
+
   return {
     id: opts.id,
     fileName: opts.fileName || "labels.pdf",
@@ -467,6 +481,11 @@ export async function analyzeCropperPdf(file: File): Promise<CropperDocument> {
     fileName: file.name || "labels.pdf",
     bytes: new Uint8Array(await file.arrayBuffer()),
   });
+}
+
+export function amazonShippingCropOverlayText(page: CropperPage): string | undefined {
+  if (page.marketplace !== "amazon" || page.kind !== "shipping") return undefined;
+  return formatAmazonSkuQtyOverlayText(page.sku, page.quantity);
 }
 
 export async function renderCropperPagePreview(
@@ -512,8 +531,9 @@ function rectToPdfBox(rect: CropRect, pageWidth: number, pageHeight: number) {
 
 export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
-  const { PDFDocument } = await import("pdf-lib");
+  const { PDFDocument, rgb } = await import("pdf-lib");
   const out = await PDFDocument.create();
+  const font = await out.embedFont("Helvetica-Bold");
   const sourceCache = new Map<string, Awaited<ReturnType<typeof PDFDocument.load>>>();
 
   for (const entry of entries) {
@@ -538,6 +558,32 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       width: box.width,
       height: box.height,
     });
+
+    if (entry.overlayText?.trim()) {
+      const text = entry.overlayText.trim();
+      const fontSize = Math.max(12, Math.min(18, box.width / Math.max(16, text.length * 0.5)));
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const boxW = Math.min(box.width * 0.48, textWidth + 28);
+      const boxH = fontSize + 14;
+      const x = Math.max(18, box.width - boxW - box.width * 0.08);
+      const y = Math.max(40, box.height * 0.11);
+      page.drawRectangle({
+        x,
+        y,
+        width: boxW,
+        height: boxH,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 0.75,
+      });
+      page.drawText(text, {
+        x: x + (boxW - textWidth) / 2,
+        y: y + 6,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
   }
 
   return new Uint8Array(await out.save({ useObjectStreams: false }));

@@ -67,6 +67,7 @@ import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   analyzeCropperPdfBytes,
+  amazonShippingCropOverlayText,
   cropEntriesToPdf,
   zipCroppedPdfs,
   type CropExportEntry,
@@ -3055,30 +3056,52 @@ export function MeeshoLabelExportTool() {
 
   function cropEntriesForPage(doc: CropperDocument, page: CropperPage, mode: CropMode): CropExportEntry[] {
     const base = cropFileBase(doc.fileName, page.pageNumber);
+    const entryFor = (rect: CropExportEntry["rect"], fileName: string): CropExportEntry => ({
+      doc,
+      pageIndex: page.pageIndex,
+      rect,
+      fileName,
+      overlayText: amazonShippingCropOverlayText(page),
+    });
+
     if (mode === "shipping") {
       if (page.kind === "invoice") return [];
-      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultShippingRect, fileName: `${base}-shipping.pdf` }];
+      return [entryFor(page.defaultShippingRect, `${base}-shipping.pdf`)];
     }
     if (mode === "invoice") {
+      if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
+        return [{
+          doc,
+          pageIndex: page.pairedInvoicePageIndex,
+          rect: page.defaultFullRect,
+          fileName: `${base}-invoice.pdf`,
+        }];
+      }
+      if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
+        return [];
+      }
       if (page.kind === "shipping") return [];
-      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultInvoiceRect, fileName: `${base}-invoice.pdf` }];
+      return [entryFor(page.defaultInvoiceRect, `${base}-invoice.pdf`)];
     }
     if (mode === "full") {
-      return [{ doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}-full.pdf` }];
+      return [entryFor(page.defaultFullRect, `${base}-full.pdf`)];
     }
     if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
       return [
-        { doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}-shipping.pdf` },
+        entryFor(page.defaultFullRect, `${base}-shipping.pdf`),
         { doc, pageIndex: page.pairedInvoicePageIndex, rect: page.defaultFullRect, fileName: `${base}-invoice.pdf` },
       ];
     }
+    if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
+      return [];
+    }
     if (page.kind === "combined") {
       return [
-        { doc, pageIndex: page.pageIndex, rect: page.defaultShippingRect, fileName: `${base}-shipping.pdf` },
-        { doc, pageIndex: page.pageIndex, rect: page.defaultInvoiceRect, fileName: `${base}-invoice.pdf` },
+        entryFor(page.defaultShippingRect, `${base}-shipping.pdf`),
+        entryFor(page.defaultInvoiceRect, `${base}-invoice.pdf`),
       ];
     }
-    return [{ doc, pageIndex: page.pageIndex, rect: page.defaultFullRect, fileName: `${base}.pdf` }];
+    return [entryFor(page.defaultFullRect, `${base}.pdf`)];
   }
 
   function buildAutoCropEntries(mode = autoCropMode, allowed = filteredPageKeySet()): CropExportEntry[] {
