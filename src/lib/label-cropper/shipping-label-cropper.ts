@@ -211,7 +211,10 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
     }
 
     const isDottedCutLine = darkCount > canvas.width * 0.35 && rowMaxRun < canvas.width * 0.08;
-    if (isDottedCutLine) continue;
+    if (isDottedCutLine) {
+      if (minY < canvas.height) break;
+      continue;
+    }
 
     for (let x = 0; x < canvas.width; x++) {
       const idx = (y * canvas.width + x) * 4;
