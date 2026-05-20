@@ -1,11 +1,9 @@
 "use client";
 
-import type { PDFPage } from "pdf-lib";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
 import {
-  formatAmazonSkuQtyOverlayText,
   normalizeAmazonOrderId,
   parseAmazonPage,
 } from "@/lib/amazon-label-engine";
@@ -57,8 +55,6 @@ export type CropExportEntry = {
   pageIndex: number;
   rect: CropRect;
   fileName: string;
-  overlayText?: string;
-  preservePage?: boolean;
 };
 
 type PositionedTextItem = {
@@ -485,11 +481,6 @@ export async function analyzeCropperPdf(file: File): Promise<CropperDocument> {
   });
 }
 
-export function amazonShippingCropOverlayText(page: CropperPage): string | undefined {
-  if (page.marketplace !== "amazon" || page.kind !== "shipping") return undefined;
-  return formatAmazonSkuQtyOverlayText(page.sku, page.quantity);
-}
-
 export async function renderCropperPagePreview(
   doc: CropperDocument,
   pageIndex: number,
@@ -533,37 +524,9 @@ function rectToPdfBox(rect: CropRect, pageWidth: number, pageHeight: number) {
 
 export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
-  const { PDFDocument, rgb } = await import("pdf-lib");
+  const { PDFDocument } = await import("pdf-lib");
   const out = await PDFDocument.create();
-  const font = await out.embedFont("Helvetica-Bold");
   const sourceCache = new Map<string, Awaited<ReturnType<typeof PDFDocument.load>>>();
-
-  const drawOverlayText = (page: PDFPage, width: number, height: number, overlayText?: string) => {
-    if (!overlayText?.trim()) return;
-    const text = overlayText.trim();
-    const fontSize = Math.max(12, Math.min(18, width / Math.max(16, text.length * 0.5)));
-    const textWidth = font.widthOfTextAtSize(text, fontSize);
-    const boxW = Math.min(width * 0.48, textWidth + 28);
-    const boxH = fontSize + 14;
-    const x = Math.max(18, width - boxW - width * 0.08);
-    const y = Math.max(40, height * 0.11);
-    page.drawRectangle({
-      x,
-      y,
-      width: boxW,
-      height: boxH,
-      color: rgb(1, 1, 1),
-      borderColor: rgb(0, 0, 0),
-      borderWidth: 0.75,
-    });
-    page.drawText(text, {
-      x: x + (boxW - textWidth) / 2,
-      y: y + 6,
-      size: fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-  };
 
   for (const entry of entries) {
     let src = sourceCache.get(entry.doc.id);
@@ -572,14 +535,6 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       sourceCache.set(entry.doc.id, src);
     }
     const sourcePage = src.getPage(entry.pageIndex);
-    if (entry.preservePage) {
-      const [copied] = await out.copyPages(src, [entry.pageIndex]);
-      const { width, height } = copied.getSize();
-      drawOverlayText(copied, width, height, entry.overlayText);
-      out.addPage(copied);
-      continue;
-    }
-
     const { width: pageWidth, height: pageHeight } = sourcePage.getSize();
     const box = rectToPdfBox(entry.rect, pageWidth, pageHeight);
     const embedded = await out.embedPage(sourcePage, {
@@ -595,7 +550,6 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       width: box.width,
       height: box.height,
     });
-    drawOverlayText(page, box.width, box.height, entry.overlayText);
   }
 
   return new Uint8Array(await out.save({ useObjectStreams: false }));

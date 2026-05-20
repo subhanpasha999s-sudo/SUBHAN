@@ -67,9 +67,7 @@ import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   analyzeCropperPdfBytes,
-  amazonShippingCropOverlayText,
   cropEntriesToPdf,
-  zipCroppedPdfs,
   type CropExportEntry,
   type CropMode,
   type CropperDocument,
@@ -320,6 +318,8 @@ type ImportedPdfSource = {
   pdfBytes: Uint8Array;
   order: number;
 };
+
+type PdfExportStep = Parameters<typeof exportPdfPagesFromMultiSourceOrdered>[0][number];
 
 function listingSkuDisplay(row: EnrichedMeeshoLabelRow): React.ReactNode {
   if (row.listing_sku.trim()) return row.listing_sku;
@@ -2466,7 +2466,12 @@ export function MeeshoLabelExportTool() {
     }
   }
 
-  function rowsToPdfExportSteps(sourceRows: readonly EnrichedMeeshoLabelRow[]) {
+  function rowsToPdfExportSteps(
+    sourceRows: readonly EnrichedMeeshoLabelRow[],
+    opts: { includeAmazonInvoices?: boolean; amazonMode?: CropMode } = {}
+  ): PdfExportStep[] {
+    const includeAmazonInvoices = opts.includeAmazonInvoices ?? includeAmazonInvoicesInDownload;
+    const amazonMode = opts.amazonMode;
     return [...sourceRows]
       .sort((a, b) => {
         const ao = sourceOrderByImportId.get(a.importId) ?? 0;
@@ -2475,16 +2480,33 @@ export function MeeshoLabelExportTool() {
         return a.page - b.page;
       })
       .flatMap((r) => {
+        if (r.marketplace === "amazon" && amazonMode === "invoice") {
+          const invoice = amazonInvoiceByOrderId.get(normalizeAmazonOrderId(r.orderId));
+          const invoiceSource = invoice?.importId
+            ? pdfSourceByImportId.get(invoice.importId)
+            : undefined;
+          if (!invoice || !invoiceSource) return [];
+          return [{
+            importKey: invoice.importId ?? invoiceSource.id,
+            sourcePdfBytes: invoiceSource.pdfBytes,
+            pageOneBased: invoice.rawPageIndex + 1,
+            overlayText: undefined,
+          }];
+        }
+
         const src = pdfSourceByImportId.get(r.importId);
         if (!src) return [];
-        const steps = [{
+        const steps: PdfExportStep[] = [{
           importKey: r.importId,
           sourcePdfBytes: src.pdfBytes,
           pageOneBased: r.page,
           overlayText: amazonShippingOverlayText(r),
         }];
 
-        if (includeAmazonInvoicesInDownload && r.marketplace === "amazon") {
+        const shouldIncludeAmazonInvoice =
+          r.marketplace === "amazon" &&
+          (amazonMode === "both" || amazonMode === "full" || (!amazonMode && includeAmazonInvoices));
+        if (shouldIncludeAmazonInvoice) {
           const invoice = amazonInvoiceByOrderId.get(normalizeAmazonOrderId(r.orderId));
           const invoiceSource = invoice?.importId
             ? pdfSourceByImportId.get(invoice.importId)
@@ -2770,20 +2792,19 @@ export function MeeshoLabelExportTool() {
     const idSet = new Set(Object.keys(selected));
     const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
     if (processingMode === "filter_crop") {
-      const entries = cropEntriesForRows(exportedEnriched);
-      if (entries.length === 0) {
-        notify.info("No cropped label pages are ready for this selection.");
-        return;
-      }
       try {
-        const out = await cropEntriesToPdf(entries);
-        triggerPdfDownload(out, buildSelectedExportFilename(exportedEnriched));
+        const out = await cropOutputPdfForRows(
+          exportedEnriched,
+          autoCropMode,
+          includeAmazonInvoicesInDownload ? "both" : "shipping"
+        );
+        triggerPdfDownload(out.bytes, buildSelectedExportFilename(exportedEnriched));
         mergeExportedMastersFromRows(exportedEnriched);
         notify.success("Exported cropped labels", {
-          description: `${entries.length.toLocaleString()} cropped page(s)`,
+          description: `${out.pageCount.toLocaleString()} page(s)`,
         });
         trackEvent("meesho_export_selected_succeeded", {
-          page_count: entries.length,
+          page_count: out.pageCount,
           selected_count: selectedTotal,
           visible_count: filteredLabels.length,
           crop_mode: autoCropMode,
@@ -2884,9 +2905,11 @@ export function MeeshoLabelExportTool() {
         setBulkSkuZipState({ phase: "preparing", done: i + 1, total: bucketList.length });
         let pdfOut: Uint8Array | null = null;
         if (processingMode === "filter_crop") {
-          const cropEntries = cropEntriesForRows(bucket.rows);
-          if (cropEntries.length === 0) continue;
-          pdfOut = await cropEntriesToPdf(cropEntries);
+          pdfOut = (await cropOutputPdfForRows(
+            bucket.rows,
+            autoCropMode,
+            includeAmazonInvoicesInDownload ? "both" : "shipping"
+          )).bytes;
         } else {
           const steps = rowsToPdfExportSteps(bucket.rows);
           if (steps.length === 0) continue;
@@ -3055,14 +3078,13 @@ export function MeeshoLabelExportTool() {
   }
 
   function cropEntriesForPage(doc: CropperDocument, page: CropperPage, mode: CropMode): CropExportEntry[] {
+    if (page.marketplace === "amazon") return [];
     const base = cropFileBase(doc.fileName, page.pageNumber);
     const entryFor = (rect: CropExportEntry["rect"], fileName: string): CropExportEntry => ({
       doc,
       pageIndex: page.pageIndex,
       rect,
       fileName,
-      overlayText: amazonShippingCropOverlayText(page),
-      preservePage: page.marketplace === "amazon",
     });
 
     if (mode === "shipping") {
@@ -3070,38 +3092,11 @@ export function MeeshoLabelExportTool() {
       return [entryFor(page.defaultShippingRect, `${base}-shipping.pdf`)];
     }
     if (mode === "invoice") {
-      if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
-        return [{
-          doc,
-          pageIndex: page.pairedInvoicePageIndex,
-          rect: page.defaultFullRect,
-          fileName: `${base}-invoice.pdf`,
-          preservePage: true,
-        }];
-      }
-      if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
-        return [];
-      }
       if (page.kind === "shipping") return [];
       return [entryFor(page.defaultInvoiceRect, `${base}-invoice.pdf`)];
     }
     if (mode === "full") {
       return [entryFor(page.defaultFullRect, `${base}-full.pdf`)];
-    }
-    if (page.marketplace === "amazon" && page.kind === "shipping" && page.pairedInvoicePageIndex != null) {
-      return [
-        entryFor(page.defaultFullRect, `${base}-shipping.pdf`),
-        {
-          doc,
-          pageIndex: page.pairedInvoicePageIndex,
-          rect: page.defaultFullRect,
-          fileName: `${base}-invoice.pdf`,
-          preservePage: true,
-        },
-      ];
-    }
-    if (page.marketplace === "amazon" && page.kind === "invoice" && page.pairedShippingPageIndex != null) {
-      return [];
     }
     if (page.kind === "combined") {
       return [
@@ -3112,42 +3107,71 @@ export function MeeshoLabelExportTool() {
     return [entryFor(page.defaultFullRect, `${base}.pdf`)];
   }
 
-  function buildAutoCropEntries(
-    mode = autoCropMode,
-    allowed = filteredPageKeySet(),
-    amazonModeOverride?: CropMode
-  ): CropExportEntry[] {
+  function buildAutoCropEntries(mode = autoCropMode, allowed = filteredPageKeySet()): CropExportEntry[] {
     const out: CropExportEntry[] = [];
     for (const doc of cropperDocs) {
       for (const page of doc.pages) {
         if (allowed && !allowed.has(`${doc.id}:${page.pageIndex}`)) continue;
-        const pageMode = page.marketplace === "amazon" && amazonModeOverride
-          ? amazonModeOverride
-          : mode;
-        out.push(...cropEntriesForPage(doc, page, pageMode));
+        out.push(...cropEntriesForPage(doc, page, mode));
       }
     }
     return out;
   }
 
-  function cropEntriesForRows(sourceRows: readonly EnrichedMeeshoLabelRow[]): CropExportEntry[] {
-    return buildAutoCropEntries(
-      autoCropMode,
-      rowPageKeySet(sourceRows),
-      includeAmazonInvoicesInDownload ? "both" : "shipping"
-    );
+  async function mergePdfParts(parts: readonly Uint8Array[]): Promise<Uint8Array> {
+    if (parts.length === 0) throw new Error("No pages to export.");
+    if (parts.length === 1) return parts[0];
+    const { PDFDocument } = await import("pdf-lib");
+    const out = await PDFDocument.create();
+    for (const bytes of parts) {
+      const src = await PDFDocument.load(bytes);
+      const copied = await out.copyPages(src, src.getPageIndices());
+      for (const page of copied) out.addPage(page);
+    }
+    return new Uint8Array(await out.save({ useObjectStreams: false }));
+  }
+
+  async function cropOutputPdfForRows(
+    sourceRows: readonly EnrichedMeeshoLabelRow[],
+    mode: CropMode,
+    amazonMode: CropMode
+  ): Promise<{ bytes: Uint8Array; pageCount: number }> {
+    const sortedRows = [...sourceRows].sort((a, b) => {
+      const ao = sourceOrderByImportId.get(a.importId) ?? 0;
+      const bo = sourceOrderByImportId.get(b.importId) ?? 0;
+      if (ao !== bo) return ao - bo;
+      return a.page - b.page;
+    });
+    const parts: Uint8Array[] = [];
+    let pageCount = 0;
+
+    for (const row of sortedRows) {
+      if (row.marketplace === "amazon") {
+        const steps = rowsToPdfExportSteps([row], { amazonMode });
+        if (steps.length === 0) continue;
+        parts.push(await exportPdfPagesFromMultiSourceOrdered(steps));
+        pageCount += steps.length;
+        continue;
+      }
+
+      const entries = buildAutoCropEntries(mode, rowPageKeySet([row]));
+      if (entries.length === 0) continue;
+      parts.push(await cropEntriesToPdf(entries));
+      pageCount += entries.length;
+    }
+
+    return { bytes: await mergePdfParts(parts), pageCount };
   }
 
   async function downloadAutoCropPdf() {
-    const entries = buildAutoCropEntries();
-    if (entries.length === 0) {
+    if (enrichedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
     }
     setCropExportBusy(true);
     try {
-      const pdf = await cropEntriesToPdf(entries);
-      triggerPdfDownload(pdf, "tulmin-auto-cropped-labels.pdf");
+      const out = await cropOutputPdfForRows(enrichedRows, autoCropMode, autoCropMode);
+      triggerPdfDownload(out.bytes, "tulmin-auto-cropped-labels.pdf");
       notify.success("Cropped PDF downloaded.");
     } catch (err) {
       notify.error("Could not crop PDF", {
@@ -3159,16 +3183,39 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropZip() {
-    const entries = buildAutoCropEntries();
-    if (entries.length === 0) {
+    if (enrichedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
     }
     setCropExportBusy(true);
     try {
-      const groups = entries.map((entry) => ({ fileName: entry.fileName, entries: [entry] }));
-      const zip = await zipCroppedPdfs(groups);
-      triggerZipDownload(zip, "tulmin-auto-cropped-labels.zip");
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+      const sortedRows = [...enrichedRows].sort((a, b) => {
+        const ao = sourceOrderByImportId.get(a.importId) ?? 0;
+        const bo = sourceOrderByImportId.get(b.importId) ?? 0;
+        if (ao !== bo) return ao - bo;
+        return a.page - b.page;
+      });
+      let added = 0;
+      for (const row of sortedRows) {
+        try {
+          const out = await cropOutputPdfForRows([row], autoCropMode, autoCropMode);
+          const base = cropFileBase(row.sourceFile || "labels.pdf", row.page);
+          const fileBase = dedupeFilename(`${base}-${autoCropMode}`, usedNames);
+          zip.file(`${fileBase}.pdf`, out.bytes);
+          added += 1;
+        } catch {
+          /* Skip rows that do not have the requested crop target, e.g. a missing invoice. */
+        }
+      }
+      if (added === 0) {
+        notify.info("No crop pages available yet.");
+        return;
+      }
+      const zipBytes = await zip.generateAsync({ type: "uint8array" });
+      triggerZipDownload(new Uint8Array(zipBytes), "tulmin-auto-cropped-labels.zip");
       notify.success("Cropped ZIP downloaded.");
     } catch (err) {
       notify.error("Could not create ZIP", {
