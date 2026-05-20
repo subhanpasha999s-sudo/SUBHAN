@@ -67,6 +67,10 @@ const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height:
 const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.58, width: 0.97, height: 0.41 };
 const FLIPKART_LABEL_X = 0.05;
 const FLIPKART_LABEL_WIDTH = 0.9;
+const FLIPKART_LABEL_PAGE_SIZE = {
+  width: 3 * 72,
+  height: 5 * 72,
+};
 const FLIPKART_SHIPPING_RECT: CropRect = {
   x: FLIPKART_LABEL_X,
   y: 0.005,
@@ -169,6 +173,159 @@ function rectsSplitAtInvoice(
   return { ...rects, shipping, invoice };
 }
 
+async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>): Promise<CropRect | null> {
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) return null;
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const columnCurrentRuns = new Uint16Array(canvas.width);
+  const columnMaxRuns = new Uint16Array(canvas.width);
+  const rowMaxRuns = new Uint16Array(canvas.height);
+
+  const scanHeight = Math.floor(canvas.height * 0.94);
+  for (let y = 0; y < scanHeight; y++) {
+    let rowCurrentRun = 0;
+    for (let x = 0; x < canvas.width; x++) {
+      const idx = (y * canvas.width + x) * 4;
+      const red = data[idx] ?? 255;
+      const green = data[idx + 1] ?? 255;
+      const blue = data[idx + 2] ?? 255;
+      if (red < 220 && green < 220 && blue < 220) {
+        rowCurrentRun += 1;
+        columnCurrentRuns[x] += 1;
+        rowMaxRuns[y] = Math.max(rowMaxRuns[y] ?? 0, rowCurrentRun);
+        columnMaxRuns[x] = Math.max(columnMaxRuns[x] ?? 0, columnCurrentRuns[x] ?? 0);
+      } else {
+        rowCurrentRun = 0;
+        columnCurrentRuns[x] = 0;
+      }
+    }
+  }
+
+  const findRuns = (counts: Uint16Array, threshold: number, minLength: number) => {
+    const runs: { start: number; end: number; peak: number }[] = [];
+    let start = -1;
+    let peak = 0;
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] >= threshold) {
+        if (start < 0) start = i;
+        peak = Math.max(peak, counts[i] ?? 0);
+      } else if (start >= 0) {
+        if (i - start >= minLength) runs.push({ start, end: i - 1, peak });
+        start = -1;
+        peak = 0;
+      }
+    }
+    if (start >= 0 && counts.length - start >= minLength) {
+      runs.push({ start, end: counts.length - 1, peak });
+    }
+    return runs;
+  };
+
+  const verticalRuns = findRuns(
+    columnMaxRuns,
+    Math.max(40, Math.floor(canvas.height * 0.06)),
+    Math.max(1, Math.floor(canvas.width * 0.001))
+  );
+  const horizontalRuns = findRuns(
+    rowMaxRuns,
+    Math.max(40, Math.floor(canvas.width * 0.25)),
+    Math.max(1, Math.floor(canvas.height * 0.001))
+  );
+
+  const leftRun = verticalRuns.find((run) => run.start > canvas.width * 0.02);
+  const rightRun = [...verticalRuns].reverse().find((run) => run.end < canvas.width * 0.98);
+  const topRun = horizontalRuns.find((run) => run.start > canvas.height * 0.005);
+  const bottomRun = [...horizontalRuns]
+    .reverse()
+    .find((run) => run.end < canvas.height * 0.94 && run.start - (topRun?.start ?? 0) > canvas.height * 0.35);
+
+  let minX = leftRun ? Math.floor((leftRun.start + leftRun.end) / 2) : canvas.width;
+  let maxX = rightRun ? Math.ceil((rightRun.start + rightRun.end) / 2) : -1;
+  let minY = topRun ? Math.floor((topRun.start + topRun.end) / 2) : canvas.height;
+  let maxY = bottomRun ? Math.ceil((bottomRun.start + bottomRun.end) / 2) : -1;
+
+  if (maxX > minX) {
+    let contentTop = canvas.height;
+    let contentBottom = -1;
+    const left = Math.max(0, minX - 2);
+    const right = Math.min(canvas.width - 1, maxX + 2);
+    for (let y = 0; y < scanHeight; y++) {
+      if ((rowMaxRuns[y] ?? 0) < 24) continue;
+      for (let x = left; x <= right; x++) {
+        const idx = (y * canvas.width + x) * 4;
+        const red = data[idx] ?? 255;
+        const green = data[idx + 1] ?? 255;
+        const blue = data[idx + 2] ?? 255;
+        if (red < 220 && green < 220 && blue < 220) {
+          contentTop = Math.min(contentTop, y);
+          contentBottom = Math.max(contentBottom, y);
+          break;
+        }
+      }
+    }
+    if (contentBottom > contentTop) {
+      minY = contentTop;
+      maxY = contentBottom;
+    }
+  }
+
+  if (maxX <= minX || maxY <= minY) {
+    minX = canvas.width;
+    minY = canvas.height;
+    maxX = -1;
+    maxY = -1;
+    for (let y = 0; y < scanHeight; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const idx = (y * canvas.width + x) * 4;
+        const red = data[idx] ?? 255;
+        const green = data[idx + 1] ?? 255;
+        const blue = data[idx + 2] ?? 255;
+        if (red < 220 && green < 220 && blue < 220) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+  }
+
+  if (maxX <= minX || maxY <= minY) return null;
+
+  const safePadding = 6;
+  const padX = safePadding / canvas.width;
+  const padY = safePadding / canvas.height;
+  return clampCropRect({
+    x: minX / canvas.width - padX,
+    y: minY / canvas.height - padY,
+    width: (maxX - minX + 1) / canvas.width + padX * 2,
+    height: (maxY - minY + 1) / canvas.height + padY * 2,
+  });
+}
+
+function applyLabelBounds(rects: ReturnType<typeof defaultRects>, bounds: CropRect | null) {
+  if (!bounds) return rects;
+  return {
+    ...rects,
+    shipping: bounds,
+    invoice: clampCropRect({
+      ...rects.invoice,
+      x: bounds.x,
+      width: bounds.width,
+    }),
+    full: bounds,
+  };
+}
+
 function detectMarketplace(rawText: string): ResolvedCropperMarketplace {
   const t = rawText.replace(/\s+/g, " ");
   const amazon = parseAmazonPage(rawText, 0);
@@ -202,7 +359,8 @@ function defaultRects(marketplace: ResolvedCropperMarketplace) {
 function analyzePageText(
   rawText: string,
   pageIndex: number,
-  positionedItems: readonly PositionedTextItem[] = []
+  positionedItems: readonly PositionedTextItem[] = [],
+  contentBounds: CropRect | null = null
 ): Omit<CropperPage, "width" | "height"> {
   const amazonPage = parseAmazonPage(rawText, pageIndex);
   if (amazonPage.type === "shipping_label") {
@@ -245,10 +403,12 @@ function analyzePageText(
   const marketplace = detectMarketplace(rawText);
   const extracted = extractMeeshoFields(rawText);
   const baseRects = defaultRects(marketplace);
+  const labelBoundRects =
+    marketplace === "flipkart" ? applyLabelBounds(baseRects, contentBounds) : baseRects;
   const rects =
     marketplace === "meesho" || marketplace === "flipkart"
-      ? rectsSplitAtInvoice(baseRects, positionedItems)
-      : baseRects;
+      ? rectsSplitAtInvoice(labelBoundRects, positionedItems)
+      : labelBoundRects;
   return {
     pageIndex,
     pageNumber: pageIndex + 1,
@@ -282,8 +442,10 @@ export async function analyzeCropperPdfBytes(opts: {
     const textContent = await page.getTextContent();
     const rawText = textFromItems(textContent);
     const positionedItems = positionedTextItems(textContent, viewport.height);
+    const marketplace = detectMarketplace(rawText);
+    const contentBounds = marketplace === "flipkart" ? await renderedLabelBounds(page) : null;
     pages.push({
-      ...analyzePageText(rawText, i - 1, positionedItems),
+      ...analyzePageText(rawText, i - 1, positionedItems, contentBounds),
       width: viewport.width,
       height: viewport.height,
     });
@@ -383,6 +545,27 @@ function rectToPdfBox(rect: CropRect, pageWidth: number, pageHeight: number) {
   };
 }
 
+function sameCropRect(a: CropRect, b: CropRect) {
+  return (
+    Math.abs(a.x - b.x) < 0.0001 &&
+    Math.abs(a.y - b.y) < 0.0001 &&
+    Math.abs(a.width - b.width) < 0.0001 &&
+    Math.abs(a.height - b.height) < 0.0001
+  );
+}
+
+function outputPageSizeForEntry(entry: CropExportEntry, box: ReturnType<typeof rectToPdfBox>) {
+  const page = entry.doc.pages[entry.pageIndex];
+  if (
+    page?.marketplace === "flipkart" &&
+    page.kind === "combined" &&
+    sameCropRect(entry.rect, page.defaultShippingRect)
+  ) {
+    return FLIPKART_LABEL_PAGE_SIZE;
+  }
+  return { width: box.width, height: box.height };
+}
+
 export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
   const { PDFDocument } = await import("pdf-lib");
@@ -404,12 +587,13 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       right: box.right,
       top: box.top,
     });
-    const page = out.addPage([box.width, box.height]);
+    const outputSize = outputPageSizeForEntry(entry, box);
+    const page = out.addPage([outputSize.width, outputSize.height]);
     page.drawPage(embedded, {
       x: 0,
       y: 0,
-      width: box.width,
-      height: box.height,
+      width: outputSize.width,
+      height: outputSize.height,
     });
   }
 
