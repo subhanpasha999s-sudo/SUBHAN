@@ -71,6 +71,7 @@ const FLIPKART_LABEL_PAGE_SIZE = {
   width: 3 * 72,
   height: 5 * 72,
 };
+const FLIPKART_LABEL_ASPECT = FLIPKART_LABEL_PAGE_SIZE.width / FLIPKART_LABEL_PAGE_SIZE.height;
 const FLIPKART_SHIPPING_RECT: CropRect = {
   x: FLIPKART_LABEL_X,
   y: 0.005,
@@ -302,6 +303,13 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
   if (maxX <= minX || maxY <= minY) return null;
 
   const safePadding = 6;
+  const detectedWidth = maxX - minX + 1;
+  const detectedHeight = maxY - minY + 1;
+  const expectedHeight = detectedWidth / FLIPKART_LABEL_ASPECT;
+  if (detectedHeight > expectedHeight * 1.05) {
+    maxY = Math.min(maxY, Math.round(minY + expectedHeight - 1));
+  }
+
   const padX = safePadding / canvas.width;
   const padY = safePadding / canvas.height;
   return clampCropRect({
@@ -566,6 +574,18 @@ function outputPageSizeForEntry(entry: CropExportEntry, box: ReturnType<typeof r
   return { width: box.width, height: box.height };
 }
 
+function drawSizeForPage(source: { width: number; height: number }, target: { width: number; height: number }) {
+  const scale = Math.min(target.width / source.width, target.height / source.height);
+  const width = source.width * scale;
+  const height = source.height * scale;
+  return {
+    x: (target.width - width) / 2,
+    y: (target.height - height) / 2,
+    width,
+    height,
+  };
+}
+
 export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
   const { PDFDocument } = await import("pdf-lib");
@@ -589,11 +609,12 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
     });
     const outputSize = outputPageSizeForEntry(entry, box);
     const page = out.addPage([outputSize.width, outputSize.height]);
+    const drawBox = drawSizeForPage(box, outputSize);
     page.drawPage(embedded, {
-      x: 0,
-      y: 0,
-      width: outputSize.width,
-      height: outputSize.height,
+      x: drawBox.x,
+      y: drawBox.y,
+      width: drawBox.width,
+      height: drawBox.height,
     });
   }
 
