@@ -182,6 +182,9 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
   await page.render({ canvasContext: ctx, viewport, canvas }).promise;
 
   const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const columnCurrentRuns = new Uint16Array(canvas.width);
+  const columnMaxRuns = new Uint16Array(canvas.width);
+  const rowMaxRuns = new Uint16Array(canvas.height);
   let minX = canvas.width;
   let minY = canvas.height;
   let maxX = -1;
@@ -199,9 +202,13 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
       if (red < 220 && green < 220 && blue < 220) {
         darkCount += 1;
         rowCurrentRun += 1;
+        columnCurrentRuns[x] += 1;
         rowMaxRun = Math.max(rowMaxRun, rowCurrentRun);
+        rowMaxRuns[y] = Math.max(rowMaxRuns[y] ?? 0, rowCurrentRun);
+        columnMaxRuns[x] = Math.max(columnMaxRuns[x] ?? 0, columnCurrentRuns[x] ?? 0);
       } else {
         rowCurrentRun = 0;
+        columnCurrentRuns[x] = 0;
       }
     }
 
@@ -221,9 +228,54 @@ async function renderedLabelBounds(page: Awaited<ReturnType<PDFDocumentProxy["ge
       }
     }
   }
+
+  const findRuns = (counts: Uint16Array, threshold: number, minLength: number) => {
+    const runs: { start: number; end: number; peak: number }[] = [];
+    let start = -1;
+    let peak = 0;
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] >= threshold) {
+        if (start < 0) start = i;
+        peak = Math.max(peak, counts[i] ?? 0);
+      } else if (start >= 0) {
+        if (i - start >= minLength) runs.push({ start, end: i - 1, peak });
+        start = -1;
+        peak = 0;
+      }
+    }
+    if (start >= 0 && counts.length - start >= minLength) {
+      runs.push({ start, end: counts.length - 1, peak });
+    }
+    return runs;
+  };
+
+  const verticalRuns = findRuns(
+    columnMaxRuns,
+    Math.max(40, Math.floor(canvas.height * 0.06)),
+    Math.max(1, Math.floor(canvas.width * 0.001))
+  );
+  const horizontalRuns = findRuns(
+    rowMaxRuns,
+    Math.max(40, Math.floor(canvas.width * 0.25)),
+    Math.max(1, Math.floor(canvas.height * 0.001))
+  );
+  const leftRun = verticalRuns.find((run) => run.start > canvas.width * 0.02);
+  const rightRun = [...verticalRuns].reverse().find((run) => run.end < canvas.width * 0.98);
+  const topRun = horizontalRuns.find((run) => run.start > canvas.height * 0.005);
+  const bottomRun = [...horizontalRuns]
+    .reverse()
+    .find((run) => run.end < canvas.height * 0.94 && run.start - (topRun?.start ?? 0) > canvas.height * 0.35);
+
+  if (leftRun && rightRun && topRun && bottomRun) {
+    minX = Math.floor((leftRun.start + leftRun.end) / 2);
+    maxX = Math.ceil((rightRun.start + rightRun.end) / 2);
+    minY = Math.floor((topRun.start + topRun.end) / 2);
+    maxY = Math.ceil((bottomRun.start + bottomRun.end) / 2);
+  }
+
   if (maxX <= minX || maxY <= minY) return null;
 
-  const safePadding = 6;
+  const safePadding = 4;
   const padX = safePadding / canvas.width;
   const padY = safePadding / canvas.height;
   return clampCropRect({
