@@ -65,8 +65,20 @@ type PositionedTextItem = {
 const FULL_RECT: CropRect = { x: 0, y: 0, width: 1, height: 1 };
 const MEESHO_SHIPPING_RECT: CropRect = { x: 0.015, y: 0.01, width: 0.97, height: 0.58 };
 const MEESHO_INVOICE_RECT: CropRect = { x: 0.015, y: 0.58, width: 0.97, height: 0.41 };
-const FLIPKART_SHIPPING_RECT: CropRect = { x: 0.01, y: 0.005, width: 0.98, height: 0.78 };
-const FLIPKART_INVOICE_RECT: CropRect = { x: 0.01, y: 0.78, width: 0.98, height: 0.215 };
+const FLIPKART_LABEL_X = 0.05;
+const FLIPKART_LABEL_WIDTH = 0.9;
+const FLIPKART_SHIPPING_RECT: CropRect = {
+  x: FLIPKART_LABEL_X,
+  y: 0.005,
+  width: FLIPKART_LABEL_WIDTH,
+  height: 0.78,
+};
+const FLIPKART_INVOICE_RECT: CropRect = {
+  x: FLIPKART_LABEL_X,
+  y: 0.78,
+  width: FLIPKART_LABEL_WIDTH,
+  height: 0.215,
+};
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
