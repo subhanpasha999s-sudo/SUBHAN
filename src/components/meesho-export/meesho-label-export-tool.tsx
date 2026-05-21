@@ -2870,6 +2870,7 @@ export function MeeshoLabelExportTool() {
     const idSet = new Set(Object.keys(selected));
     const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
     if (processingMode === "filter_crop") {
+      setCropExportBusy(true);
       try {
         const out = await cropOutputPdfForRows(
           exportedEnriched,
@@ -2895,6 +2896,8 @@ export function MeeshoLabelExportTool() {
         notify.error("Couldn’t export cropped PDF yet", {
           description: describeExportFailure(e),
         });
+      } finally {
+        setCropExportBusy(false);
       }
       return;
     }
@@ -3687,9 +3690,26 @@ export function MeeshoLabelExportTool() {
                         </Button>
                       </div>
                     ) : (
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        Select rows below, then use Download.
-                      </p>
+                      <div className="flex flex-col gap-1.5 sm:min-w-[14rem]">
+                        <Button
+                          type="button"
+                          className="h-10 rounded-xl text-[12px] font-semibold"
+                          disabled={selectedTotal === 0 || cropExportBusy || pdfExportState != null || bulkSkuZipState != null}
+                          onClick={() => void downloadFilteredPdf()}
+                        >
+                          {cropExportBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Download className="mr-1.5 size-3.5" aria-hidden />
+                          )}
+                          Download Cropped Selection
+                        </Button>
+                        <p className="text-[11px] font-medium text-muted-foreground">
+                          {selectedTotal > 0
+                            ? `${selectedTotal.toLocaleString()} selected rows will be cropped.`
+                            : "Select rows below to enable download."}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -4176,7 +4196,7 @@ export function MeeshoLabelExportTool() {
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger
                       type="button"
-                      disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null}
+                      disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
                       title="Export checked rows"
                       className={cn(
                         buttonVariants({ variant: "default", size: "sm" }),
@@ -4209,7 +4229,7 @@ export function MeeshoLabelExportTool() {
                     data-tour="download-btn"
                     title="Checked rows · PDF order"
                     className="min-h-11 gap-1 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
-                    disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null}
+                    disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
                     onClick={() => void downloadFilteredPdf()}
                   >
                     <Download className="size-3.5" aria-hidden />
@@ -4290,7 +4310,7 @@ export function MeeshoLabelExportTool() {
                       <DropdownMenuTrigger
                         type="button"
                         data-tour="download-btn"
-                        disabled={bulkSkuZipState != null || pdfExportState != null}
+                        disabled={bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
                         title="Export selected rows"
                         className={cn(
                           buttonVariants({ variant: "default", size: "lg" }),
@@ -4321,7 +4341,7 @@ export function MeeshoLabelExportTool() {
                       type="button"
                       data-tour="download-btn"
                       className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
-                      disabled={bulkSkuZipState != null || pdfExportState != null}
+                      disabled={bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
                       onClick={() => void downloadFilteredPdf()}
                     >
                       <Download className="size-[18px] shrink-0" aria-hidden />
