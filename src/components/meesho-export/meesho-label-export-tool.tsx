@@ -4484,13 +4484,16 @@ export function MeeshoLabelExportTool() {
             </DialogHeader>
           </div>
           <div className="space-y-4 px-5 py-4">
-            <div className="rounded-2xl border border-border/55 bg-background/55 p-3">
+            <div className="rounded-2xl border border-primary/15 bg-[linear-gradient(180deg,hsl(var(--background)/0.72),hsl(var(--muted)/0.28))] p-3.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Export progress
-                </span>
-                <span className="text-[12px] font-semibold tabular-nums text-foreground">
-                  {pdfExportModal.pct}% complete
+                <div>
+                  <p className="text-[12px] font-semibold text-foreground">Preparing your export</p>
+                  <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                    Print-ready PDF quality.
+                  </p>
+                </div>
+                <span className="rounded-full border border-border/55 bg-background/60 px-2 py-1 text-[11px] font-bold tabular-nums text-foreground">
+                  {pdfExportModal.pct}%
                 </span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-muted/90 ring-1 ring-border/30">
@@ -4510,47 +4513,51 @@ export function MeeshoLabelExportTool() {
               {pdfExportModal.helper}
             </p>
 
-            <div className="grid grid-cols-4 gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-              {[
-                ["loading", "Prepare"],
-                ["copying", "Build"],
-                ["saving", "Save"],
-                ["starting", "Start"],
-              ].map(([phase, label]) => {
-                const phases = ["loading", "copying", "saving", "starting"];
-                const currentIndex = phases.indexOf(pdfExportState?.phase ?? "loading");
-                const stepIndex = phases.indexOf(phase);
-                const isDone = stepIndex < currentIndex || pdfExportState?.phase === "starting";
-                const isActive = stepIndex === currentIndex && pdfExportState?.phase !== "starting";
-                return (
-                  <div
-                    key={phase}
-                    className={cn(
-                      "relative overflow-hidden rounded-xl border px-2 py-2 text-center transition-colors",
-                      isDone
-                        ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
-                        : isActive
-                          ? "border-primary/45 bg-primary/[0.08] text-primary shadow-[0_0_22px_-16px_rgb(96_165_250/0.95)]"
-                          : "border-border/45 bg-muted/10"
-                    )}
-                  >
+            <div className="relative px-1 pt-1">
+              <div className="absolute left-5 right-5 top-[1.05rem] h-px bg-border/60" aria-hidden />
+              <div className="grid grid-cols-4 gap-2 text-[10px] font-semibold text-muted-foreground">
+                {[
+                  ["loading", "Prepare"],
+                  ["copying", "Build"],
+                  ["saving", "Save"],
+                  ["starting", "Start"],
+                ].map(([phase, label]) => {
+                  const phases = ["loading", "copying", "saving", "starting"];
+                  const currentIndex = phases.indexOf(pdfExportState?.phase ?? "loading");
+                  const stepIndex = phases.indexOf(phase);
+                  const isDone = stepIndex < currentIndex || pdfExportState?.phase === "starting";
+                  const isActive = stepIndex === currentIndex && pdfExportState?.phase !== "starting";
+                  return (
                     <div
+                      key={phase}
                       className={cn(
-                        "absolute inset-x-0 bottom-0 h-0.5 transition-[width] duration-700 ease-out",
-                        isDone || isActive ? "bg-current" : "bg-transparent"
+                        "relative z-10 flex flex-col items-center gap-1.5 text-center transition-colors",
+                        isDone
+                          ? "text-emerald-300"
+                          : isActive
+                            ? "text-primary"
+                            : "text-muted-foreground/65"
                       )}
-                      style={{
-                        width: isDone ? "100%" : isActive ? `${Math.max(pdfExportModal.pct, 12)}%` : "0%",
-                      }}
-                    />
-                    <span className="relative inline-flex items-center justify-center gap-1">
-                      {isDone ? <Check className="size-2.5" aria-hidden /> : null}
-                      {isActive ? <Loader2 className="size-2.5 animate-spin" aria-hidden /> : null}
-                      {label}
-                    </span>
-                  </div>
-                );
-              })}
+                    >
+                      <span
+                        className={cn(
+                          "grid size-7 place-items-center rounded-full border bg-card transition-colors",
+                          isDone
+                            ? "border-emerald-400/35 bg-emerald-400/10"
+                            : isActive
+                              ? "border-primary/45 bg-primary/10 shadow-[0_0_24px_-12px_rgb(96_165_250/0.95)]"
+                              : "border-border/65"
+                        )}
+                      >
+                        {isDone ? <Check className="size-3.5" aria-hidden /> : null}
+                        {isActive ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
+                        {!isDone && !isActive ? <span className="size-1.5 rounded-full bg-current opacity-60" /> : null}
+                      </span>
+                      <span className="text-[10px] leading-none">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </DialogContent>
