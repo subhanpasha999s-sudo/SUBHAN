@@ -5,7 +5,6 @@ import * as React from "react";
 import { toast as notify } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Archive,
@@ -263,8 +262,6 @@ function sanitizeExportFilenameSegment(s: string, maxLen: number): string {
 const SELECTED_EXPORT_FILENAME_MAX = 180;
 const BULK_EXPORT_ZIP_FILENAME = "tulmin-sku-labels.zip";
 const SELECTED_MULTI_SKU_ZIP_FILENAME = "tulmin-selected-skus.zip";
-const SKU_ZIP_MAX_LABELS = 700;
-const SKU_ZIP_MAX_FILES = 180;
 const CROP_ZIP_MAX_LABELS = 700;
 const AUTO_CROP_PREP_MAX_IMPORT_FILES = 80;
 const AUTO_CROP_PREP_MAX_LABELS = 700;
@@ -283,16 +280,6 @@ function buildSkuExportBuckets(sourceRows: readonly EnrichedMeeshoLabelRow[]): S
     }
   }
   return [...buckets.values()].filter((b) => b.rows.length > 0);
-}
-
-function skuZipBlockReason(labelCount: number, skuFileCount: number): string | null {
-  if (labelCount > SKU_ZIP_MAX_LABELS) {
-    return `${labelCount.toLocaleString()} labels is too heavy for browser ZIP. Export a merged PDF or filter into smaller batches.`;
-  }
-  if (skuFileCount > SKU_ZIP_MAX_FILES) {
-    return `${skuFileCount.toLocaleString()} SKU PDFs is too heavy for one browser ZIP. Filter by SKU, courier, quantity, or marketplace first.`;
-  }
-  return null;
 }
 
 async function yieldToUiFrame(): Promise<void> {
@@ -2518,14 +2505,6 @@ export function MeeshoLabelExportTool() {
     () => buildSkuExportBuckets(selectedLabelRows),
     [selectedLabelRows]
   );
-  const filteredSkuZipBlockReason = React.useMemo(
-    () => skuZipBlockReason(filteredLabels.length, filteredSkuExportBuckets.length),
-    [filteredLabels.length, filteredSkuExportBuckets.length]
-  );
-  const selectedSkuZipBlockReason = React.useMemo(
-    () => skuZipBlockReason(selectedLabelRows.length, selectedSkuExportBuckets.length),
-    [selectedLabelRows.length, selectedSkuExportBuckets.length]
-  );
 
   /** Multiple mapped buckets in the current checkbox selection → offer merged PDF vs per-SKU ZIP. */
   const selectionShowsMergeVsZipChoice =
@@ -2996,29 +2975,12 @@ export function MeeshoLabelExportTool() {
       return;
     }
 
-    const blockReason = skuZipBlockReason(sourceRows.length, bucketList.length);
-    if (blockReason) {
-      const eventName =
-        scope === "filtered"
-          ? "meesho_export_all_skus_blocked"
-          : "meesho_export_selected_skus_zip_blocked";
-      trackEvent(eventName, {
-        reason: "heavy_browser_zip",
-        label_count: sourceRows.length,
-        sku_file_count: bucketList.length,
-      });
-      notify.info("Use merged PDF for this heavy batch", {
-        description: blockReason,
-        duration: 8000,
-      });
-      return;
-    }
-
     setBulkSkuZipState({ phase: "preparing", done: 0, total: bucketList.length });
     try {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       const usedNames = new Set<string>();
+      const optimizedLargeZip = sourceRows.length >= 500 || bucketList.length >= 100;
 
       for (let i = 0; i < bucketList.length; i += 1) {
         const bucket = bucketList[i];
@@ -3034,7 +2996,9 @@ export function MeeshoLabelExportTool() {
         } else {
           const steps = rowsToPdfExportSteps(bucket.rows);
           if (steps.length === 0) continue;
-          pdfOut = await exportPdfPagesFromMultiSourceOrdered(steps);
+          pdfOut = await exportPdfPagesFromMultiSourceOrdered(steps, {
+            yieldEvery: optimizedLargeZip ? 20 : 75,
+          });
         }
         const base = makeSkuBucketFileLabel(bucket.masterSku);
         const fileBase = dedupeFilename(base, usedNames);
@@ -3052,7 +3016,9 @@ export function MeeshoLabelExportTool() {
 
       setBulkSkuZipState({ phase: "zipping", done: bucketList.length, total: bucketList.length });
       const zipBytes = await zip.generateAsync(
-        { type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } },
+        optimizedLargeZip
+          ? { type: "uint8array", compression: "STORE" }
+          : { type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 3 } },
         (meta) => {
           const pct = Math.max(0, Math.min(100, Math.round(meta.percent)));
           const done = Math.max(0, Math.round((pct / 100) * bucketList.length));
@@ -3118,7 +3084,6 @@ export function MeeshoLabelExportTool() {
 
   const bulkExportLabel = React.useMemo(() => {
     if (!bulkSkuZipState) {
-      if (filteredSkuZipBlockReason) return "ZIP unavailable for heavy batch";
       return "Download SKUs as ZIP (filtered)";
     }
     if (bulkSkuZipState.phase === "preparing") {
@@ -3128,7 +3093,7 @@ export function MeeshoLabelExportTool() {
       return `Creating ZIP... (${bulkSkuZipState.done}/${bulkSkuZipState.total})`;
     }
     return "Download Started";
-  }, [bulkSkuZipState, filteredSkuZipBlockReason]);
+  }, [bulkSkuZipState]);
 
   /** Modal copy while ZIP export runs — keeps long jobs legible alongside sticky actions. */
   const bulkSkuZipModal = React.useMemo(() => {
@@ -3202,6 +3167,15 @@ export function MeeshoLabelExportTool() {
 
   const ready = rows.length > 0 && pdfSources.length > 0 && !parsing;
   const mapBusy = parsing || bulkSkuZipState != null || pdfExportState != null;
+  const importProgress = parseProgress
+    ? Math.min(
+        100,
+        Math.max(
+          parseProgress[0] > 0 ? 2 : 0,
+          parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0
+        )
+      )
+    : 0;
 
   function cropFileBase(docName: string, pageNumber: number) {
     return `${docName.replace(/\.pdf$/i, "").replace(/[^a-z0-9._-]+/gi, "-")}-p${pageNumber}`;
@@ -3430,16 +3404,26 @@ export function MeeshoLabelExportTool() {
                   </div>
                 </div>
                 {parseProgress ? (
-                  <div className="w-full min-w-[10rem] space-y-2 sm:w-56">
-                    <p className="text-right text-xs tabular-nums text-muted-foreground">
-                      {parseProgress[0]} / {parseProgress[1]}
-                    </p>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
+                  <div className="w-full min-w-[12rem] space-y-2 sm:w-72">
+                    <div className="flex items-center justify-between gap-3 text-xs tabular-nums">
+                      <span className="font-medium text-muted-foreground">
+                        {Math.round(importProgress)}%
+                      </span>
+                      <span className="text-muted-foreground">
+                        {parseProgress[0].toLocaleString()} / {parseProgress[1].toLocaleString()} pages
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label="PDF import progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(importProgress)}
+                      className="h-2.5 overflow-hidden rounded-full border border-primary/35 bg-background/70 shadow-inner"
+                    >
                       <div
-                        className="h-full rounded-full bg-primary/80 transition-[width] duration-300 ease-out"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, (parseProgress[1] ? (100 * parseProgress[0]) / parseProgress[1] : 0)))}%`,
-                        }}
+                        className="h-full rounded-full bg-gradient-to-r from-[#4f6cff] via-[#6f8cff] to-[#9fb0ff] shadow-[0_0_18px_rgb(79_108_255/0.55)] transition-[width] duration-300 ease-out"
+                        style={{ width: `${importProgress}%` }}
                       />
                     </div>
                   </div>
@@ -3967,7 +3951,7 @@ export function MeeshoLabelExportTool() {
                     type="button"
                     variant="outline"
                     title="ZIP · one PDF per SKU for rows matching the current filters"
-                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null || Boolean(filteredSkuZipBlockReason)}
+                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null}
                     onClick={() => void requestDownloadAllSkuFiles()}
                     className="h-11 w-full touch-manipulation justify-center rounded-2xl border-white/[0.12] bg-muted/35 text-[13px] font-semibold shadow-sm ring-1 ring-white/[0.06]"
                   >
@@ -4091,18 +4075,6 @@ export function MeeshoLabelExportTool() {
               </div>
             )}
 
-            {filteredSkuZipBlockReason ? (
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-[12px] leading-relaxed text-amber-950 dark:text-amber-100">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" strokeWidth={1.8} aria-hidden />
-                <div>
-                  <p className="font-semibold text-foreground">Heavy batch mode</p>
-                  <p className="mt-0.5 text-muted-foreground">
-                    {filteredSkuZipBlockReason} Merged PDF export stays available and shows live progress.
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
             <div
               className={cn(
                 "sticky top-0 z-30 hidden flex-col gap-2 rounded-2xl border border-border/45 bg-background/86 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:bg-background/72"
@@ -4131,7 +4103,7 @@ export function MeeshoLabelExportTool() {
                   size="sm"
                   title="ZIP · one PDF per SKU for rows matching the current filters"
                   className="min-h-11 gap-1 rounded-xl border-border/55 bg-background/55 text-xs font-semibold shadow-sm sm:h-8 sm:min-h-0"
-                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null || Boolean(filteredSkuZipBlockReason)}
+                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null}
                   onClick={() => void requestDownloadAllSkuFiles()}
                 >
                   {bulkSkuZipState ? (
@@ -4165,12 +4137,9 @@ export function MeeshoLabelExportTool() {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer py-2.5 font-medium"
-                        disabled={Boolean(selectedSkuZipBlockReason)}
                         onClick={() => void downloadSelectedSkuFilesZip()}
                       >
-                        {selectedSkuZipBlockReason
-                          ? "ZIP unavailable for heavy selection"
-                          : "ZIP — one PDF per SKU (selected rows only)"}
+                        ZIP — one PDF per SKU (selected rows only)
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -4282,12 +4251,9 @@ export function MeeshoLabelExportTool() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="cursor-pointer py-2.5 text-[13px] font-medium"
-                          disabled={Boolean(selectedSkuZipBlockReason)}
                           onClick={() => void downloadSelectedSkuFilesZip()}
                         >
-                          {selectedSkuZipBlockReason
-                            ? "ZIP unavailable for heavy selection"
-                            : "ZIP — one PDF per SKU"}
+                          ZIP — one PDF per SKU
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
