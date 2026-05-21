@@ -1,208 +1,196 @@
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BadgeCheck,
+  Barcode,
   Boxes,
-  BookOpenText,
   Check,
-  ChevronRight,
-  CircleX,
   Clock3,
-  Cloud,
   FileDown,
-  Link2,
-  LockKeyhole,
+  FileScan,
+  Filter,
+  Layers3,
   PackageCheck,
-  Search,
+  Scissors,
   ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
   Truck,
   Upload,
 } from "lucide-react";
 
-import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
+import { TulminBrand } from "@/components/brand/tulmin-logo";
 import { buttonVariants } from "@/components/ui/button";
+import { getSiteUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
+export const metadata: Metadata = {
+  title: "Meesho, Flipkart & Amazon Label Filter + Cropper",
+  description:
+    "Tulmin helps marketplace sellers upload Meesho, Flipkart, and Amazon label PDFs, filter by SKU, quantity, payment, courier, and marketplace, auto-crop labels or invoices, and download clean PDF or ZIP output.",
+  alternates: { canonical: `${getSiteUrl()}/` },
+};
+
+const quickWins = [
+  ["SKU filtering", "Find every Meesho, Flipkart, or Amazon label for one SKU instantly.", Barcode],
+  ["Quantity sorting", "Separate single-qty and multi-qty orders before packing starts.", Boxes],
+  ["COD / prepaid split", "Prioritize prepaid orders first when stock is limited or dispatch is urgent.", BadgeCheck],
+  ["Courier batches", "Group Delhivery, E-Kart, ATS, etc. without manual searching.", Truck],
+  ["Marketplace control", "Run Meesho, Flipkart, and Amazon PDFs together in one workspace.", Layers3],
+  ["Auto crop", "Export clean shipping labels or invoices without extra blank space.", Scissors],
+];
+
+const customerChoices = ["Filter Labels", "Crop Labels", "Filter + Crop"];
+
+const filterPills = [
+  ["Marketplace", "Meesho · Flipkart · Amazon"],
+  ["SKU", "Listing SKU or mapped SKU"],
+  ["Quantity", "Qty 1, 2, 3+"],
+  ["Payment Type", "COD / Prepaid"],
+  ["Courier Partner", "Delhivery · E-Kart · ATS · etc."],
+];
+
+const marketplaceNotes = [
+  ["Meesho", "Filter by SKU, QTY, payment, courier, and marketplace. Auto-crop shipping labels or invoices."],
+  ["Flipkart", "Filter by SKU, QTY, payment, courier, and marketplace. Auto-crop labels or invoices cleanly."],
+  ["Amazon", "Filter by SKU, QTY, payment, courier, and marketplace. Match invoices and print SKU + QTY."],
+];
+
 const workflow = [
-  {
-    icon: Link2,
-    title: "Map SKUs once",
-    copy: "Connect listing SKUs to the master names your team actually uses.",
-  },
-  {
-    icon: Upload,
-    title: "Upload the Meesho PDF",
-    copy: "Bring in the mixed label file after your mapping rules are ready.",
-  },
-  {
-    icon: SlidersHorizontal,
-    title: "Filter the batch",
-    copy: "Narrow labels by mapped SKU, QTY, courier partner, or search.",
-  },
-  {
-    icon: FileDown,
-    title: "Export clean labels",
-    copy: "Download selected pages, SKU-wise PDFs, or a ready ZIP for print.",
-  },
+  ["Upload PDFs", "Drop Meesho, Flipkart, and Amazon label files together.", Upload],
+  ["Filter or crop", "Choose SKU, QTY, payment, courier, marketplace, or crop target.", Filter],
+  ["Download output", "Export clean PDFs or SKU-wise ZIP files for printing.", FileDown],
 ];
 
-const metrics = [
-  ["Map", "SKUs once"],
-  ["Run", "clean label batches"],
-  ["Print", "with fewer checks"],
-];
-
-const outcomes = [
-  "Start with SKU mapping so every future label run has cleaner groups.",
-  "Split work by mapped SKU, QTY, and courier before the packing table waits.",
-  "Export dispatch-ready files without opening the same mixed PDF again and again.",
-];
-
-const beforeAfter = [
-  ["Before Tulmin", "Mixed PDF, manual search, wrong print batches", CircleX],
-  ["With Tulmin", "Filter, select, export, print", BadgeCheck],
-];
-
-const operatorFit = [
-  ["Bulk Meesho sellers", "Daily label PDFs, many SKUs, repeated dispatch pressure."],
-  ["Small warehouse teams", "Packers need clean batches, not one giant mixed file."],
-  ["Owner-operators", "Less manual checking before pickup cut-off time."],
-];
-
-const platformPoints = [
-  ["Mapping first", "Save listing-to-master SKU logic before the daily label run."],
-  ["Export control", "Selected PDF, SKU-wise PDFs, or ZIP for the team."],
-  ["Courier and QTY filters", "Segment by partner and quantity without manual scanning."],
-  ["Optional sync", "Sign in when you want mappings backed up across browsers."],
-];
-
-const painPoints = [
-  ["Manual sorting", "Teams lose time searching one mixed PDF for the right product."],
-  ["Wrong dispatch", "Similar SKUs get packed in parallel and labels can get swapped."],
-  ["Courier chaos", "Pickup batches slow down when partners are mixed together."],
-  ["Repeated setup", "Listing SKU logic is rebuilt every day instead of reused."],
-];
-
-const playbooks = [
-  ["SKU filtering", "How mapped SKUs reduce daily label sorting."],
-  ["4x6 printing", "Crop and export cleaner thermal label batches."],
-  ["Bulk dispatch", "Daily checks for Meesho warehouse teams."],
-];
-
-const faqItems = [
-  ["Should I map SKUs before running labels?", "Yes. Mapping first gives the cleanest workflow because filters can use your team-level SKU names."],
-  ["Will it help if my team packs by courier?", "Yes. Courier-aware filtering keeps handoff and scanning cleaner."],
-  ["Can Tulmin remember SKU names?", "Yes. SKU Mapping links listing SKUs to the master names your team uses."],
-];
-
-const productRows = [
-  ["TSHIRT-BLK-M", "Master: TSHIRT-BLACK", "Delhivery", "4"],
-  ["KURTI-RD-XL", "Master: KURTI-RED", "Shadowfax", "2"],
-  ["BAG-TAN-01", "Mapped today", "Ecom Express", "1"],
-  ["SKU missing", "Needs mapping", "Xpressbees", "3"],
+const heroActions = [
+  "Marketplace",
+  "SKU",
+  "Quantity",
+  "Payment Type",
+  "Courier Partner",
+  "Auto Crop",
 ];
 
 function ProductPreview() {
+  const readyStats = [
+    ["Selected", "42"],
+    ["Ready", "42"],
+    ["Review", "0"],
+  ];
+
+  const outputCards = [
+    [Filter, "Meesho ready", "Filter + crop + export"],
+    [Scissors, "Flipkart ready", "Filter + crop + export"],
+    [PackageCheck, "Amazon ready", "Filter + crop + SKU/QTY"],
+  ];
+
   return (
-    <div className="relative mx-auto w-full max-w-[640px] overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_30px_90px_-48px_rgb(15_23_42/0.55)] ring-1 ring-slate-950/[0.04] dark:border-white/10 dark:bg-[#0c1728] dark:shadow-[0_34px_100px_-48px_rgb(0_0_0/0.9)]">
-      <div className="border-b border-slate-200/70 bg-slate-50/85 px-4 py-3 dark:border-white/10 dark:bg-white/[0.035]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <TulminLogoMark className="size-9" />
-            <div>
-              <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
-                SKU Mapping
-              </p>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                Map first, export faster
-              </p>
-            </div>
-          </div>
-          <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-600/15 dark:text-emerald-200">
-            <span className="sm:hidden">Mapped</span>
-            <span className="hidden sm:inline">Rules ready</span>
-          </span>
+    <div className="scroll-fade-up motion-soft-float relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-[#0d1728] shadow-[0_28px_100px_-54px_rgb(0_0_0/0.95)] ring-1 ring-white/[0.05]">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-white">Marketplace label workspace</p>
+          <p className="text-[11px] font-medium text-slate-400">Meesho, Flipkart, and Amazon in one run</p>
         </div>
+        <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-300/15">
+          128 labels found
+        </span>
       </div>
 
-      <div className="grid gap-3 p-4 sm:p-5">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_.8fr_.75fr]">
-          <div className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-400">
-            <Search className="size-4 text-slate-400" strokeWidth={1.8} aria-hidden />
-            Search listing or master SKU
+      <div className="space-y-4 p-4 sm:p-5">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Filter by
+            </p>
+            <span className="rounded-full bg-[#6b86ff]/12 px-2 py-0.5 text-[10px] font-bold text-[#aebcff]">
+              Live counts
+            </span>
           </div>
-          <div className="flex h-11 items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-200">
-            All couriers
-            <ChevronRight className="size-4 rotate-90 text-slate-400" aria-hidden />
-          </div>
-          <div className="flex h-11 items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-200">
-            QTY 1-4
-            <ChevronRight className="size-4 rotate-90 text-slate-400" aria-hidden />
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.025]">
-          <div className="grid grid-cols-[1.2fr_1fr_.85fr_44px] gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-slate-400">
-            <span>Listing SKU</span>
-            <span className="hidden sm:block">Mapped SKU</span>
-            <span>Courier</span>
-            <span className="text-right">QTY</span>
-          </div>
-          {productRows.map((row, index) => (
-            <div
-              key={row[0]}
-              className="grid grid-cols-[1.2fr_1fr_.85fr_44px] items-center gap-3 border-b border-slate-100 px-3 py-3 last:border-b-0 dark:border-white/[0.07]"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-slate-950 dark:text-white">
-                  {row[0]}
-                </p>
-                <p className="truncate text-[11px] font-medium text-slate-500 sm:hidden dark:text-slate-400">
-                  {row[1]}
-                </p>
-              </div>
-              <p className="hidden truncate text-[12px] font-medium text-slate-500 sm:block dark:text-slate-400">
-                {row[1]}
-              </p>
-              <span
-                className={cn(
-                  "w-fit rounded-full px-2 py-1 text-[11px] font-semibold",
-                  index === 3
-                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-200"
-                    : "bg-sky-500/10 text-sky-700 dark:text-sky-200"
-                )}
-              >
-                {row[2]}
-              </span>
-              <p className="text-right text-sm font-bold tabular-nums text-slate-950 dark:text-white">
-                {row[3]}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            ["Mapped", "24 SKUs"],
-            ["Filtered", "128 labels"],
-            ["Export", "ZIP + PDF"],
-          ].map(([label, value]) => (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          {filterPills.map(([label, value], index) => (
             <div
               key={label}
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-white/10 dark:bg-white/[0.035]"
+              className={cn(
+                "rounded-xl border border-white/10 bg-[#0b1424] px-3 py-2.5",
+                index < 3 ? "lg:col-span-2" : "lg:col-span-3"
+              )}
             >
-              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                {label}
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-                {value}
-              </p>
+              <p className="text-[11px] font-semibold text-slate-400">{label}</p>
+              <p className="mt-1 text-[13px] font-semibold leading-snug text-white">{value}</p>
             </div>
           ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="rounded-2xl border border-white/10 bg-[#07101f] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Ready for all three marketplaces</p>
+                <p className="mt-1 text-xs font-medium leading-5 text-slate-400">
+                  Filter, crop, and export without separating files first.
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-200 ring-1 ring-emerald-300/15">
+                Clean
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {readyStats.map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    {label}
+                  </p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight text-white">
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {outputCards.map(([Icon, title, copy]) => {
+                const OutputIcon = Icon as typeof Filter;
+                return (
+                  <div
+                    key={title as string}
+                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.045] p-3"
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#6b86ff]/12 text-[#aebcff]">
+                      <OutputIcon className="size-4" strokeWidth={1.8} aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-white">{title as string}</span>
+                      <span className="block truncate text-xs font-medium text-slate-400">
+                        {copy as string}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  Download
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white">PDF</p>
+              </div>
+              <div className="rounded-xl border border-[#6b86ff]/35 bg-[#6b86ff]/16 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#b9c5ff]">
+                  Bundle
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white">ZIP by SKU</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -219,7 +207,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f7f9fc] text-slate-950 dark:bg-[#07101f] dark:text-white">
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#f7f9fc]/82 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/78">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#f7f9fc]/86 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/82">
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Tulmin home">
             <TulminBrand
@@ -230,27 +218,21 @@ export default async function HomePage() {
             />
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex dark:text-slate-300">
+            <a href="#wins" className="hover:text-slate-950 dark:hover:text-white">
+              Why it helps
+            </a>
+            <a href="#marketplaces" className="hover:text-slate-950 dark:hover:text-white">
+              Marketplaces
+            </a>
             <a href="#workflow" className="hover:text-slate-950 dark:hover:text-white">
               Workflow
             </a>
-            <a href="#operators" className="hover:text-slate-950 dark:hover:text-white">
-              Operators
-            </a>
-            <a href="#trust" className="hover:text-slate-950 dark:hover:text-white">
-              Trust
-            </a>
-            <Link href="/blog" className="hover:text-slate-950 dark:hover:text-white">
-              Guides
-            </Link>
           </nav>
           <Link
-            href="/mapping"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "h-10 rounded-full px-4 text-sm"
-            )}
+            href="/export-labels"
+            className={cn(buttonVariants({ size: "lg" }), "h-10 rounded-full px-4 text-sm")}
           >
-            Start SKU Mapping
+            Run Labels Now
             <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
           </Link>
         </div>
@@ -258,109 +240,187 @@ export default async function HomePage() {
 
       <main>
         <section className="relative overflow-hidden">
-          <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-            <div className="max-w-2xl">
+          <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_12%,rgba(51,92,255,0.18),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.15),transparent_28%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(99,125,255,0.2),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.12),transparent_28%)]" aria-hidden />
+          <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
+            <div className="scroll-fade-up max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300">
-                <Sparkles className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                Meesho dispatch, cleaned up
+                <Clock3 className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
+                Built for sellers on Meesho, Flipkart, and Amazon
               </div>
-              <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-[1.02] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl dark:text-white">
-                Map once. Print the right labels every time.
+              <h1 className="mt-6 max-w-[13ch] text-[clamp(3rem,5.6vw,6rem)] font-semibold leading-[1.03] tracking-tight text-slate-950 sm:max-w-[14ch] dark:text-white">
+                Meesho, Flipkart & Amazon label filter + cropper.
               </h1>
-              <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-300">
-                Tulmin turns SKU mapping, label filtering, and dispatch export into one calm workflow for teams shipping Meesho orders at speed.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/mapping"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "h-12 rounded-full px-6 text-[15px]"
-                  )}
-                >
-                  Start SKU Mapping
-                  <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
-                </Link>
+              <div className="mt-5 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-3.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
+                <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
+                  Upload PDFs. Filter labels. Auto-crop labels or invoices.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {heroActions.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-slate-200 bg-slate-950/[0.035] px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-[inset_0_1px_0_rgb(255_255_255/0.75)] dark:border-white/10 dark:bg-white/[0.065] dark:text-slate-200"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-400">
+                  Export clean PDF or ZIP files ready for printing and dispatch.
+                </p>
+              </div>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/export-labels"
+                  className={cn(buttonVariants({ size: "lg" }), "h-12 rounded-full px-6 text-[15px]")}
+                >
+                  Run Labels Now
+                  <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
+                </Link>
+                <a
+                  href="#workflow"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "h-12 rounded-full border-slate-300 bg-white px-6 text-[15px] dark:border-white/15 dark:bg-white/[0.04]"
                   )}
                 >
-                  Run labels
-                </Link>
+                  See the 3-step flow
+                </a>
               </div>
-              <div className="mt-10 grid max-w-xl gap-6 border-t border-slate-200 pt-6 sm:grid-cols-3 dark:border-white/10">
-                {metrics.map(([value, label]) => (
-                  <div key={label}>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                      {value}
-                    </p>
-                    <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
-                      {label}
-                    </p>
+              <div className="mt-6 grid max-w-xl gap-2 sm:grid-cols-3">
+                {["Stop hunting", "Print cleaner", "Pack faster"].map((title) => (
+                  <div
+                    key={title}
+                    className="flex min-h-12 items-center rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
+                  >
+                    <p className="text-base font-semibold tracking-tight">{title}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-[2.5rem] border border-slate-200/70 bg-white/45 shadow-[0_34px_110px_-70px_rgb(15_23_42/0.9)] dark:border-white/10 dark:bg-white/[0.03]" aria-hidden />
-              <ProductPreview />
-            </div>
+            <ProductPreview />
           </div>
         </section>
 
-        <section id="workflow" className="border-y border-slate-200 bg-white py-14 dark:border-white/10 dark:bg-white/[0.025]">
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
-              <div>
-                <p className="text-sm font-semibold text-[#335cff]">Workflow</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                  Built for the way dispatch actually moves.
-                </h2>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["01", "Map SKUs"],
-                  ["02", "Run labels"],
-                  ["03", "Export batches"],
-                ].map(([step, label]) => (
-                  <div key={label} className="rounded-2xl border border-slate-200 bg-[#f7f9fc] p-4 dark:border-white/10 dark:bg-[#0c1728]">
-                    <p className="text-xs font-bold text-[#335cff]">{step}</p>
-                    <p className="mt-2 text-base font-semibold tracking-tight text-slate-950 dark:text-white">
-                      {label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="trust" className="py-16 sm:py-20">
-          <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-            <div>
-              <p className="text-sm font-semibold text-[#335cff]">Impact</p>
-              <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                Less manual scanning. Fewer wrong batches. Faster print handoff.
+        <section id="wins" className="scroll-mt-24 border-y border-slate-200 bg-white py-14 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="scroll-fade-up mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-sm font-semibold text-[#335cff]">What Tulmin handles</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+                Filter, crop, and export labels from Meesho, Flipkart, and Amazon.
               </h2>
-              <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
-                The interface stays quiet so operators can focus on the next decision: map, filter, export.
+              <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">
+                Upload mixed marketplace PDFs once. Tulmin turns them into clean print-ready PDF or ZIP files for dispatch.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                [Link2, "SKU memory", "Save listing-to-master rules for repeat work."],
-                [SlidersHorizontal, "Precise filters", "Narrow labels by SKU, QTY, and courier."],
-                [FileDown, "Clean export", "Download selected PDFs or grouped ZIP files."],
-                [ShieldCheck, "Local-first", "Start in-browser, sync when your team is ready."],
-              ].map(([Icon, title, copy]) => {
-                const FeatureIcon = Icon as typeof Link2;
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {quickWins.map(([title, copy, Icon]) => {
+                  const WinIcon = Icon as typeof Filter;
+                  return (
+                    <div
+                      key={title as string}
+                      className="scroll-fade-up flex gap-4 rounded-2xl border border-slate-200 bg-[#f7f9fc] p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#335cff]/35 hover:bg-white dark:border-white/10 dark:bg-[#0c1728] dark:hover:bg-white/[0.055]"
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-[#335cff] ring-1 ring-[#335cff]/15">
+                        <WinIcon className="size-5" strokeWidth={1.8} aria-hidden />
+                      </span>
+                      <div>
+                        <p className="font-semibold tracking-tight">{title as string}</p>
+                        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                          {copy as string}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 sm:py-20">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="scroll-fade-up rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_28px_90px_-54px_rgb(15_23_42/0.9)] sm:p-8 dark:border-white/10 dark:bg-white/[0.04]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-sky-200 dark:text-[#91a3ff]">
+                    Choose your output
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Filter labels, crop labels, or do both.
+                  </h2>
+                </div>
+                <ShieldCheck className="hidden size-10 text-emerald-200 sm:block" strokeWidth={1.5} aria-hidden />
+              </div>
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                {customerChoices.map((title) => (
+                  <div
+                    key={title}
+                    className="scroll-fade-up flex min-h-28 items-center rounded-2xl border border-white/10 bg-white/[0.065] p-5"
+                  >
+                    <p className="text-2xl font-semibold tracking-tight">{title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="marketplaces" className="scroll-mt-24 border-y border-slate-200 bg-white py-14 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="scroll-fade-up mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#335cff]">Marketplace support</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+                  Meesho, Flipkart, and Amazon each get the right handling.
+                </h2>
+              </div>
+              <p className="max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
+                One workspace for different PDF formats, filters, crop rules, and Amazon invoice matching.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {marketplaceNotes.map(([title, copy]) => (
+                <div
+                  key={title}
+                  className="scroll-fade-up rounded-2xl border border-slate-200 bg-[#f7f9fc] p-5 shadow-sm dark:border-white/10 dark:bg-[#0c1728]"
+                >
+                  <p className="text-lg font-semibold tracking-tight">{title}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">{copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow" className="scroll-mt-24 px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <div className="scroll-fade-up mx-auto w-full max-w-7xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_-56px_rgb(15_23_42/0.65)] sm:p-8 dark:border-white/10 dark:bg-white/[0.035]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#335cff]">Simple workflow</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                  Upload marketplace labels. Pick filters or crop. Download clean output.
+                </h2>
+              </div>
+              <Link
+                href="/export-labels"
+                className={cn(buttonVariants({ size: "lg" }), "h-11 rounded-full px-5 text-sm")}
+              >
+                Try with today&apos;s PDF
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {workflow.map(([title, copy, Icon], index) => {
+                const StepIcon = Icon as typeof Upload;
                 return (
-                  <div key={title as string} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
-                    <FeatureIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                    <p className="mt-4 font-semibold tracking-tight">{title as string}</p>
+                  <div
+                    key={title as string}
+                    className="scroll-fade-up rounded-2xl border border-slate-200 bg-[#f7f9fc] p-5 dark:border-white/10 dark:bg-[#07101f]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <StepIcon className="size-5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
+                      <span className="text-xs font-bold text-slate-400">0{index + 1}</span>
+                    </div>
+                    <p className="mt-4 text-lg font-semibold tracking-tight">{title as string}</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
                       {copy as string}
                     </p>
@@ -371,35 +431,33 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8">
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_28px_90px_-46px_rgb(15_23_42/0.8)] sm:p-8 lg:flex-row lg:items-center lg:justify-between dark:bg-white dark:text-slate-950">
+        <section className="px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
+          <div className="scroll-fade-up mx-auto flex w-full max-w-7xl flex-col gap-5 rounded-[2rem] bg-[#335cff] p-6 text-white shadow-[0_28px_90px_-54px_rgb(51_92_255/0.75)] sm:p-8 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-sky-200 dark:text-[#335cff]">
-                <BadgeCheck className="size-4" strokeWidth={1.8} aria-hidden />
-                Ready for today&apos;s dispatch
-              </div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Start with the SKU map.
+              <p className="text-sm font-semibold text-white/75">Try the real workflow</p>
+              <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight">
+                Upload one Meesho, Flipkart, or Amazon PDF and see Tulmin organize it.
               </h2>
             </div>
             <Link
-              href="/mapping"
+              href="/export-labels"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "h-12 rounded-full bg-white px-6 text-slate-950 hover:bg-slate-100 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+                "h-12 rounded-full bg-white px-6 text-slate-950 hover:bg-slate-100"
               )}
             >
-              Start SKU Mapping
+              Run Labels Now
               <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
             </Link>
           </div>
         </section>
       </main>
+
       <footer className="border-t border-slate-200 bg-white/70 py-8 dark:border-white/10 dark:bg-white/[0.025]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8 dark:text-slate-400">
           <div>
             <p className="font-semibold text-slate-950 dark:text-white">Tulmin</p>
-            <p className="mt-1">Meesho label workflow for dispatch teams.</p>
+            <p className="mt-1">Filter, crop, and organize marketplace labels.</p>
           </div>
           <nav className="flex flex-wrap gap-4">
             <Link href="/blog" className="hover:text-slate-950 dark:hover:text-white">
@@ -411,8 +469,8 @@ export default async function HomePage() {
             <Link href="/terms" className="hover:text-slate-950 dark:hover:text-white">
               Terms
             </Link>
-            <Link href="/mapping" className="font-semibold text-[#335cff]">
-              Open workspace
+            <Link href="/export-labels" className="font-semibold text-[#335cff]">
+              Run Labels
             </Link>
           </nav>
         </div>

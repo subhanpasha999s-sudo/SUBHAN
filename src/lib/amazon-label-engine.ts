@@ -301,7 +301,7 @@ export function formatAmazonSkuQtyOverlayText(
   const sku = skuValue.trim();
   if (!sku) return undefined;
   const qty = quantity == null ? "Unknown" : quantity.toLocaleString();
-  return `${sku} × ${qty}`;
+  return `SKU: ${sku} | QTY: ${qty}`;
 }
 
 export function amazonShippingOverlayText(row: MeeshoLabelRecord): string | undefined {

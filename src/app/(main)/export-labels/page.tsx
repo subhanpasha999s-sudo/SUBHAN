@@ -5,9 +5,9 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { ExportLabelsBody } from "./export-labels-body";
 
 export const metadata: Metadata = {
-  title: "Run Labels for Meesho, Flipkart, and Amazon dispatch",
+  title: "Run Labels for Meesho, Flipkart, and Amazon sellers",
   description:
-    "Tulmin filters Meesho, Flipkart, and Amazon label PDFs by SKU, quantity, payment type, and courier partner. Upload mixed marketplace labels together and export only the exact dispatch-ready set.",
+    "Tulmin filters and crops Meesho, Flipkart, and Amazon label PDFs by SKU, quantity, payment type, courier partner, and marketplace. Upload mixed marketplace labels and export clean dispatch-ready PDFs.",
   alternates: { canonical: `${getSiteUrl()}/export-labels` },
   keywords: [
     "meesho label crop",
@@ -32,8 +32,12 @@ export const metadata: Metadata = {
     "meesho label generator",
     "Meesho PDF labels",
     "Flipkart label filter",
+    "Flipkart label crop",
     "Flipkart SKU label PDF",
     "Flipkart courier label filter",
+    "Amazon label filter",
+    "Amazon SKU QTY shipping label",
+    "Amazon invoice label matching",
     "Meesho dispatch PDF",
     "Meesho bulk label export",
     "Meesho ecommerce operator tool",

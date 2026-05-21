@@ -133,6 +133,29 @@
     }
   }
 
+  @keyframes tulmin-scroll-fade-up {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 22px, 0) scale(0.985);
+      filter: blur(7px);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes tulmin-soft-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -8px, 0);
+    }
+  }
+
   .motion-page-enter {
     animation: tulmin-page-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
     transform-origin: top center;
@@ -155,6 +178,33 @@
 
   .motion-lift:active {
     transform: translate3d(0, 0, 0) scale(0.985);
+  }
+
+  .scroll-fade-up {
+    animation: tulmin-scroll-fade-up both;
+    animation-duration: 720ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .motion-soft-float {
+    animation: tulmin-soft-float 8s ease-in-out infinite;
+  }
+
+  @supports (animation-timeline: view()) {
+    .scroll-fade-up {
+      animation-timeline: view();
+      animation-range: entry 8% cover 28%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-fade-up,
+    .motion-soft-float {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
   }
 
   .skeleton-shimmer {

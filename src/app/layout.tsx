@@ -25,6 +25,9 @@ const siteUrl = getSiteUrl();
 
 const SEO_KEYWORDS = [
   "Meesho labels",
+  "Flipkart label filter",
+  "Amazon label filter",
+  "marketplace shipping label cropper",
   "meesho label crop",
   "meesho label cropper",
   "crop meesho label",
@@ -50,6 +53,8 @@ const SEO_KEYWORDS = [
   "Meesho seller tools",
   "Meesho shipping label export",
   "bulk label filtering",
+  "auto label cropping",
+  "Amazon SKU QTY shipping label",
   "Meesho courier label",
   "Delhivery label PDF",
   "Shadowfax label",
@@ -62,26 +67,26 @@ const SEO_KEYWORDS = [
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Tulmin · Meesho label SaaS for ecommerce operators",
+    default: "Tulmin · Meesho, Flipkart & Amazon Label Filter + Cropper",
     template: "%s · Tulmin",
   },
   description:
-    "Tulmin is a SaaS for ecommerce operators, especially Meesho teams. Filter shipment labels by SKU, courier partner, and quantity, then export only what dispatch needs.",
+    "Tulmin helps Meesho, Flipkart, and Amazon sellers upload label PDFs, filter by SKU, QTY, payment, courier, and marketplace, auto-crop labels or invoices, and download clean PDF or ZIP output.",
   keywords: SEO_KEYWORDS,
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: siteUrl,
     siteName: "Tulmin",
-    title: "Tulmin · Meesho label SaaS for ecommerce operators",
+    title: "Tulmin · Meesho, Flipkart & Amazon Label Filter + Cropper",
     description:
-      "Built for ecommerce operators, especially Meesho dispatch teams. Filter, organize, and export only the labels you need.",
+      "Filter, crop, organize, and export Meesho, Flipkart, and Amazon marketplace labels as clean PDF or ZIP files.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tulmin · Meesho label SaaS for operators",
+    title: "Tulmin · Meesho, Flipkart & Amazon Label Filter + Cropper",
     description:
-      "Turn hours of label work into minutes. Filter by SKU, courier partner, and quantity, then export the exact set for dispatch.",
+      "Filter by SKU, QTY, payment, courier, and marketplace, then auto-crop labels and invoices for clean dispatch output.",
   },
   robots: {
     index: true,

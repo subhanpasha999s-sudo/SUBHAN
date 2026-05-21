@@ -966,7 +966,7 @@ function LabelPdfFilterFields({
   const paymentBlock = (
     <div className="min-w-0">
       <Label htmlFor="label-filter-payment" className={lbl}>
-        Payment
+        Payment Type
       </Label>
       <Select
         value={paymentFilter}
@@ -1023,7 +1023,7 @@ function LabelPdfFilterFields({
   const masterBlock = (
     <div className="min-w-0">
       <Label htmlFor="label-filter-master-trigger" className={lbl}>
-        Matched SKU
+        SKU
       </Label>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -1197,7 +1197,7 @@ function LabelPdfFilterFields({
   const courierBlock = (
     <div>
       <Label htmlFor="label-filter-courier" className={lbl}>
-        Carrier
+        Courier Partner
       </Label>
       <Select
         value={partner}
@@ -1208,7 +1208,7 @@ function LabelPdfFilterFields({
         <SelectTrigger
           size="sm"
           id="label-filter-courier"
-          title="Carrier · shown number = labels. Hover a chip or menu row for total qty."
+          title="Courier partner · shown number = labels. Hover a chip or menu row for total qty."
           className={cn(ctl, selectTriggerExtras)}
         >
           <SelectValue placeholder={carrierFilterTriggerDisplay(QTY_PARTNER_FILTER_ALL, carrierFilterStats)}>
@@ -1227,7 +1227,7 @@ function LabelPdfFilterFields({
             className="mx-0.5 rounded-lg py-2.5 pr-11 font-medium"
           >
             <FilterMenuCountRow
-              primary={<span className="font-semibold text-foreground">All carriers</span>}
+              primary={<span className="font-semibold text-foreground">All courier partners</span>}
               count={carrierFilterStats.totalLabels}
               title={`${carrierFilterStats.totalLabels.toLocaleString()} labels · ${carrierFilterStats.totalOrderQty.toLocaleString()} total qty`}
             />
@@ -1331,7 +1331,7 @@ function LabelPdfFilterFields({
         </div>
 
         <div>
-          <span className={lbl}>Payment</span>
+          <span className={lbl}>Payment Type</span>
           <div className={cn("mt-2", chipScroller)}>
             {paymentFilterValues.map((value) => (
               <MobileFilterChip
@@ -1369,7 +1369,7 @@ function LabelPdfFilterFields({
         </div>
 
         <div>
-          <span className={lbl}>Carrier</span>
+          <span className={lbl}>Courier Partner</span>
           <div className={cn("mt-2", chipScroller)}>
             <MobileFilterChip
               active={partner === QTY_PARTNER_FILTER_ALL}
@@ -1403,7 +1403,7 @@ function LabelPdfFilterFields({
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <p className="max-w-md text-[12px] leading-snug text-muted-foreground lg:text-[13px]">
-          Find labels fast. Source files stay unchanged until export.
+          Choose Marketplace, SKU, Quantity, Payment Type, and Courier Partner.
         </p>
         {activeFilterCount > 0 ? (
           <div className="shrink-0 sm:pt-px">{clearBtn}</div>
@@ -1412,13 +1412,13 @@ function LabelPdfFilterFields({
       <div className="grid gap-x-5 gap-y-[1.125rem] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:items-end lg:gap-x-7">
         <div className="sm:col-span-2 lg:col-span-1">
           <Label htmlFor="label-filter-listing-sku-desk" className={lbl}>
-            Listing SKU
+            SKU
           </Label>
           <Input
             id="label-filter-listing-sku-desk"
             value={listingSkuSearch}
             onChange={(e) => onListingSkuSearch(e.target.value)}
-            placeholder="SKU or order ID…"
+            placeholder="SKU or order ID..."
             title="SKU, order ID, master, courier, qty"
             aria-describedby="label-filter-listing-hint-desk"
             className={cn(ctl, "h-10 py-2")}
@@ -1582,7 +1582,7 @@ function LabelsVirtualGrid({
             className="interaction-press flex min-h-11 w-full min-w-0 touch-manipulation items-center gap-0.5 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-[11px] font-semibold uppercase tracking-wide text-foreground hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/40 sm:min-h-0"
             onClick={() => headerClick("master_sku")}
           >
-            <span className="truncate">Matched SKU</span>
+            <span className="truncate">SKU</span>
             {sortIcon(sortKey === "master_sku", sortDir)}
           </button>
         </div>
@@ -1988,6 +1988,8 @@ export function MeeshoLabelExportTool() {
   const [processingMode, setProcessingMode] =
     React.useState<"filter" | "crop" | "filter_crop">("filter");
   const [autoCropMode, setAutoCropMode] = React.useState<CropMode>("shipping");
+  const [cropMarketplace, setCropMarketplace] =
+    React.useState<MarketplaceKind | "all">("all");
   const [manualCropOpen, setManualCropOpen] = React.useState(false);
 
   const exportMarkFingerprint = React.useMemo(() => {
@@ -2215,10 +2217,20 @@ export function MeeshoLabelExportTool() {
     [enrichedRows, filters]
   );
 
+  const cropMarketplaceStats = React.useMemo(
+    () => buildMarketplaceFilterStats(enrichedRows),
+    [enrichedRows]
+  );
+
   const marketplaceScopedRows = React.useMemo(() => {
     if (marketplaceFilter === "all") return enrichedRows;
     return enrichedRows.filter((r) => r.marketplace === marketplaceFilter);
   }, [enrichedRows, marketplaceFilter]);
+
+  const cropScopedRows = React.useMemo(() => {
+    if (cropMarketplace === "all") return enrichedRows;
+    return enrichedRows.filter((r) => r.marketplace === cropMarketplace);
+  }, [cropMarketplace, enrichedRows]);
 
   React.useEffect(() => {
     if (marketplaceFilter === "all") return;
@@ -2226,6 +2238,13 @@ export function MeeshoLabelExportTool() {
       setMarketplaceFilter("all");
     }
   }, [marketplaceFilter, marketplaceFilterStats.perMarketplace]);
+
+  React.useEffect(() => {
+    if (cropMarketplace === "all") return;
+    if ((cropMarketplaceStats.perMarketplace[cropMarketplace] ?? 0) === 0) {
+      setCropMarketplace("all");
+    }
+  }, [cropMarketplace, cropMarketplaceStats.perMarketplace]);
 
   const mappedSkuLabelStats = React.useMemo(
     () => buildMappedSkuLabelStats(rowsForFacetCounts(enrichedRows, filters, "mappedMaster")),
@@ -3164,13 +3183,13 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropPdf() {
-    if (enrichedRows.length === 0) {
+    if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
     }
     setCropExportBusy(true);
     try {
-      const out = await cropOutputPdfForRows(enrichedRows, autoCropMode, autoCropMode);
+      const out = await cropOutputPdfForRows(cropScopedRows, autoCropMode, autoCropMode);
       triggerPdfDownload(out.bytes, "tulmin-auto-cropped-labels.pdf");
       notify.success("Cropped PDF downloaded.");
     } catch (err) {
@@ -3183,7 +3202,7 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropZip() {
-    if (enrichedRows.length === 0) {
+    if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
     }
@@ -3192,7 +3211,7 @@ export function MeeshoLabelExportTool() {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       const usedNames = new Set<string>();
-      const sortedRows = [...enrichedRows].sort((a, b) => {
+      const sortedRows = [...cropScopedRows].sort((a, b) => {
         const ao = sourceOrderByImportId.get(a.importId) ?? 0;
         const bo = sourceOrderByImportId.get(b.importId) ?? 0;
         if (ao !== bo) return ao - bo;
@@ -3362,9 +3381,9 @@ export function MeeshoLabelExportTool() {
 
             <div className="grid gap-1.5 rounded-2xl border border-border/55 bg-background/45 p-1.5 sm:grid-cols-3">
               {[
-                ["filter", "Filter only", "Use table filters, then export."],
-                ["crop", "Crop labels", "Crop every uploaded page."],
-                ["filter_crop", "Filter + crop", "Crop only matching labels."],
+                ["filter", "Filter Labels", "Use Marketplace, SKU, QTY, payment, and courier filters."],
+                ["crop", "Crop Labels", "Auto-detect labels or invoices from uploaded PDFs."],
+                ["filter_crop", "Filter + Crop", "Filter first, then crop matching labels."],
               ].map(([key, title, body]) => (
                 <button
                   key={key}
@@ -3398,28 +3417,61 @@ export function MeeshoLabelExportTool() {
             {processingMode !== "filter" ? (
               <div className="rounded-2xl border border-border/60 bg-muted/10 p-3">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="min-w-0 space-y-2">
-                    <p className="text-[12px] font-semibold text-foreground">Crop target</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        ["shipping", "Auto Detect Shipping Label"],
-                        ["invoice", "Auto Detect Tax Invoice"],
-                      ].map(([key, title]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          className={cn(
-                            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition-colors",
-                            autoCropMode === key
-                              ? "border-primary bg-primary/10 text-foreground"
-                              : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
-                          )}
-                          onClick={() => setAutoCropMode(key as CropMode)}
-                        >
-                          {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
-                          {title}
-                        </button>
-                      ))}
+                  <div className="min-w-0 space-y-3">
+                    {processingMode === "crop" ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[12px] font-semibold text-foreground">Marketplace</p>
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            Pick one marketplace when multiple PDFs are uploaded.
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {visibleMarketplaceFilterValues(cropMarketplaceStats).map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className={cn(
+                                "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition-colors",
+                                cropMarketplace === value
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
+                              )}
+                              onClick={() => setCropMarketplace(value)}
+                            >
+                              {cropMarketplace === value ? (
+                                <Check className="size-3.5 text-primary" aria-hidden />
+                              ) : null}
+                              {marketplaceFilterTriggerDisplay(value, cropMarketplaceStats)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <p className="text-[12px] font-semibold text-foreground">Crop target</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          ["shipping", "Auto Detect Shipping Labels"],
+                          ["invoice", "Auto Detect Tax Invoice"],
+                        ].map(([key, title]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            className={cn(
+                              "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition-colors",
+                              autoCropMode === key
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
+                            )}
+                            onClick={() => setAutoCropMode(key as CropMode)}
+                          >
+                            {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
+                            {title}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -3430,7 +3482,7 @@ export function MeeshoLabelExportTool() {
                       </span>{" "}
                         {processingMode === "filter_crop"
                           ? `${filteredLabels.length.toLocaleString()} labels`
-                          : `${cropperDocs.reduce((sum, doc) => sum + doc.pageCount, 0).toLocaleString()} pages`}
+                          : `${cropScopedRows.length.toLocaleString()} label${cropScopedRows.length === 1 ? "" : "s"}`}
                     </p>
                     {processingMode === "crop" ? (
                       <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
@@ -3438,7 +3490,7 @@ export function MeeshoLabelExportTool() {
                           type="button"
                           variant="outline"
                           className="h-10 rounded-xl text-[12px] font-semibold"
-                          disabled={cropExportBusy || cropperDocs.length === 0}
+                          disabled={cropExportBusy || cropScopedRows.length === 0}
                           onClick={() => void downloadAutoCropPdf()}
                         >
                           {cropExportBusy ? (
@@ -3446,12 +3498,12 @@ export function MeeshoLabelExportTool() {
                           ) : (
                             <Download className="mr-1.5 size-3.5" aria-hidden />
                           )}
-                          PDF
+                          Download PDF
                         </Button>
                         <Button
                           type="button"
                           className="h-10 rounded-xl text-[12px] font-semibold"
-                          disabled={cropExportBusy || cropperDocs.length === 0}
+                          disabled={cropExportBusy || cropScopedRows.length === 0}
                           onClick={() => void downloadAutoCropZip()}
                         >
                           {cropExportBusy ? (
@@ -3459,7 +3511,7 @@ export function MeeshoLabelExportTool() {
                           ) : (
                             <Archive className="mr-1.5 size-3.5" aria-hidden />
                           )}
-                          ZIP
+                          Download ZIP
                         </Button>
                       </div>
                     ) : (
@@ -3760,7 +3812,7 @@ export function MeeshoLabelExportTool() {
                         id="label-workspace-mobile-search"
                         value={listingSkuSearch}
                         onChange={(e) => setListingSkuSearch(e.target.value)}
-                        placeholder="SKU or order ID…"
+                        placeholder="SKU or order ID..."
                         title="SKU, order ID, master, courier, qty"
                         aria-label="Search labels"
                         className="h-11 rounded-2xl border-0 bg-muted/40 py-2 pl-10 pr-3 text-[14px] font-medium shadow-[inset_0_1px_2px_rgb(0_0_0/0.12)] ring-1 ring-white/[0.06] placeholder:text-muted-foreground/55 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)]"
