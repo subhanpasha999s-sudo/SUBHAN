@@ -3150,20 +3150,51 @@ export function MeeshoLabelExportTool() {
   }, [bulkSkuZipState]);
 
   const pdfExportModal = React.useMemo(() => {
-    if (!pdfExportState) return { title: "", body: "", pct: 0 };
+    if (!pdfExportState) return { title: "", body: "", pct: 0, count: "", helper: "" };
     const pct =
       pdfExportState.total > 0
         ? Math.min(100, Math.round((100 * pdfExportState.done) / pdfExportState.total))
         : pdfExportState.phase === "starting"
           ? 100
           : 0;
-    const body =
-      pdfExportState.phase === "saving"
-        ? "Optimizing the PDF for download..."
-        : pdfExportState.phase === "starting"
-          ? "Starting download..."
-          : `${pdfExportState.done.toLocaleString()} / ${pdfExportState.total.toLocaleString()} labels`;
-    return { title: pdfExportState.label, body, pct };
+    const count =
+      pdfExportState.total > 0
+        ? `${pdfExportState.done.toLocaleString()} of ${pdfExportState.total.toLocaleString()} labels`
+        : "Preparing labels";
+    if (pdfExportState.phase === "saving") {
+      return {
+        title: "Finalizing your PDF",
+        body: "Compressing pages and keeping barcode quality intact.",
+        pct,
+        count,
+        helper: "Almost done. Your download will start automatically.",
+      };
+    }
+    if (pdfExportState.phase === "starting") {
+      return {
+        title: "Download ready",
+        body: "Opening the browser download prompt now.",
+        pct: 100,
+        count,
+        helper: "You can keep this tab open while the file starts.",
+      };
+    }
+    if (pdfExportState.phase === "copying") {
+      return {
+        title: pdfExportState.label,
+        body: "Building the exact selected label set.",
+        pct,
+        count,
+        helper: "Tulmin is working through the batch without freezing the page.",
+      };
+    }
+    return {
+      title: pdfExportState.label,
+      body: "Reading the selected pages and preparing the export.",
+      pct,
+      count,
+      helper: "Large batches stay responsive while Tulmin prepares the file.",
+    };
   }, [pdfExportState]);
 
   const hasMappedSkuLabels =
@@ -4414,25 +4445,81 @@ export function MeeshoLabelExportTool() {
       ) : null}
 
       <Dialog open={pdfExportState != null} disablePointerDismissal onOpenChange={() => {}}>
-        <DialogContent showCloseButton={false} className="gap-4 sm:max-w-sm">
-          <DialogHeader className="gap-0.5 text-left sm:text-left">
-            <DialogTitle className="text-[17px] font-semibold leading-tight tracking-tight text-foreground">
-              {pdfExportModal.title}
-            </DialogTitle>
-            <DialogDescription className="mt-0.5 text-[12px] font-medium leading-snug text-muted-foreground/90">
-              {pdfExportModal.body}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <div className="h-2 overflow-hidden rounded-full bg-muted/90 ring-1 ring-border/30">
-              <div
-                className="h-full rounded-full bg-primary/85 transition-[width] duration-300 ease-out"
-                style={{ width: `${pdfExportModal.pct}%` }}
-              />
+        <DialogContent
+          showCloseButton={false}
+          className="overflow-hidden border-primary/20 bg-card/96 p-0 shadow-[0_24px_90px_-36px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-md"
+        >
+          <div className="border-b border-border/55 bg-primary/[0.06] px-5 py-4">
+            <DialogHeader className="gap-0 text-left sm:text-left">
+              <div className="mb-3 flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary shadow-sm">
+                    {pdfExportState?.phase === "starting" ? (
+                      <Check className="size-5" aria-hidden />
+                    ) : (
+                      <Loader2 className="size-5 animate-spin" aria-hidden />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <DialogTitle className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                      {pdfExportModal.title}
+                    </DialogTitle>
+                    <DialogDescription className="mt-1 text-[12px] font-medium leading-snug text-muted-foreground/90">
+                      {pdfExportModal.body}
+                    </DialogDescription>
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-primary">
+                  {pdfExportModal.pct}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 text-[12px] font-semibold">
+                <span className="text-foreground tabular-nums">{pdfExportModal.count}</span>
+                <span className="text-muted-foreground">Secure local export</span>
+              </div>
+            </DialogHeader>
+          </div>
+          <div className="space-y-4 px-5 py-4">
+            <div className="space-y-2">
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted/85 ring-1 ring-border/30">
+                <div
+                  className="h-full rounded-full bg-primary shadow-[0_0_18px_rgb(96_165_250/0.45)] transition-[width] duration-300 ease-out"
+                  style={{ width: `${pdfExportModal.pct}%` }}
+                />
+              </div>
+              <p className="text-[12px] font-medium leading-snug text-muted-foreground/90">
+                {pdfExportModal.helper}
+              </p>
             </div>
-            <p className="text-[12px] font-medium leading-snug text-muted-foreground/90">
-              Large batches stay responsive while Tulmin prepares the file.
-            </p>
+            <div className="grid grid-cols-4 gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">
+              {[
+                ["loading", "Prepare"],
+                ["copying", "Build"],
+                ["saving", "Save"],
+                ["starting", "Start"],
+              ].map(([phase, label]) => {
+                const phases = ["loading", "copying", "saving", "starting"];
+                const currentIndex = phases.indexOf(pdfExportState?.phase ?? "loading");
+                const stepIndex = phases.indexOf(phase);
+                const isDone = stepIndex < currentIndex || pdfExportState?.phase === "starting";
+                const isActive = stepIndex === currentIndex && pdfExportState?.phase !== "starting";
+                return (
+                  <div
+                    key={phase}
+                    className={cn(
+                      "rounded-lg border px-2 py-2 text-center transition-colors",
+                      isDone
+                        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                        : isActive
+                          ? "border-primary/35 bg-primary/10 text-primary"
+                          : "border-border/45 bg-muted/20"
+                    )}
+                  >
+                    {label}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
