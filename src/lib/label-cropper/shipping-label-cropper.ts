@@ -57,6 +57,11 @@ export type CropExportEntry = {
   fileName: string;
 };
 
+export type CropEntriesToPdfOptions = {
+  onProgress?: (done: number, total: number) => void;
+  yieldEvery?: number;
+};
+
 type PositionedTextItem = {
   text: string;
   top: number;
@@ -77,6 +82,16 @@ const FLIPKART_INVOICE_RECT: CropRect = {
   width: 0.85,
   height: 0.215,
 };
+
+async function yieldToBrowser(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -522,13 +537,19 @@ function rectToPdfBox(rect: CropRect, pageWidth: number, pageHeight: number) {
   };
 }
 
-export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Promise<Uint8Array> {
+export async function cropEntriesToPdf(
+  entries: readonly CropExportEntry[],
+  options: CropEntriesToPdfOptions = {}
+): Promise<Uint8Array> {
   if (entries.length === 0) throw new Error("Select at least one crop.");
   const { PDFDocument } = await import("pdf-lib");
   const out = await PDFDocument.create();
   const sourceCache = new Map<string, Awaited<ReturnType<typeof PDFDocument.load>>>();
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 25);
+  options.onProgress?.(0, entries.length);
 
-  for (const entry of entries) {
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i];
     let src = sourceCache.get(entry.doc.id);
     if (!src) {
       src = await PDFDocument.load(entry.doc.bytes);
@@ -550,9 +571,11 @@ export async function cropEntriesToPdf(entries: readonly CropExportEntry[]): Pro
       width: box.width,
       height: box.height,
     });
+    options.onProgress?.(i + 1, entries.length);
+    if ((i + 1) % yieldEvery === 0) await yieldToBrowser();
   }
 
-  return new Uint8Array(await out.save({ useObjectStreams: false }));
+  return new Uint8Array(await out.save({ useObjectStreams: entries.length >= 100 }));
 }
 
 export async function zipCroppedPdfs(

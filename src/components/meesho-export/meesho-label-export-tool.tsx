@@ -344,6 +344,7 @@ type BulkSkuZipState =
 
 type PdfExportState =
   | (MultiSourcePdfExportProgress & { label: string })
+  | { phase: "copying" | "saving" | "loading"; done: number; total: number; label: string }
   | { phase: "starting"; done: number; total: number; label: string };
 
 type ImportedPdfSource = {
@@ -2871,12 +2872,30 @@ export function MeeshoLabelExportTool() {
     const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
     if (processingMode === "filter_crop") {
       setCropExportBusy(true);
+      setPdfExportState({ phase: "loading", done: 0, total: exportedEnriched.length, label: "Preparing cropped PDF" });
       try {
         const out = await cropOutputPdfForRows(
           exportedEnriched,
           autoCropMode,
-          includeAmazonInvoicesInDownload ? "both" : "shipping"
+          includeAmazonInvoicesInDownload ? "both" : "shipping",
+          undefined,
+          (progress) =>
+            setPdfExportState({
+              ...progress,
+              label:
+                progress.phase === "saving"
+                  ? "Saving cropped PDF"
+                  : progress.phase === "loading"
+                    ? "Preparing cropped PDF"
+                    : "Cropping selected labels",
+            })
         );
+        setPdfExportState({
+          phase: "starting",
+          done: out.pageCount,
+          total: out.pageCount,
+          label: "Starting download",
+        });
         triggerPdfDownload(out.bytes, buildSelectedExportFilename(exportedEnriched));
         mergeExportedMastersFromRows(exportedEnriched);
         notify.success("Exported cropped labels", {
@@ -2897,7 +2916,9 @@ export function MeeshoLabelExportTool() {
           description: describeExportFailure(e),
         });
       } finally {
+        await yieldToUiFrame();
         setCropExportBusy(false);
+        setPdfExportState(null);
       }
       return;
     }
@@ -3300,7 +3321,8 @@ export function MeeshoLabelExportTool() {
     sourceRows: readonly EnrichedMeeshoLabelRow[],
     mode: CropMode,
     amazonMode: CropMode,
-    docsOverride?: readonly CropperDocument[]
+    docsOverride?: readonly CropperDocument[],
+    onProgress?: (progress: MultiSourcePdfExportProgress) => void
   ): Promise<{ bytes: Uint8Array; pageCount: number }> {
     const sortedRows = [...sourceRows].sort((a, b) => {
       const ao = sourceOrderByImportId.get(a.importId) ?? 0;
@@ -3308,15 +3330,29 @@ export function MeeshoLabelExportTool() {
       if (ao !== bo) return ao - bo;
       return a.page - b.page;
     });
+    onProgress?.({ phase: "loading", done: 0, total: sortedRows.length });
     const parts: Uint8Array[] = [];
     let pageCount = 0;
     const docs = docsOverride ?? (await ensureCropperDocsForRows(sortedRows));
     let pendingCropEntries: CropExportEntry[] = [];
+    let reportedDone = 0;
 
     async function flushPendingCropEntries() {
       if (pendingCropEntries.length === 0) return;
-      parts.push(await cropEntriesToPdf(pendingCropEntries));
-      pageCount += pendingCropEntries.length;
+      const entries = pendingCropEntries;
+      parts.push(
+        await cropEntriesToPdf(entries, {
+          yieldEvery: 25,
+          onProgress: (done) =>
+            onProgress?.({
+              phase: "copying",
+              done: Math.min(sortedRows.length, reportedDone + done),
+              total: sortedRows.length,
+            }),
+        })
+      );
+      reportedDone += entries.length;
+      pageCount += entries.length;
       pendingCropEntries = [];
       await yieldToUiFrame();
     }
@@ -3328,6 +3364,8 @@ export function MeeshoLabelExportTool() {
         if (steps.length === 0) continue;
         parts.push(await exportPdfPagesFromMultiSourceOrdered(steps));
         pageCount += steps.length;
+        reportedDone += 1;
+        onProgress?.({ phase: "copying", done: Math.min(sortedRows.length, reportedDone), total: sortedRows.length });
         continue;
       }
 
@@ -3337,6 +3375,7 @@ export function MeeshoLabelExportTool() {
     }
     await flushPendingCropEntries();
 
+    onProgress?.({ phase: "saving", done: sortedRows.length, total: sortedRows.length });
     return { bytes: await mergePdfParts(parts), pageCount };
   }
 
@@ -3346,8 +3385,25 @@ export function MeeshoLabelExportTool() {
       return;
     }
     setCropExportBusy(true);
+    setPdfExportState({ phase: "loading", done: 0, total: cropScopedRows.length, label: "Preparing cropped PDF" });
     try {
-      const out = await cropOutputPdfForRows(cropScopedRows, autoCropMode, autoCropMode);
+      const out = await cropOutputPdfForRows(cropScopedRows, autoCropMode, autoCropMode, undefined, (progress) =>
+        setPdfExportState({
+          ...progress,
+          label:
+            progress.phase === "saving"
+              ? "Saving cropped PDF"
+              : progress.phase === "loading"
+                ? "Preparing cropped PDF"
+                : "Cropping labels",
+        })
+      );
+      setPdfExportState({
+        phase: "starting",
+        done: out.pageCount,
+        total: out.pageCount,
+        label: "Starting download",
+      });
       triggerPdfDownload(out.bytes, "tulmin-auto-cropped-labels.pdf");
       notify.success("Cropped PDF downloaded.");
     } catch (err) {
@@ -3355,7 +3411,9 @@ export function MeeshoLabelExportTool() {
         description: describeExportFailure(err),
       });
     } finally {
+      await yieldToUiFrame();
       setCropExportBusy(false);
+      setPdfExportState(null);
     }
   }
 
