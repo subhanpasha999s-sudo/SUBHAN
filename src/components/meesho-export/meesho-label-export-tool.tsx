@@ -4451,24 +4451,24 @@ export function MeeshoLabelExportTool() {
       <Dialog open={pdfExportState != null} disablePointerDismissal onOpenChange={() => {}}>
         <DialogContent
           showCloseButton={false}
-          className="overflow-hidden border-primary/20 bg-card/96 p-0 shadow-[0_24px_90px_-36px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-md"
+          className="overflow-hidden border-primary/20 bg-card/96 p-0 shadow-[0_24px_90px_-36px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-[25rem]"
         >
-          <div className="border-b border-border/55 bg-primary/[0.06] px-5 py-4">
+          <div className="border-b border-border/55 bg-primary/[0.05] px-5 py-4">
             <DialogHeader className="gap-0 text-left sm:text-left">
               <div className="mb-3 flex items-start justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary shadow-sm">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary shadow-sm">
                     {pdfExportState?.phase === "starting" ? (
-                      <Check className="size-5" aria-hidden />
+                      <Check className="size-[18px]" aria-hidden />
                     ) : (
-                      <Loader2 className="size-5 animate-spin" aria-hidden />
+                      <Loader2 className="size-[18px] animate-spin" aria-hidden />
                     )}
                   </span>
                   <div className="min-w-0">
-                    <DialogTitle className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                    <DialogTitle className="truncate text-[16px] font-semibold leading-tight tracking-tight text-foreground">
                       {pdfExportModal.title}
                     </DialogTitle>
-                    <DialogDescription className="mt-1 text-[12px] font-medium leading-snug text-muted-foreground/90">
+                    <DialogDescription className="mt-0.5 text-[12px] font-medium leading-snug text-muted-foreground/90">
                       {pdfExportModal.body}
                     </DialogDescription>
                   </div>
@@ -4479,12 +4479,12 @@ export function MeeshoLabelExportTool() {
               </div>
               <div className="flex items-center justify-between gap-3 text-[12px] font-semibold">
                 <span className="text-foreground tabular-nums">{pdfExportModal.count}</span>
-                <span className="text-muted-foreground">Secure local export</span>
+                <span className="text-muted-foreground">Local export</span>
               </div>
             </DialogHeader>
           </div>
           <div className="space-y-4 px-5 py-4">
-            <div className="rounded-2xl border border-border/55 bg-background/55 p-3 shadow-inner">
+            <div className="rounded-2xl border border-border/55 bg-background/55 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                   Export progress
@@ -4497,10 +4497,10 @@ export function MeeshoLabelExportTool() {
                 <div
                   className={cn(
                     "h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),rgb(125_158_255),hsl(var(--primary)))] bg-[length:180%_100%] shadow-[0_0_22px_rgb(96_165_250/0.55)] transition-[width] duration-700 ease-out",
-                    pdfExportModal.pct < 3 ? "animate-pulse" : ""
+                    pdfExportModal.phase === "loading" && pdfExportModal.pct === 0 ? "animate-pulse" : ""
                   )}
                   style={{
-                    width: `${Math.max(pdfExportModal.pct, pdfExportModal.phase === "loading" ? 10 : 4)}%`,
+                    width: `${pdfExportModal.phase === "loading" && pdfExportModal.pct === 0 ? 8 : pdfExportModal.pct}%`,
                   }}
                 />
               </div>
@@ -4510,7 +4510,7 @@ export function MeeshoLabelExportTool() {
               {pdfExportModal.helper}
             </p>
 
-            <div className="grid grid-cols-4 gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">
+            <div className="grid grid-cols-4 gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
               {[
                 ["loading", "Prepare"],
                 ["copying", "Build"],
@@ -4526,12 +4526,12 @@ export function MeeshoLabelExportTool() {
                   <div
                     key={phase}
                     className={cn(
-                      "relative overflow-hidden rounded-xl border px-2 py-2.5 text-center transition-colors",
+                      "relative overflow-hidden rounded-xl border px-2 py-2 text-center transition-colors",
                       isDone
-                        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                        ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
                         : isActive
-                          ? "border-primary/45 bg-primary/10 text-primary shadow-[0_0_22px_-14px_rgb(96_165_250/0.95)]"
-                          : "border-border/45 bg-muted/20"
+                          ? "border-primary/45 bg-primary/[0.08] text-primary shadow-[0_0_22px_-16px_rgb(96_165_250/0.95)]"
+                          : "border-border/45 bg-muted/10"
                     )}
                   >
                     <div
@@ -4543,9 +4543,9 @@ export function MeeshoLabelExportTool() {
                         width: isDone ? "100%" : isActive ? `${Math.max(pdfExportModal.pct, 12)}%` : "0%",
                       }}
                     />
-                    <span className="relative inline-flex items-center justify-center gap-1.5">
-                      {isDone ? <Check className="size-3" aria-hidden /> : null}
-                      {isActive ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
+                    <span className="relative inline-flex items-center justify-center gap-1">
+                      {isDone ? <Check className="size-2.5" aria-hidden /> : null}
+                      {isActive ? <Loader2 className="size-2.5 animate-spin" aria-hidden /> : null}
                       {label}
                     </span>
                   </div>
