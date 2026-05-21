@@ -3150,7 +3150,7 @@ export function MeeshoLabelExportTool() {
   }, [bulkSkuZipState]);
 
   const pdfExportModal = React.useMemo(() => {
-    if (!pdfExportState) return { title: "", body: "", pct: 0, count: "", helper: "" };
+    if (!pdfExportState) return { title: "", body: "", pct: 0, count: "", helper: "", phase: "loading" as const };
     const pct =
       pdfExportState.total > 0
         ? Math.min(100, Math.round((100 * pdfExportState.done) / pdfExportState.total))
@@ -3168,6 +3168,7 @@ export function MeeshoLabelExportTool() {
         pct,
         count,
         helper: "Almost done. Your download will start automatically.",
+        phase: pdfExportState.phase,
       };
     }
     if (pdfExportState.phase === "starting") {
@@ -3177,6 +3178,7 @@ export function MeeshoLabelExportTool() {
         pct: 100,
         count,
         helper: "You can keep this tab open while the file starts.",
+        phase: pdfExportState.phase,
       };
     }
     if (pdfExportState.phase === "copying") {
@@ -3186,6 +3188,7 @@ export function MeeshoLabelExportTool() {
         pct,
         count,
         helper: "Tulmin is working through the batch without freezing the page.",
+        phase: pdfExportState.phase,
       };
     }
     return {
@@ -3194,6 +3197,7 @@ export function MeeshoLabelExportTool() {
       pct,
       count,
       helper: "Large batches stay responsive while Tulmin prepares the file.",
+      phase: pdfExportState.phase,
     };
   }, [pdfExportState]);
 
@@ -4480,18 +4484,33 @@ export function MeeshoLabelExportTool() {
             </DialogHeader>
           </div>
           <div className="space-y-4 px-5 py-4">
-            <div className="space-y-2">
-              <div className="h-2.5 overflow-hidden rounded-full bg-muted/85 ring-1 ring-border/30">
+            <div className="rounded-2xl border border-border/55 bg-background/55 p-3 shadow-inner">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  Export progress
+                </span>
+                <span className="text-[12px] font-semibold tabular-nums text-foreground">
+                  {pdfExportModal.pct}% complete
+                </span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-muted/90 ring-1 ring-border/30">
                 <div
-                  className="h-full rounded-full bg-primary shadow-[0_0_18px_rgb(96_165_250/0.45)] transition-[width] duration-300 ease-out"
-                  style={{ width: `${pdfExportModal.pct}%` }}
+                  className={cn(
+                    "h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),rgb(125_158_255),hsl(var(--primary)))] bg-[length:180%_100%] shadow-[0_0_22px_rgb(96_165_250/0.55)] transition-[width] duration-700 ease-out",
+                    pdfExportModal.pct < 3 ? "animate-pulse" : ""
+                  )}
+                  style={{
+                    width: `${Math.max(pdfExportModal.pct, pdfExportModal.phase === "loading" ? 10 : 4)}%`,
+                  }}
                 />
               </div>
-              <p className="text-[12px] font-medium leading-snug text-muted-foreground/90">
-                {pdfExportModal.helper}
-              </p>
             </div>
-            <div className="grid grid-cols-4 gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">
+
+            <p className="text-[12px] font-medium leading-snug text-muted-foreground/90">
+              {pdfExportModal.helper}
+            </p>
+
+            <div className="grid grid-cols-4 gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">
               {[
                 ["loading", "Prepare"],
                 ["copying", "Build"],
@@ -4507,15 +4526,28 @@ export function MeeshoLabelExportTool() {
                   <div
                     key={phase}
                     className={cn(
-                      "rounded-lg border px-2 py-2 text-center transition-colors",
+                      "relative overflow-hidden rounded-xl border px-2 py-2.5 text-center transition-colors",
                       isDone
                         ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                         : isActive
-                          ? "border-primary/35 bg-primary/10 text-primary"
+                          ? "border-primary/45 bg-primary/10 text-primary shadow-[0_0_22px_-14px_rgb(96_165_250/0.95)]"
                           : "border-border/45 bg-muted/20"
                     )}
                   >
-                    {label}
+                    <div
+                      className={cn(
+                        "absolute inset-x-0 bottom-0 h-0.5 transition-[width] duration-700 ease-out",
+                        isDone || isActive ? "bg-current" : "bg-transparent"
+                      )}
+                      style={{
+                        width: isDone ? "100%" : isActive ? `${Math.max(pdfExportModal.pct, 12)}%` : "0%",
+                      }}
+                    />
+                    <span className="relative inline-flex items-center justify-center gap-1.5">
+                      {isDone ? <Check className="size-3" aria-hidden /> : null}
+                      {isActive ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
+                      {label}
+                    </span>
                   </div>
                 );
               })}
