@@ -3222,15 +3222,62 @@ export function MeeshoLabelExportTool() {
     return [entryFor(page.defaultFullRect, `${base}.pdf`)];
   }
 
-  function buildAutoCropEntries(mode = autoCropMode, allowed = filteredPageKeySet()): CropExportEntry[] {
+  function buildAutoCropEntries(
+    mode = autoCropMode,
+    allowed = filteredPageKeySet(),
+    docs: readonly CropperDocument[] = cropperDocs
+  ): CropExportEntry[] {
     const out: CropExportEntry[] = [];
-    for (const doc of cropperDocs) {
+    for (const doc of docs) {
       for (const page of doc.pages) {
         if (allowed && !allowed.has(`${doc.id}:${page.pageIndex}`)) continue;
         out.push(...cropEntriesForPage(doc, page, mode));
       }
     }
     return out;
+  }
+
+  async function ensureCropperDocsForRows(
+    sourceRows: readonly EnrichedMeeshoLabelRow[]
+  ): Promise<CropperDocument[]> {
+    const neededImportIds = new Set(
+      sourceRows
+        .filter((row) => row.marketplace !== "amazon")
+        .map((row) => row.importId)
+    );
+    if (neededImportIds.size === 0) return cropperDocs;
+
+    const known = new Map(cropperDocs.map((doc) => [doc.id, doc]));
+    const missingSources = [...neededImportIds]
+      .filter((id) => !known.has(id))
+      .map((id) => pdfSourceByImportId.get(id))
+      .filter((src): src is ImportedPdfSource => Boolean(src))
+      .sort((a, b) => a.order - b.order);
+
+    if (missingSources.length === 0) return cropperDocs;
+
+    setCropperBusy(true);
+    try {
+      const docs: CropperDocument[] = [];
+      for (let i = 0; i < missingSources.length; i += 1) {
+        const src = missingSources[i];
+        docs.push(
+          await analyzeCropperPdfBytes({
+            id: src.id,
+            fileName: src.fileName,
+            bytes: src.pdfBytes,
+          })
+        );
+        if (i % 2 === 1) await yieldToUiFrame();
+      }
+      setCropperDocs((prev) => {
+        const existing = new Set(prev.map((doc) => doc.id));
+        return [...prev, ...docs.filter((doc) => !existing.has(doc.id))];
+      });
+      return [...cropperDocs, ...docs];
+    } finally {
+      setCropperBusy(false);
+    }
   }
 
   async function mergePdfParts(parts: readonly Uint8Array[]): Promise<Uint8Array> {
@@ -3249,7 +3296,8 @@ export function MeeshoLabelExportTool() {
   async function cropOutputPdfForRows(
     sourceRows: readonly EnrichedMeeshoLabelRow[],
     mode: CropMode,
-    amazonMode: CropMode
+    amazonMode: CropMode,
+    docsOverride?: readonly CropperDocument[]
   ): Promise<{ bytes: Uint8Array; pageCount: number }> {
     const sortedRows = [...sourceRows].sort((a, b) => {
       const ao = sourceOrderByImportId.get(a.importId) ?? 0;
@@ -3259,9 +3307,20 @@ export function MeeshoLabelExportTool() {
     });
     const parts: Uint8Array[] = [];
     let pageCount = 0;
+    const docs = docsOverride ?? (await ensureCropperDocsForRows(sortedRows));
+    let pendingCropEntries: CropExportEntry[] = [];
+
+    async function flushPendingCropEntries() {
+      if (pendingCropEntries.length === 0) return;
+      parts.push(await cropEntriesToPdf(pendingCropEntries));
+      pageCount += pendingCropEntries.length;
+      pendingCropEntries = [];
+      await yieldToUiFrame();
+    }
 
     for (const row of sortedRows) {
       if (row.marketplace === "amazon") {
+        await flushPendingCropEntries();
         const steps = rowsToPdfExportSteps([row], { amazonMode });
         if (steps.length === 0) continue;
         parts.push(await exportPdfPagesFromMultiSourceOrdered(steps));
@@ -3269,11 +3328,11 @@ export function MeeshoLabelExportTool() {
         continue;
       }
 
-      const entries = buildAutoCropEntries(mode, rowPageKeySet([row]));
+      const entries = buildAutoCropEntries(mode, rowPageKeySet([row]), docs);
       if (entries.length === 0) continue;
-      parts.push(await cropEntriesToPdf(entries));
-      pageCount += entries.length;
+      pendingCropEntries.push(...entries);
     }
+    await flushPendingCropEntries();
 
     return { bytes: await mergePdfParts(parts), pageCount };
   }

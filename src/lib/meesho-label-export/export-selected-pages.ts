@@ -114,8 +114,6 @@ export async function exportPdfPagesFromMultiSourceOrdered(
   if (steps.length === 0) throw new Error("No pages to export.");
 
   const { PDFDocument, rgb } = await import("pdf-lib");
-  const out = await PDFDocument.create();
-  const font = await out.embedFont("Helvetica-Bold");
   type LoadedPdfDoc = Awaited<ReturnType<typeof PDFDocument.load>>;
   const docCache = new Map<string, LoadedPdfDoc>();
 
@@ -130,6 +128,58 @@ export async function exportPdfPagesFromMultiSourceOrdered(
 
   const yieldEvery = Math.max(1, options.yieldEvery ?? (steps.length >= 1000 ? 25 : 75));
   options.onProgress?.({ phase: "loading", done: 0, total: steps.length });
+
+  const first = steps[0];
+  const canUseOriginalPdf =
+    first &&
+    steps.every(
+      (step, index) =>
+        step.importKey === first.importKey &&
+        step.sourcePdfBytes === first.sourcePdfBytes &&
+        !step.overlayText?.trim() &&
+        step.pageOneBased === index + 1
+    );
+  if (canUseOriginalPdf) {
+    const src = await getDoc(first.importKey, first.sourcePdfBytes);
+    if (src.getPageCount() === steps.length) {
+      options.onProgress?.({ phase: "copying", done: steps.length, total: steps.length });
+      return new Uint8Array(first.sourcePdfBytes);
+    }
+  }
+
+  const out = await PDFDocument.create();
+  const hasOverlayText = steps.some((step) => step.overlayText?.trim());
+  const font = hasOverlayText ? await out.embedFont("Helvetica-Bold") : null;
+
+  const canCopySameSourceBatch =
+    first &&
+    !hasOverlayText &&
+    steps.every(
+      (step) =>
+        step.importKey === first.importKey &&
+        step.sourcePdfBytes === first.sourcePdfBytes &&
+        Number.isInteger(step.pageOneBased) &&
+        step.pageOneBased >= 1
+    );
+  if (canCopySameSourceBatch) {
+    const src = await getDoc(first.importKey, first.sourcePdfBytes);
+    const nPages = src.getPageCount();
+    const pageIndices = steps.map((step) => {
+      if (step.pageOneBased > nPages) {
+        throw new Error(
+          `Page ${step.pageOneBased} is out of range for one of the imports (PDF has ${nPages} page(s)).`
+        );
+      }
+      return step.pageOneBased - 1;
+    });
+    const copied = await out.copyPages(src, pageIndices);
+    for (const page of copied) out.addPage(page);
+    options.onProgress?.({ phase: "copying", done: steps.length, total: steps.length });
+    await yieldToBrowser();
+    options.onProgress?.({ phase: "saving", done: steps.length, total: steps.length });
+    await yieldToBrowser();
+    return new Uint8Array(await out.save({ useObjectStreams: steps.length >= 100 }));
+  }
 
   for (let index = 0; index < steps.length; index += 1) {
     const step = steps[index];
@@ -146,6 +196,10 @@ export async function exportPdfPagesFromMultiSourceOrdered(
       const { width, height } = copied.getSize();
       const text = step.overlayText.trim();
       const fontSize = Math.max(12, Math.min(18, width / Math.max(16, text.length * 0.5)));
+      if (!font) {
+        out.addPage(copied);
+        continue;
+      }
       const textWidth = font.widthOfTextAtSize(text, fontSize);
       const boxW = Math.min(width * 0.48, textWidth + 28);
       const boxH = fontSize + 14;
@@ -178,7 +232,7 @@ export async function exportPdfPagesFromMultiSourceOrdered(
 
   options.onProgress?.({ phase: "saving", done: steps.length, total: steps.length });
   await yieldToBrowser();
-  return new Uint8Array(await out.save({ useObjectStreams: false }));
+  return new Uint8Array(await out.save({ useObjectStreams: steps.length >= 250 }));
 }
 
 export function triggerPdfDownload(bytes: Uint8Array, filename: string) {
