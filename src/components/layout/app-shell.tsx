@@ -57,14 +57,14 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/mapping",
         label: "SKU Mapping",
-        description: "Map listing SKUs once",
+        description: "Save SKU names once",
         icon: Link2,
         step: "01",
       },
       {
         href: "/export-labels",
         label: "Run Labels",
-        description: "Filter and export PDFs",
+        description: "Filter, crop, export",
         icon: FileDown,
         step: "02",
       },
@@ -84,7 +84,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/settings",
         label: "Settings",
-        description: "Theme, data, and workspace controls",
+        description: "Theme and data",
         icon: Settings2,
       },
     ],

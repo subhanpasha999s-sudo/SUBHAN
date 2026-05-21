@@ -81,13 +81,35 @@ export async function exportPdfPagesInOrder(
  * Builds one PDF by copying pages in order, where each page may come from a different source file.
  * `importKey` must be stable per logical import (e.g. UUID) so each PDF is loaded at most once.
  */
+export type MultiSourcePdfExportProgress = {
+  phase: "loading" | "copying" | "saving";
+  done: number;
+  total: number;
+};
+
+export type MultiSourcePdfExportOptions = {
+  onProgress?: (progress: MultiSourcePdfExportProgress) => void;
+  yieldEvery?: number;
+};
+
+async function yieldToBrowser(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
 export async function exportPdfPagesFromMultiSourceOrdered(
   steps: readonly {
     importKey: string;
     sourcePdfBytes: Uint8Array;
     pageOneBased: number;
     overlayText?: string;
-  }[]
+  }[],
+  options: MultiSourcePdfExportOptions = {}
 ): Promise<Uint8Array> {
   if (steps.length === 0) throw new Error("No pages to export.");
 
@@ -106,7 +128,11 @@ export async function exportPdfPagesFromMultiSourceOrdered(
     return src;
   }
 
-  for (const step of steps) {
+  const yieldEvery = Math.max(1, options.yieldEvery ?? (steps.length >= 1000 ? 25 : 75));
+  options.onProgress?.({ phase: "loading", done: 0, total: steps.length });
+
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
     const src = await getDoc(step.importKey, step.sourcePdfBytes);
     const nPages = src.getPageCount();
     const p = step.pageOneBased;
@@ -143,8 +169,15 @@ export async function exportPdfPagesFromMultiSourceOrdered(
       });
     }
     out.addPage(copied);
+    const done = index + 1;
+    if (done === steps.length || done % yieldEvery === 0) {
+      options.onProgress?.({ phase: "copying", done, total: steps.length });
+      await yieldToBrowser();
+    }
   }
 
+  options.onProgress?.({ phase: "saving", done: steps.length, total: steps.length });
+  await yieldToBrowser();
   return new Uint8Array(await out.save({ useObjectStreams: false }));
 }
 

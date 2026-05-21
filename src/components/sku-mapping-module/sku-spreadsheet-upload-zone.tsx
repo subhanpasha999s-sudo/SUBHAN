@@ -85,7 +85,7 @@ export function SkuSpreadsheetUploadZone({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-dashed border-border bg-muted/14 transition-[border-color,background-color,box-shadow,opacity] hover:border-primary/40 hover:bg-muted/20 dark:bg-muted/10",
+        "relative overflow-hidden rounded-2xl border border-border/55 bg-card/88 shadow-[0_24px_80px_-58px_rgb(15_23_42/0.7)] ring-1 ring-black/[0.025] transition-[border-color,background-color,box-shadow,opacity] hover:border-primary/35 hover:bg-card dark:bg-card/70 dark:ring-white/[0.045]",
         dragActive &&
           "border-primary/60 bg-primary/[0.055] shadow-[0_0_0_4px_rgb(63_108_255/0.10),0_24px_70px_-44px_rgb(63_108_255/0.95)]",
         busy && "pointer-events-none opacity-70",
@@ -142,7 +142,8 @@ export function SkuSpreadsheetUploadZone({
           </div>
         ) : null}
 
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
           <div
             className={cn(
               "flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-background/70 shadow-inner",
@@ -161,7 +162,7 @@ export function SkuSpreadsheetUploadZone({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <h1 className="text-[18px] font-semibold tracking-tight text-foreground sm:text-xl">
-                Import SKUs
+                Import marketplace SKUs
               </h1>
               <span className="inline-flex items-center gap-1 align-middle">
                 <Tooltip>
@@ -179,13 +180,24 @@ export function SkuSpreadsheetUploadZone({
               </span>
             </div>
             <p className="mt-1 text-[12px] font-medium text-muted-foreground sm:text-[13px]">
-              Download a template, fill listing SKUs, then upload it back.
+              Map once so future label runs can find the right SKU faster.
             </p>
+          </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 pl-14 sm:pl-0">
+            {["Download", "Fill", "Upload"].map((step) => (
+              <span
+                key={step}
+                className="rounded-full border border-primary/18 bg-primary/[0.055] px-2.5 py-1 text-[11px] font-semibold text-primary"
+              >
+                {step}
+              </span>
+            ))}
           </div>
         </div>
 
         <div className="grid gap-2.5 lg:grid-cols-3">
-          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+          <div className="rounded-xl border border-border/60 bg-background/55 p-3 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
                 1
@@ -195,7 +207,7 @@ export function SkuSpreadsheetUploadZone({
                   Download template
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
-                  Excel or CSV
+                  Use Excel or CSV
                 </p>
               </div>
             </div>
@@ -225,7 +237,7 @@ export function SkuSpreadsheetUploadZone({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+          <div className="rounded-xl border border-border/60 bg-background/55 p-3 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
                 2
@@ -235,7 +247,7 @@ export function SkuSpreadsheetUploadZone({
                   Fill your marketplace SKU
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
-                  Paste one SKU per row
+                  One listing SKU per row
                 </p>
               </div>
             </div>
@@ -246,7 +258,7 @@ export function SkuSpreadsheetUploadZone({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-background/45 p-3">
+          <div className="rounded-xl border border-primary/30 bg-primary/[0.035] p-3 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[12px] font-bold tabular-nums text-primary ring-1 ring-primary/25">
                 3
@@ -270,7 +282,7 @@ export function SkuSpreadsheetUploadZone({
                   </Tooltip>
                 </div>
                 <p className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground">
-                  Start mapping
+                  Start mapping instantly
                 </p>
               </div>
             </div>
@@ -285,6 +297,9 @@ export function SkuSpreadsheetUploadZone({
               <Upload className="mr-1.5 size-3.5" aria-hidden />
               Choose file
             </Button>
+            <p className="mt-2 text-center text-[11px] font-medium text-muted-foreground">
+              or drag the filled file here
+            </p>
           </div>
         </div>
 

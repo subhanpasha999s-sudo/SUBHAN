@@ -4,6 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { toast as notify } from "sonner";
 import {
+  Boxes,
+  FileSearch,
+  Layers3,
   Loader2,
   MoreHorizontal,
   PencilLine,
@@ -1490,6 +1493,46 @@ export function SkuMappingModule() {
           statusSlot={workspaceStatusBadge}
           actionsSlot={hasWorkspaceActions ? workspaceActions : null}
         />
+
+      {uploadedSkus.length === 0 ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            [
+              Boxes,
+              "One product, many marketplace SKUs",
+              "Group Meesho, Flipkart, and Amazon listing SKUs under the product name your team uses.",
+            ],
+            [
+              FileSearch,
+              "Cleaner label filtering",
+              "Future label runs can find the right product even when each marketplace uses a different SKU.",
+            ],
+            [
+              Layers3,
+              "Ready before dispatch",
+              "Once mapped, SKU-wise downloads and ZIP bundles become faster and easier to trust.",
+            ],
+          ].map(([Icon, title, copy]) => {
+            const EmptyIcon = Icon as typeof Boxes;
+            return (
+              <div
+                key={title as string}
+                className="rounded-2xl border border-border/45 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.02] dark:bg-card/45 dark:ring-white/[0.04]"
+              >
+                <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                  <EmptyIcon className="size-4.5" strokeWidth={1.7} aria-hidden />
+                </span>
+                <p className="mt-3 text-sm font-semibold tracking-tight text-foreground">
+                  {title as string}
+                </p>
+                <p className="mt-1.5 text-[12px] leading-5 text-muted-foreground">
+                  {copy as string}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {snapshotLoading && cloudConfigured && userId ? (
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-6 py-4 text-[13px] text-muted-foreground shadow-layer-card ring-1 ring-border/15">
