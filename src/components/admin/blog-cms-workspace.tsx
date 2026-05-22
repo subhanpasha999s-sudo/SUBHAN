@@ -56,7 +56,7 @@ const emptyForm = (): BlogForm => ({
   title: "",
   slug: "",
   description: "",
-  category: "Label Management",
+  category: "Label Filtering",
   readTime: "5 min read",
   status: "draft",
   featuredImage: "",
@@ -905,7 +905,7 @@ export function BlogCmsWorkspace() {
                     <label className="space-y-2">
                       <Label className="text-slate-600 dark:text-slate-300">Category</Label>
                       <select
-                        value={form.category ?? "Label Management"}
+                        value={form.category ?? "Label Filtering"}
                         onChange={(event) => patchForm({ category: event.target.value as BlogCategory })}
                         className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:ring-2 focus:ring-[#335cff]/30 dark:border-white/10 dark:bg-[#0b111d] dark:text-white"
                       >

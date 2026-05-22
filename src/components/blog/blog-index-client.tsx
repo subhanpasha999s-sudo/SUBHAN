@@ -55,14 +55,14 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
       <header className="overflow-hidden rounded-2xl border border-border/60 bg-card/90 p-6 shadow-elevate-sm ring-1 ring-white/[0.04] sm:p-8">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            Tulmin Blog System
+            Ecommerce dispatch guides
           </p>
           <h1 className="max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
-            Meesho Seller Guides, Label Tools & Growth Tips
+            Label filtering, sorting, and dispatch workflows for Meesho, Flipkart, and Amazon sellers
           </h1>
           <p className="max-w-3xl text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-            Learn how Meesho sellers filter labels by SKU, QTY, and courier partner, reduce wrong
-            dispatch mistakes, and save hours with faster warehouse workflows.
+            Learn how Indian ecommerce teams reduce wrong shipments, quantity mismatches, courier
+            handoff confusion, and slow packing with cleaner shipping label workflows.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -146,7 +146,7 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search Meesho blog topics..."
+          placeholder="Search dispatch, SKU, courier, Amazon invoice, or crop topics..."
           className="h-11 rounded-xl"
           aria-label="Search blogs"
         />

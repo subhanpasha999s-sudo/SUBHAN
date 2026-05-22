@@ -34,7 +34,7 @@ function rowToPost(row: BlogRow): BlogPost | null {
     title: row.title,
     description: content.description ?? row.meta_description ?? "",
     seoTitle: content.seoTitle ?? row.seo_title ?? undefined,
-    category: isCategory(content.category) ? content.category : "Label Management",
+    category: isCategory(content.category) ? content.category : "Label Filtering",
     readTime: content.readTime ?? "5 min read",
     publishedOn:
       content.publishedOn ??

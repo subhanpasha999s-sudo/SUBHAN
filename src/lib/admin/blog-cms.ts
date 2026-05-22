@@ -42,7 +42,7 @@ export function slugifyBlog(value: string) {
 function normalizeCategory(value: unknown): BlogCategory {
   return typeof value === "string" && categorySet.has(value)
     ? (value as BlogCategory)
-    : "Label Management";
+    : "Label Filtering";
 }
 
 function normalizeKeywords(input: BlogInput) {

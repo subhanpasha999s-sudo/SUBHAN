@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { getLiveBlogPosts } from "@/lib/blog/live-posts";
 import { getSiteUrl } from "@/lib/seo/site-url";
+import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ] as const;
 
   return [
+    {
+      url: `${base}/`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 1,
+    },
+    ...SEO_LANDING_PAGES.map((page) => ({
+      url: `${base}/${page.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.92,
+    })),
     {
       url: `${base}/blog`,
       lastModified: new Date(),

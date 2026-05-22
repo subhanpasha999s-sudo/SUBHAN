@@ -5,16 +5,19 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { MappingBody } from "./mapping-body";
 
 export const metadata: Metadata = {
-  title: "SKU mapping for Meesho ecommerce operators",
+  title: "SKU Mapping for Meesho, Flipkart & Amazon Label Filtering",
   description:
-    "Built for ecommerce operations teams, especially Meesho. Map listing SKUs to master SKUs once, then run faster and cleaner label dispatch every day.",
+    "Map marketplace listing SKUs to master SKUs once, then filter Meesho, Flipkart, and Amazon labels faster by product, quantity, courier, and dispatch queue.",
   alternates: { canonical: `${getSiteUrl()}/mapping` },
   keywords: [
-    "Meesho SKU map",
+    "SKU mapping",
+    "sku-wise label sorting",
     "listing to master SKU",
     "ecommerce SKU mapping",
-    "Meesho operations SKU mapping",
-    "inventory group SKU",
+    "meesho sku filter",
+    "flipkart SKU sorting",
+    "amazon SKU extraction",
+    "warehouse dispatch management",
   ],
 };
 

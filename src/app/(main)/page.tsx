@@ -22,14 +22,38 @@ import {
 
 import { TulminBrand } from "@/components/brand/tulmin-logo";
 import { buttonVariants } from "@/components/ui/button";
+import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 import { getSiteUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Meesho, Flipkart & Amazon Label Filter + Cropper",
+  title: "Label Filter Software for Meesho, Flipkart & Amazon Sellers",
   description:
-    "Tulmin helps marketplace sellers upload Meesho, Flipkart, and Amazon label PDFs, filter by SKU, quantity, payment, courier, and marketplace, auto-crop labels or invoices, and download clean PDF or ZIP output.",
+    "Filter, sort, crop, and export Meesho, Flipkart, and Amazon shipping labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode.",
   alternates: { canonical: `${getSiteUrl()}/` },
+  keywords: [
+    "label filter software",
+    "meesho label filter",
+    "flipkart label sorter",
+    "amazon shipping label software",
+    "sku-wise label sorting",
+    "courier-wise label sorter",
+    "shipping label automation",
+    "ecommerce dispatch software",
+  ],
+  openGraph: {
+    title: "Tulmin · Label Filter Software for Marketplace Sellers",
+    description:
+      "Meesho, Flipkart, and Amazon sellers use Tulmin to filter labels, crop shipping labels, detect invoices, and export clean dispatch-ready PDFs.",
+    url: `${getSiteUrl()}/`,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tulmin · Label Filter Software for Marketplace Sellers",
+    description:
+      "Filter by SKU, quantity, courier, marketplace, and payment mode. Auto-crop labels and prepare clean dispatch outputs.",
+  },
 };
 
 const quickWins = [
@@ -80,9 +104,9 @@ function ProductPreview() {
   ];
 
   const outputCards = [
-    [Filter, "Meesho ready", "Filter + crop + export"],
-    [Scissors, "Flipkart ready", "Filter + crop + export"],
-    [PackageCheck, "Amazon ready", "Filter + crop + SKU/QTY"],
+    [Filter, "Filter every marketplace", "Meesho · Flipkart · Amazon"],
+    [Scissors, "Crop labels cleanly", "Shipping labels or invoices"],
+    [PackageCheck, "Prevent dispatch mistakes", "SKU · QTY · courier checks"],
   ];
 
   return (
@@ -248,11 +272,11 @@ export default async function HomePage() {
                 Built for sellers on Meesho, Flipkart, and Amazon
               </div>
               <h1 className="mt-6 max-w-[13ch] text-[clamp(3rem,5.6vw,6rem)] font-semibold leading-[1.03] tracking-tight text-slate-950 sm:max-w-[14ch] dark:text-white">
-                Meesho, Flipkart & Amazon label filter + cropper.
+                Filter, crop, and sort marketplace labels before dispatch.
               </h1>
               <div className="mt-5 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-3.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
                 <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
-                  Upload PDFs. Filter labels. Auto-crop labels or invoices.
+                  Upload Meesho, Flipkart, or Amazon PDFs. Filter by SKU, QTY, payment, courier, and marketplace.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {heroActions.map((item) => (
@@ -265,7 +289,7 @@ export default async function HomePage() {
                   ))}
                 </div>
                 <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-400">
-                  Export clean PDF or ZIP files ready for printing and dispatch.
+                  Auto-detect shipping labels or tax invoices, then download clean PDF or ZIP files ready for printing and dispatch.
                 </p>
               </div>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -306,10 +330,10 @@ export default async function HomePage() {
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-sm font-semibold text-[#335cff]">What Tulmin handles</p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-                Filter, crop, and export labels from Meesho, Flipkart, and Amazon.
+                SKU-wise sorting, courier-wise segregation, and label cropping in one dispatch workflow.
               </h2>
               <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">
-                Upload mixed marketplace PDFs once. Tulmin turns them into clean print-ready PDF or ZIP files for dispatch.
+                Tulmin helps sellers reduce wrong shipments, quantity mismatch, and packing confusion before labels reach the dispatch table.
               </p>
             </div>
 
@@ -343,10 +367,10 @@ export default async function HomePage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-sky-200 dark:text-[#91a3ff]">
-                    Choose your output
+                  Dispatch workflow
                   </p>
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Filter labels, crop labels, or do both.
+                    Filter, crop, or filter + crop based on today&apos;s packing queue.
                   </h2>
                 </div>
                 <ShieldCheck className="hidden size-10 text-emerald-200 sm:block" strokeWidth={1.5} aria-hidden />
@@ -387,6 +411,33 @@ export default async function HomePage() {
                   <p className="text-lg font-semibold tracking-tight">{title}</p>
                   <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">{copy}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 py-14 sm:px-6 lg:px-8">
+          <div className="scroll-fade-up mx-auto w-full max-w-7xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_-56px_rgb(15_23_42/0.65)] sm:p-8 dark:border-white/10 dark:bg-white/[0.035]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#335cff]">Dispatch SEO workflows</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                  Explore label filtering by marketplace, SKU, courier, crop, and warehouse workflow.
+                </h2>
+              </div>
+              <p className="max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
+                Each workflow explains the seller problem, matching filters, and clean dispatch output.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {SEO_LANDING_PAGES.map((page) => (
+                <Link
+                  key={page.slug}
+                  href={`/${page.slug}`}
+                  className="rounded-full border border-slate-200 bg-[#f7f9fc] px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-[#335cff]/35 hover:text-[#335cff] dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300 dark:hover:text-white"
+                >
+                  {page.primaryKeyword}
+                </Link>
               ))}
             </div>
           </div>
