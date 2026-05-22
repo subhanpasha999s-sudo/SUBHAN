@@ -102,7 +102,7 @@ const heroActions = [
 const marketplaceBadges = [
   ["Meesho", "filter + auto-crop"],
   ["Flipkart", "filter + auto-crop"],
-  ["Amazon", "filter + auto-crop + SKU/QTY on Shipping Labels"],
+  ["Amazon", "filter + auto-crop + SKU/QTY"],
 ];
 
 function ProductPreview() {
@@ -285,18 +285,18 @@ export default async function HomePage() {
                 <Clock3 className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
                 Built for marketplace sellers
               </div>
-              <h1 className="mt-6 max-w-[14ch] text-[clamp(2.85rem,5vw,5.45rem)] font-semibold leading-[1.02] text-slate-950 sm:max-w-[15ch] dark:text-white">
+              <h1 className="mt-6 max-w-[12ch] text-[clamp(2.55rem,13vw,4.1rem)] font-semibold leading-[1.02] text-slate-950 sm:max-w-[15ch] sm:text-[clamp(3.35rem,5vw,5.45rem)] dark:text-white">
                 AI label filtering and auto-crop for Meesho, Flipkart, and Amazon.
               </h1>
               <div className="mt-5 grid max-w-xl gap-2 sm:grid-cols-3">
                 {marketplaceBadges.map(([name, action], index) => (
                   <div
                     key={name}
-                    className="motion-preview-card rounded-2xl border border-slate-200 bg-white/82 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.055]"
+                    className="motion-preview-card rounded-2xl border border-slate-200 bg-white/82 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.055] sm:p-3.5"
                     style={{ animationDelay: `${index * 110}ms` }}
                   >
                     <p className="text-base font-semibold text-slate-950 dark:text-white">{name}</p>
-                    <p className="mt-1 text-xs font-semibold text-[#335cff] dark:text-[#91a3ff]">{action}</p>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-[#335cff] dark:text-[#91a3ff]">{action}</p>
                   </div>
                 ))}
               </div>
