@@ -4484,28 +4484,30 @@ export function MeeshoLabelExportTool() {
             </DialogHeader>
           </div>
           <div className="space-y-4 px-5 py-4">
-            <div className="rounded-2xl border border-primary/15 bg-[linear-gradient(180deg,hsl(var(--background)/0.72),hsl(var(--muted)/0.28))] p-3.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[12px] font-semibold text-foreground">Preparing your export</p>
-                  <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
-                    Print-ready PDF quality.
-                  </p>
+            <div className="rounded-2xl border border-primary/15 bg-[linear-gradient(180deg,hsl(var(--background)/0.76),hsl(var(--muted)/0.22))] p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/85">Export status</p>
+                  <p className="mt-1 truncate text-[13px] font-semibold text-foreground">Preparing print-ready PDF</p>
                 </div>
-                <span className="rounded-full border border-border/55 bg-background/60 px-2 py-1 text-[11px] font-bold tabular-nums text-foreground">
+                <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-primary">
                   {pdfExportModal.pct}%
                 </span>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-muted/90 ring-1 ring-border/30">
+              <div className="relative h-2.5 overflow-hidden rounded-full bg-muted/80 ring-1 ring-border/30">
+                {pdfExportModal.pct === 0 ? (
+                  <div className="absolute inset-0 animate-pulse bg-[linear-gradient(90deg,transparent,hsl(var(--primary)/0.28),transparent)]" />
+                ) : null}
                 <div
-                  className={cn(
-                    "h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),rgb(125_158_255),hsl(var(--primary)))] bg-[length:180%_100%] shadow-[0_0_22px_rgb(96_165_250/0.55)] transition-[width] duration-700 ease-out",
-                    pdfExportModal.phase === "loading" && pdfExportModal.pct === 0 ? "animate-pulse" : ""
-                  )}
-                  style={{
-                    width: `${pdfExportModal.phase === "loading" && pdfExportModal.pct === 0 ? 8 : pdfExportModal.pct}%`,
-                  }}
+                  className="h-full rounded-full bg-[linear-gradient(90deg,hsl(var(--primary)),rgb(125_158_255))] shadow-[0_0_18px_rgb(96_165_250/0.45)] transition-[width] duration-700 ease-out"
+                  style={{ width: `${pdfExportModal.pct}%` }}
                 />
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-semibold">
+                <span className="truncate text-muted-foreground">{pdfExportModal.count}</span>
+                <span className="shrink-0 text-muted-foreground/80">
+                  {pdfExportModal.pct === 0 ? "Starting..." : "In progress"}
+                </span>
               </div>
             </div>
 
