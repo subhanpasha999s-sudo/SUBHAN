@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     template: "%s · Tulmin",
   },
   description:
-    "Tulmin helps Indian ecommerce sellers filter, sort, crop, and export Meesho, Flipkart, and Amazon shipping labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode.",
+    "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then crop and export clean dispatch PDFs.",
   keywords: SEO_KEYWORDS,
   openGraph: {
     type: "website",
@@ -70,13 +70,13 @@ export const metadata: Metadata = {
     siteName: "Tulmin",
     title: "Tulmin · Ecommerce Shipping Label Filter Software",
     description:
-      "Filter Meesho, Flipkart, and Amazon labels by SKU, quantity, courier, marketplace, and payment mode. Auto-detect shipping labels and tax invoices for faster dispatch.",
+      "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter by SKU, quantity, courier, marketplace, and payment mode, then crop and export clean dispatch PDFs.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Tulmin · Label Filter Software for Marketplace Sellers",
     description:
-      "Meesho, Flipkart, and Amazon sellers use Tulmin to filter, crop, sort, and export clean dispatch-ready label PDFs.",
+      "Tulmin helps Meesho, Flipkart, and Amazon sellers filter, crop, sort, and export clean dispatch-ready label PDFs.",
   },
   robots: {
     index: true,

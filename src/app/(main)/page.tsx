@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Label Filter Software for Meesho, Flipkart & Amazon Sellers",
   description:
-    "Filter, sort, crop, and export Meesho, Flipkart, and Amazon shipping labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode.",
+    "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then crop and export clean dispatch PDFs.",
   alternates: { canonical: `${getSiteUrl()}/` },
   keywords: [
     "label filter software",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Tulmin · Label Filter Software for Marketplace Sellers",
     description:
-      "Meesho, Flipkart, and Amazon sellers use Tulmin to filter labels, crop shipping labels, detect invoices, and export clean dispatch-ready PDFs.",
+      "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and payment mode.",
     url: `${getSiteUrl()}/`,
     type: "website",
   },
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tulmin · Label Filter Software for Marketplace Sellers",
     description:
-      "Filter by SKU, quantity, courier, marketplace, and payment mode. Auto-crop labels and prepare clean dispatch outputs.",
+      "Filter Meesho, Flipkart, and Amazon labels by SKU, quantity, courier, marketplace, and payment mode. Auto-crop labels and export clean PDFs.",
   },
 };
 
@@ -276,7 +276,7 @@ export default async function HomePage() {
               </h1>
               <div className="mt-5 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-3.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
                 <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
-                  Upload Meesho, Flipkart, or Amazon PDFs. Filter by SKU, QTY, payment, courier, and marketplace.
+                  Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter by SKU, QTY, payment, courier, and marketplace.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {heroActions.map((item) => (
