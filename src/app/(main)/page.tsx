@@ -91,12 +91,12 @@ const workflow = [
 ];
 
 const heroActions = [
-  ["Marketplace", "Meesho · Flipkart · Amazon"],
-  ["SKU", "Listing or mapped SKU"],
-  ["QTY", "1, 2, 3+"],
-  ["Payment", "COD / Prepaid"],
-  ["Courier", "Delhivery · E-Kart · ATS"],
-  ["Auto-crop", "Label or invoice"],
+  [Layers3, "Marketplace", "Meesho · Flipkart · Amazon"],
+  [Barcode, "SKU", "Listing or mapped SKU"],
+  [Boxes, "QTY", "1, 2, 3+"],
+  [BadgeCheck, "Payment", "COD / Prepaid"],
+  [Truck, "Courier", "Delhivery · E-Kart · ATS"],
+  [Scissors, "Auto-crop", "Label or invoice"],
 ];
 
 const marketplaceBadges = [
@@ -300,24 +300,50 @@ export default async function HomePage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
-                <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
-                  Tulmin AI turns mixed marketplace PDFs into exact dispatch files by SKU, QTY, payment, courier, and marketplace.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {heroActions.map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-950/[0.035] px-3 py-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.75)] dark:border-white/10 dark:bg-white/[0.065]"
-                    >
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
-                      <span className="truncate text-right text-xs font-semibold text-slate-900 dark:text-slate-100">{value}</span>
-                    </div>
-                  ))}
+              <div className="mt-4 max-w-2xl overflow-hidden rounded-[1.45rem] border border-slate-200 bg-white/82 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.65)] backdrop-blur dark:border-white/10 dark:bg-white/[0.05]">
+                <div className="flex flex-col gap-3 border-b border-slate-200/80 p-4 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#335cff] dark:text-[#91a3ff]">
+                      Dispatch control
+                    </p>
+                    <p className="mt-2 text-base font-semibold leading-7 text-slate-850 sm:text-lg dark:text-slate-100">
+                      Turn mixed marketplace PDFs into exact files for today&apos;s packing desk.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-200">
+                    PDF + ZIP ready
+                  </span>
                 </div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-400">
-                  Auto-detect shipping labels or tax invoices, then download clean PDF or ZIP files ready for printing and dispatch.
-                </p>
+                <div className="grid gap-px bg-slate-200/70 p-px sm:grid-cols-2 dark:bg-white/10">
+                  {heroActions.map(([Icon, label, value], index) => {
+                    const ActionIcon = Icon as typeof Layers3;
+                    return (
+                      <div
+                        key={label as string}
+                        className="motion-preview-card flex items-center gap-3 bg-white px-3 py-3.5 dark:bg-[#111b2b]"
+                        style={{ animationDelay: `${index * 70}ms` }}
+                      >
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-[#335cff] dark:bg-[#6b86ff]/14 dark:text-[#aebcff]">
+                          <ActionIcon className="size-4" strokeWidth={1.9} aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                            {label as string}
+                          </span>
+                          <span className="mt-0.5 block truncate text-sm font-semibold text-slate-950 dark:text-white">
+                            {value as string}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-start gap-2 p-4 text-sm font-medium leading-6 text-slate-600 dark:text-slate-400">
+                  <Check className="mt-1 size-4 shrink-0 text-emerald-500" strokeWidth={2} aria-hidden />
+                  <p>
+                    Auto-detect labels or invoices, then download clean files ready for printing and dispatch.
+                  </p>
+                </div>
               </div>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
