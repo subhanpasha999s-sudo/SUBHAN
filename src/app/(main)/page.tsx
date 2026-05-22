@@ -286,7 +286,7 @@ export default async function HomePage() {
                 Built for marketplace sellers
               </div>
               <h1 className="mt-6 max-w-[14ch] text-[clamp(2.85rem,5vw,5.45rem)] font-semibold leading-[1.02] text-slate-950 sm:max-w-[15ch] dark:text-white">
-                Filter and auto-crop Meesho, Flipkart, and Amazon labels.
+                AI label filtering and auto-crop for Meesho, Flipkart, and Amazon.
               </h1>
               <div className="mt-5 grid max-w-xl gap-2 sm:grid-cols-3">
                 {marketplaceBadges.map(([name, action], index) => (

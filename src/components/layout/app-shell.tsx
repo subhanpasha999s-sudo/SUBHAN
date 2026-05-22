@@ -102,21 +102,10 @@ const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
 
 function SidebarBrandSigil({ compact = false }: { compact?: boolean }) {
   return (
-    <span
-      className={cn(
-        "relative isolate flex shrink-0 items-center justify-center",
-        compact ? "size-[3.25rem]" : "size-10"
-      )}
-      aria-hidden
-    >
-      <span className="absolute inset-0 rounded-[1.15rem] bg-[radial-gradient(circle_at_30%_18%,rgba(146,170,255,0.18),transparent_42%),linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.015))] shadow-[inset_0_1px_0_rgba(255,255,255,0.11),0_18px_34px_-28px_rgba(77,120,255,0.95)] ring-1 ring-white/[0.07]" />
-      <span className="absolute -inset-1 rounded-[1.35rem] bg-[conic-gradient(from_120deg,transparent,rgba(251,191,36,0.18),rgba(137,177,255,0.22),transparent)] opacity-60 blur-md" />
-      <TulminLogoMark
-        className={cn("relative z-10", compact ? "size-10" : "size-8")}
-        imageClassName="drop-shadow-[0_8px_18px_rgba(0,0,0,0.32)]"
-      />
-      <span className="absolute right-1.5 top-1.5 z-20 size-1.5 rounded-full bg-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.9)]" />
-    </span>
+    <TulminLogoMark
+      className={cn("shrink-0", compact ? "size-11" : "size-9")}
+      imageClassName="drop-shadow-[0_8px_18px_rgba(0,0,0,0.22)]"
+    />
   );
 }
 
