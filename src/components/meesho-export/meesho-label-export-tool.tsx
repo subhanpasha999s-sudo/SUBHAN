@@ -1851,7 +1851,7 @@ function LabelsMobileCards({
           Select all
         </span>
         <span className="ml-auto text-[12px] tabular-nums text-muted-foreground">
-          {rows.length.toLocaleString()} labels loaded
+          {rows.length.toLocaleString()} label{rows.length === 1 ? "" : "s"} loaded
         </span>
       </div>
       <div
@@ -2376,6 +2376,11 @@ export function MeeshoLabelExportTool() {
     }
     return sortMeeshoLabels(base, sortKey, sortDir);
   }, [enrichedRows, filters, sortKey, sortDir, sourceOrderByImportId]);
+  const visibleMappedCount = React.useMemo(
+    () => partitionByMasterMapping(filteredLabels).mapped.length,
+    [filteredLabels]
+  );
+  const visibleNeedReviewCount = Math.max(0, filteredLabels.length - visibleMappedCount);
 
   const labelFilterActiveCount = React.useMemo(() => {
     let c = 0;
@@ -3993,7 +3998,10 @@ export function MeeshoLabelExportTool() {
                     </h2>
                     <span className="shrink-0 text-[12px] font-medium tabular-nums text-muted-foreground">
                       {filteredLabels.length.toLocaleString()}
-                      <span className="font-normal"> labels loaded</span>
+                      <span className="font-normal">
+                        {" "}
+                        label{filteredLabels.length === 1 ? "" : "s"} loaded
+                      </span>
                     </span>
                   </div>
                 ) : (
@@ -4068,16 +4076,16 @@ export function MeeshoLabelExportTool() {
                 <div className="flex flex-col gap-3">
                   <div className="-mx-1 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <MobileStatPill
-                      label="Total"
-                      value={enrichedRows.length.toLocaleString()}
+                      label="Visible"
+                      value={filteredLabels.length.toLocaleString()}
                     />
                     <MobileStatPill
                       label="Matched"
-                      value={mappedRows.length.toLocaleString()}
+                      value={visibleMappedCount.toLocaleString()}
                     />
                     <MobileStatPill
-                      label="Remaining"
-                      value={(enrichedRows.length - mappedRows.length).toLocaleString()}
+                      label="Review"
+                      value={visibleNeedReviewCount.toLocaleString()}
                     />
                     <MobileStatPill
                       label="Selected"
