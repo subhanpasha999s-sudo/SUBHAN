@@ -15,7 +15,7 @@ export const WORKSPACE_MAX_W = "max-w-[1224px]";
  */
 export const WORKSPACE_GUTTERS = "px-4 sm:px-6 lg:px-8";
 
-/** Desktop sidebar — expanded (260px) per premium SaaS rail spec */
+/** Desktop sidebar — expanded (260px) per premium workspace rail spec */
 export const SIDEBAR_W_EXPANDED = "16.25rem";
 /** Collapsed icon rail — 78px */
 export const SIDEBAR_W_COLLAPSED = "4.875rem";
@@ -86,7 +86,7 @@ export function WorkspaceModulePageStack({
   );
 }
 
-/** Premium SaaS surface — soft elevation, minimal border, subtle hover depth */
+/** Premium workspace surface — soft elevation, minimal border, subtle hover depth */
 export function WorkspaceSurfaceCard({
   children,
   className,

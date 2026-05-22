@@ -116,7 +116,7 @@ export function AdminOtpLogin() {
             Private publishing console for Tulmin content.
           </h1>
           <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
-            This area is separate from the seller SaaS dashboard. Only allowlisted
+            This area is separate from the seller AI workspace. Only allowlisted
             Tulmin admins can create, edit, publish, or delete blog content.
           </p>
         </section>

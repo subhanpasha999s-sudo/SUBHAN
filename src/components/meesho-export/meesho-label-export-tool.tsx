@@ -451,7 +451,7 @@ const FILTER_SELECT_POPUP_SIDE = {
   sideOffset: 8 as const,
 };
 
-/** Cleaner SaaS menu shell (muted border + depth). */
+/** Cleaner app menu shell (muted border + depth). */
 const FILTER_SELECT_MENU_SURFACE_CLASS =
   "rounded-xl border-border/65 bg-popover px-1.5 py-1.5 text-[13px] shadow-lg shadow-slate-200/65 ring-1 ring-border/30 dark:bg-popover dark:shadow-black/40 dark:ring-white/[0.06]";
 
@@ -465,7 +465,7 @@ const PREMIUM_FILTER_INNER_CLASS =
 const PREMIUM_FIELD_LABEL_CLASS =
   "mb-1.5 block text-[12px] font-semibold leading-none tracking-tight text-foreground/55 dark:text-muted-foreground";
 
-/** Sentence case — easier to scan than all-caps; matches premium SaaS filter panels. */
+/** Sentence case — easier to scan than all-caps; matches premium filter panels. */
 const MOBILE_FILTER_LABEL_CLASS =
   "mb-1.5 block text-[13px] font-semibold leading-snug tracking-tight text-foreground/80 dark:text-foreground/75";
 

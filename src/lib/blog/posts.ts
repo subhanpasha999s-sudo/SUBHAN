@@ -57,7 +57,7 @@ export type BlogPost = {
 };
 
 const CTA_DEFAULT =
-  "Tulmin helps Meesho, Flipkart, and Amazon sellers filter, sort, crop, and export shipping labels by SKU, quantity, courier, marketplace, and payment mode so dispatch teams can work faster with fewer wrong shipments.";
+  "Tulmin AI helps Meesho, Flipkart, and Amazon sellers filter, sort, auto-crop, and export shipping labels by SKU, quantity, courier, marketplace, and payment mode so dispatch teams can work faster with fewer wrong shipments.";
 
 const standardSections = (
   problem: string,
@@ -72,7 +72,7 @@ const standardSections = (
   {
     heading: "Where Tulmin fits",
     body:
-      "Tulmin fits after label PDF download. Sellers upload marketplace PDFs, filter by SKU, QTY, courier, payment mode, and marketplace, then export clean PDF or ZIP files for dispatch.",
+      "Tulmin AI fits after label PDF download. Sellers upload marketplace PDFs, filter by SKU, QTY, courier, payment mode, and marketplace, then export clean PDF or ZIP files for dispatch.",
   },
 ];
 
@@ -173,7 +173,7 @@ export const BLOG_POSTS: BlogPost[] = [
     readTime: "8 min read",
     publishedOn: "2026-05-21",
     trending: true,
-    keywords: ["amazon shipping label software", "amazon invoice label matcher", "amazon shipping label filter", "auto SKU extraction"],
+    keywords: ["amazon shipping label AI", "amazon invoice label matcher", "amazon shipping label filter", "auto SKU extraction"],
     sections: standardSections(
       "Amazon label files can include a shipping label page and a separate tax invoice page. The shipping page may not always show SKU and quantity clearly for packers.",
       "If invoice and label pages are handled separately, dispatch staff may need to open multiple pages just to confirm product and quantity.",
@@ -287,13 +287,13 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: "bulk-label-processing-for-marketplace-sellers",
-    title: "Bulk Label Processing for Meesho, Flipkart and Amazon Sellers",
+    title: "Bulk Label Processing with Tulmin AI for Meesho, Flipkart and Amazon Sellers",
     description:
       "How sellers can process hundreds or thousands of marketplace labels with live progress, filtering, cropping, and clean PDF exports.",
     category: "Label Filtering",
     readTime: "6 min read",
     publishedOn: "2026-05-18",
-    keywords: ["bulk label processing", "label filter software", "shipping label automation", "ecommerce dispatch software"],
+    keywords: ["bulk label processing", "AI label filter", "marketplace label AI", "shipping label automation", "ecommerce dispatch AI"],
     sections: standardSections(
       "Large label PDFs can slow teams down when every export, crop, or filter action feels uncertain.",
       "Bulk batches need responsive progress feedback, efficient PDF export, and a workflow that does not force sellers into many small manual files.",
@@ -301,27 +301,27 @@ export const BLOG_POSTS: BlogPost[] = [
       "The dispatch team can trust the system during heavy work instead of wondering whether the browser is stuck."
     ),
     faqs: [
-      { q: "Can label software handle large PDFs?", a: "It should show progress, keep the page responsive, and avoid unnecessary work for filtered exports." },
+      { q: "Can an AI label filter handle large PDFs?", a: "It should show progress, keep the page responsive, and avoid unnecessary work for filtered exports." },
       { q: "Should large batches be split?", a: "Split only when it helps the dispatch workflow. The tool should still make large batches manageable." },
     ],
   },
   {
     slug: "marketplace-label-filter-software-buying-guide",
-    title: "How to Choose Label Filter Software for Marketplace Dispatch",
+    title: "How to Choose an AI Label Filter for Marketplace Dispatch",
     description:
       "A buying guide for Indian sellers comparing label filtering, SKU sorting, courier segregation, invoice matching, and label crop workflows.",
     category: "Label Filtering",
     readTime: "8 min read",
     publishedOn: "2026-05-17",
-    keywords: ["label filter software", "ecommerce dispatch software", "shipping label automation", "ecommerce warehouse tools"],
+    keywords: ["AI label filter", "auto crop AI", "marketplace label AI", "ecommerce dispatch AI", "shipping label automation", "ecommerce warehouse tools"],
     sections: standardSections(
       "Sellers often look for separate tools for label crop, SKU search, courier sorting, and PDF export. That creates more tabs and more manual work.",
-      "Marketplace sellers need a dispatch workflow, not just a PDF utility. The software should understand Meesho, Flipkart, and Amazon label problems.",
+      "Marketplace sellers need a dispatch workflow, not just a PDF utility. The AI should understand Meesho, Flipkart, and Amazon label problems.",
       "Check for SKU-wise sorting, quantity-wise filtering, courier-wise segregation, COD/prepaid filtering, auto crop, tax invoice detection, and Amazon invoice matching.",
-      "The right software makes the dispatch output obvious within seconds and helps teams avoid wrong shipment and quantity mismatch errors."
+      "The right AI workflow makes the dispatch output obvious within seconds and helps teams avoid wrong shipment and quantity mismatch errors."
     ),
     faqs: [
-      { q: "What is the most important feature in label filter software?", a: "Accurate filtering by SKU, quantity, courier, marketplace, and payment mode is the foundation." },
+      { q: "What is the most important feature in an AI label filter?", a: "Accurate filtering by SKU, quantity, courier, marketplace, and payment mode is the foundation." },
       { q: "Should the tool support multiple marketplaces?", a: "Yes, if your team sells on Meesho, Flipkart, and Amazon, one workflow is easier than separate tools." },
     ],
   },

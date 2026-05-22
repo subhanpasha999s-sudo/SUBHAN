@@ -27,30 +27,33 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Label Filter Software for Meesho, Flipkart & Amazon Sellers",
+  title: "Tulmin AI Label Filter & Auto-Crop AI for Meesho, Flipkart & Amazon",
   description:
-    "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then crop and export clean dispatch PDFs.",
+    "Tulmin AI is a label filter and auto-crop AI for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then export clean dispatch PDFs.",
   alternates: { canonical: `${getSiteUrl()}/` },
   keywords: [
-    "label filter software",
+    "Tulmin AI",
+    "AI label filter",
+    "auto crop AI",
+    "marketplace label AI",
     "meesho label filter",
     "flipkart label sorter",
-    "amazon shipping label software",
+    "amazon shipping label filter AI",
     "sku-wise label sorting",
     "courier-wise label sorter",
     "shipping label automation",
     "ecommerce dispatch software",
   ],
   openGraph: {
-    title: "Tulmin · Label Filter Software for Marketplace Sellers",
+    title: "Tulmin AI · Label Filter & Auto-Crop AI for Marketplace Sellers",
     description:
-      "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and payment mode.",
+      "Tulmin AI filters Meesho, Flipkart, and Amazon labels by SKU, quantity, courier, marketplace, and payment mode, then auto-crops clean output.",
     url: `${getSiteUrl()}/`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tulmin · Label Filter Software for Marketplace Sellers",
+    title: "Tulmin AI · Label Filter & Auto-Crop AI",
     description:
       "Filter Meesho, Flipkart, and Amazon labels by SKU, quantity, courier, marketplace, and payment mode. Auto-crop labels and export clean PDFs.",
   },
@@ -104,8 +107,8 @@ function ProductPreview() {
   ];
 
   const outputCards = [
-    [Filter, "Filter every marketplace", "Meesho · Flipkart · Amazon"],
-    [Scissors, "Crop labels cleanly", "Shipping labels or invoices"],
+    [Filter, "AI filter labels", "Meesho · Flipkart · Amazon"],
+    [Scissors, "Auto-crop AI", "Shipping labels or invoices"],
     [PackageCheck, "Prevent dispatch mistakes", "SKU · QTY · courier checks"],
   ];
 
@@ -113,7 +116,7 @@ function ProductPreview() {
     <div className="scroll-fade-up motion-soft-float relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-[#0d1728] shadow-[0_28px_100px_-54px_rgb(0_0_0/0.95)] ring-1 ring-white/[0.05]">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-white">Marketplace label workspace</p>
+          <p className="text-sm font-semibold text-white">Tulmin AI label workspace</p>
           <p className="text-[11px] font-medium text-slate-400">Meesho, Flipkart, and Amazon in one run</p>
         </div>
         <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-300/15">
@@ -153,7 +156,7 @@ function ProductPreview() {
               <div>
                 <p className="text-sm font-semibold text-white">Ready for all three marketplaces</p>
                 <p className="mt-1 text-xs font-medium leading-5 text-slate-400">
-                  Filter, crop, and export without separating files first.
+                  AI filter, auto-crop, and export without separating files first.
                 </p>
               </div>
               <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-200 ring-1 ring-emerald-300/15">
@@ -269,14 +272,14 @@ export default async function HomePage() {
             <div className="scroll-fade-up max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300">
                 <Clock3 className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                Built for sellers on Meesho, Flipkart, and Amazon
+                Tulmin AI for Meesho, Flipkart, and Amazon sellers
               </div>
               <h1 className="mt-6 max-w-[13ch] text-[clamp(3rem,5.6vw,6rem)] font-semibold leading-[1.03] tracking-tight text-slate-950 sm:max-w-[14ch] dark:text-white">
-                Filter, crop, and sort marketplace labels before dispatch.
+                AI label filtering and auto-crop before dispatch.
               </h1>
               <div className="mt-5 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-3.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
                 <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
-                  Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter by SKU, QTY, payment, courier, and marketplace.
+                  Tulmin AI filters Meesho, Flipkart, and Amazon labels by SKU, QTY, payment, courier, and marketplace.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {heroActions.map((item) => (
@@ -328,12 +331,12 @@ export default async function HomePage() {
         <section id="wins" className="scroll-mt-24 border-y border-slate-200 bg-white py-14 dark:border-white/10 dark:bg-white/[0.025]">
           <div className="scroll-fade-up mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold text-[#335cff]">What Tulmin handles</p>
+              <p className="text-sm font-semibold text-[#335cff]">What Tulmin AI handles</p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
                 SKU-wise sorting, courier-wise segregation, and label cropping in one dispatch workflow.
               </h2>
               <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">
-                Tulmin helps sellers reduce wrong shipments, quantity mismatch, and packing confusion before labels reach the dispatch table.
+                Tulmin AI helps sellers reduce wrong shipments, quantity mismatch, and packing confusion before labels reach the dispatch table.
               </p>
             </div>
 
@@ -367,7 +370,7 @@ export default async function HomePage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-sky-200 dark:text-[#91a3ff]">
-                  Dispatch workflow
+                  AI dispatch workflow
                   </p>
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
                     Filter, crop, or filter + crop based on today&apos;s packing queue.
@@ -399,7 +402,7 @@ export default async function HomePage() {
                 </h2>
               </div>
               <p className="max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-                One workspace for different PDF formats, filters, crop rules, and Amazon invoice matching.
+                One AI workspace for different PDF formats, filters, crop rules, and Amazon invoice matching.
               </p>
             </div>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -487,7 +490,7 @@ export default async function HomePage() {
             <div>
               <p className="text-sm font-semibold text-white/75">Try the real workflow</p>
               <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight">
-                Upload one Meesho, Flipkart, or Amazon PDF and see Tulmin organize it.
+                Upload one Meesho, Flipkart, or Amazon PDF and see Tulmin AI organize it.
               </h2>
             </div>
             <Link
@@ -508,7 +511,7 @@ export default async function HomePage() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8 dark:text-slate-400">
           <div>
             <p className="font-semibold text-slate-950 dark:text-white">Tulmin</p>
-            <p className="mt-1">Filter, crop, and organize marketplace labels.</p>
+            <p className="mt-1">AI filter and auto-crop for marketplace labels.</p>
           </div>
           <nav className="flex flex-wrap gap-4">
             <Link href="/blog" className="hover:text-slate-950 dark:hover:text-white">

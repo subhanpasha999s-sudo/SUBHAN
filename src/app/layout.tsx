@@ -24,13 +24,21 @@ const geistMono = localFont({
 const siteUrl = getSiteUrl();
 
 const SEO_KEYWORDS = [
-  "label filter software",
+  "Tulmin AI",
+  "AI label filter",
+  "AI shipping label filter",
+  "auto crop AI",
+  "label filter AI",
+  "marketplace label AI",
   "meesho label filter",
+  "meesho label filter AI",
   "meesho label cropper",
   "meesho sku filter",
-  "amazon shipping label software",
+  "amazon shipping label filter AI",
+  "amazon shipping label AI",
   "amazon invoice label matcher",
   "flipkart label sorter",
+  "flipkart label filter AI",
   "flipkart label filter",
   "shipping label automation",
   "shipping label crop tool",
@@ -57,26 +65,26 @@ const SEO_KEYWORDS = [
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Tulmin · Label Filter Software for Meesho, Flipkart & Amazon Sellers",
+    default: "Tulmin AI · Label Filter & Auto-Crop AI for Marketplace Sellers",
     template: "%s · Tulmin",
   },
   description:
-    "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then crop and export clean dispatch PDFs.",
+    "Tulmin AI is a label filter and auto-crop AI for Meesho, Flipkart, and Amazon sellers. Filter by SKU, quantity, courier, marketplace, and payment mode, then export clean dispatch PDFs.",
   keywords: SEO_KEYWORDS,
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: siteUrl,
     siteName: "Tulmin",
-    title: "Tulmin · Ecommerce Shipping Label Filter Software",
+    title: "Tulmin AI · Ecommerce Shipping Label Filter & Auto-Crop AI",
     description:
-      "Tulmin is label filter software for Meesho, Flipkart, and Amazon sellers. Filter by SKU, quantity, courier, marketplace, and payment mode, then crop and export clean dispatch PDFs.",
+      "Tulmin AI helps Meesho, Flipkart, and Amazon sellers filter labels, auto-crop shipping labels or invoices, and export clean dispatch PDFs.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tulmin · Label Filter Software for Marketplace Sellers",
+    title: "Tulmin AI · Label Filter & Auto-Crop AI",
     description:
-      "Tulmin helps Meesho, Flipkart, and Amazon sellers filter, crop, sort, and export clean dispatch-ready label PDFs.",
+      "Filter Meesho, Flipkart, and Amazon labels with Tulmin AI. Sort by SKU, quantity, courier, marketplace, and payment mode, then auto-crop clean output.",
   },
   robots: {
     index: true,
@@ -109,7 +117,7 @@ const SCHEMA_JSON_LD = {
       name: "Tulmin",
       url: siteUrl,
       description:
-        "Tulmin is ecommerce shipping label software for Meesho, Flipkart, and Amazon sellers who need SKU-wise sorting, courier-wise segregation, label cropping, and faster warehouse dispatch.",
+        "Tulmin AI is an ecommerce shipping label filter and auto-crop workflow for Meesho, Flipkart, and Amazon sellers who need SKU-wise sorting, courier-wise segregation, label cropping, and faster warehouse dispatch.",
       inLanguage: "en-IN",
     },
     {
@@ -138,7 +146,7 @@ const SCHEMA_JSON_LD = {
         priceCurrency: "INR",
       },
       description:
-        "Tulmin helps Indian ecommerce dispatch teams upload marketplace label PDFs, filter by SKU, quantity, payment, courier, and marketplace, crop shipping labels or invoices, and export clean PDF or ZIP files.",
+        "Tulmin AI helps Indian ecommerce dispatch teams upload marketplace label PDFs, filter by SKU, quantity, payment, courier, and marketplace, auto-crop shipping labels or invoices, and export clean PDF or ZIP files.",
     },
     {
       "@type": "FAQPage",

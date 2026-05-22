@@ -7,22 +7,25 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Marketplace Dispatch Blog for Meesho, Flipkart & Amazon Sellers",
+  title: "Tulmin AI Blog for Meesho, Flipkart & Amazon Dispatch",
   description:
-    "Practical dispatch guides for Indian ecommerce sellers: label filtering, SKU-wise sorting, courier segregation, Amazon invoice matching, and warehouse productivity.",
+    "Practical Tulmin AI dispatch guides for Indian ecommerce sellers: label filtering, auto-crop, SKU-wise sorting, courier segregation, Amazon invoice matching, and warehouse productivity.",
   alternates: { canonical: `${getSiteUrl()}/blog` },
   keywords: [
-    "label filter software",
+    "Tulmin AI",
+    "AI label filter",
+    "auto crop AI",
+    "marketplace label AI",
     "meesho label filter",
     "flipkart label sorter",
-    "amazon shipping label software",
+    "amazon shipping label filter AI",
     "sku-wise label sorting",
     "courier-wise label sorter",
     "warehouse dispatch management",
     "ecommerce dispatch software",
   ],
   openGraph: {
-    title: "Tulmin Blog · Ecommerce Label Filtering and Dispatch Guides",
+    title: "Tulmin AI Blog · Ecommerce Label Filtering and Auto-Crop Guides",
     description:
       "Helpful guides for Meesho, Flipkart, and Amazon sellers who want fewer wrong shipments, cleaner label batches, and faster dispatch.",
     url: `${getSiteUrl()}/blog`,

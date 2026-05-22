@@ -54,7 +54,7 @@ export function TulminBrand({
   textClassName,
   titleClassName,
   subtitleClassName,
-  subtitle = "Dispatch SaaS",
+  subtitle = "Dispatch AI",
   showSubtitle = true,
   priority = false,
 }: TulminBrandProps) {
