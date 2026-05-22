@@ -265,6 +265,7 @@ const SELECTED_MULTI_SKU_ZIP_FILENAME = "tulmin-selected-skus.zip";
 const CROP_ZIP_MAX_LABELS = 700;
 const AUTO_CROP_PREP_MAX_IMPORT_FILES = 80;
 const AUTO_CROP_PREP_MAX_LABELS = 700;
+const CROP_EXPORT_BATCH_SIZE = 140;
 
 type SkuExportBucket = { masterSku: string | null; rows: EnrichedMeeshoLabelRow[] };
 
@@ -3372,6 +3373,20 @@ export function MeeshoLabelExportTool() {
     const parts: Uint8Array[] = [];
     let pageCount = 0;
     const docs = docsOverride ?? (await ensureCropperDocsForRows(sortedRows));
+    const nonAmazonPageKeys = rowPageKeySet(sortedRows.filter((row) => row.marketplace !== "amazon"));
+    const cropEntriesByPageKey = new Map<string, CropExportEntry[]>();
+
+    if (nonAmazonPageKeys.size > 0) {
+      for (const doc of docs) {
+        for (const page of doc.pages) {
+          const key = `${doc.id}:${page.pageIndex}`;
+          if (!nonAmazonPageKeys.has(key)) continue;
+          const entries = cropEntriesForPage(doc, page, mode);
+          if (entries.length > 0) cropEntriesByPageKey.set(key, entries);
+        }
+      }
+    }
+
     let pendingCropEntries: CropExportEntry[] = [];
     let reportedDone = 0;
 
@@ -3407,9 +3422,10 @@ export function MeeshoLabelExportTool() {
         continue;
       }
 
-      const entries = buildAutoCropEntries(mode, rowPageKeySet([row]), docs);
+      const entries = cropEntriesByPageKey.get(`${row.importId}:${row.rawPageIndex}`) ?? [];
       if (entries.length === 0) continue;
       pendingCropEntries.push(...entries);
+      if (pendingCropEntries.length >= CROP_EXPORT_BATCH_SIZE) await flushPendingCropEntries();
     }
     await flushPendingCropEntries();
 
