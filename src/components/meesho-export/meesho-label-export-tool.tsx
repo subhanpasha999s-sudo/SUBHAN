@@ -1341,7 +1341,6 @@ function LabelPdfFilterFields({
               </MobileFilterChip>
             ))}
           </div>
-          <div className="mt-3">{marketplaceBlock}</div>
         </div>
 
         <div>
@@ -1378,7 +1377,6 @@ function LabelPdfFilterFields({
               </MobileFilterChip>
             ))}
           </div>
-          <div className="mt-3">{paymentBlock}</div>
         </div>
 
         <div>
@@ -3538,7 +3536,7 @@ export function MeeshoLabelExportTool() {
               type="file"
               accept="application/pdf,.pdf"
               multiple
-              className="hidden"
+              className="sr-only"
               id="meesho-pdf-upload"
               disabled={parsing}
               onChange={onFileInput}
@@ -3607,15 +3605,15 @@ export function MeeshoLabelExportTool() {
                     </div>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="min-h-11 w-full justify-center font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
-                  disabled={parsing}
-                  onClick={() => fileInputRef.current?.click()}
+                <label
+                  htmlFor="meesho-pdf-upload"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "min-h-11 w-full cursor-pointer touch-manipulation justify-center rounded-xl font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
+                  )}
                 >
                   Choose PDFs
-                </Button>
+                </label>
               </>
             )}
           </div>
@@ -3657,7 +3655,7 @@ export function MeeshoLabelExportTool() {
                   key={key}
                   type="button"
                   className={cn(
-                    "group flex min-h-[4.25rem] items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                    "group flex min-h-[4.25rem] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors",
                     processingMode === key
                       ? "border-primary/70 bg-primary/10 text-foreground"
                       : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/35 hover:text-foreground"
