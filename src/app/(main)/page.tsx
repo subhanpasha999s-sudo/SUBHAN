@@ -95,7 +95,7 @@ const heroActions = [
   [Barcode, "SKU", "Listing or mapped SKU"],
   [Boxes, "QTY", "1, 2, 3+"],
   [BadgeCheck, "Payment", "COD / Prepaid"],
-  [Truck, "Courier", "Delhivery · E-Kart · ATS"],
+  [Truck, "Courier", "Delhivery · E-Kart · ATS · etc."],
   [Scissors, "Auto-crop", "Label or invoice"],
 ];
 
@@ -307,7 +307,7 @@ export default async function HomePage() {
                       Dispatch control
                     </p>
                     <p className="mt-2 text-base font-semibold leading-7 text-slate-850 sm:text-lg dark:text-slate-100">
-                      Turn mixed marketplace PDFs into exact files for today&apos;s packing desk.
+                      Turn mixed marketplace labels into exact files for today&apos;s packing desk.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-200">
