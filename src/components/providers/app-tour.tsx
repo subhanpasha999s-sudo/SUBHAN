@@ -32,16 +32,16 @@ import {
 
 // ─── persistence ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "tulmin.onboarding-tour-v3";
+const STORAGE_KEY = "tulmin.onboarding-tour-v4";
 const VISITOR_KEY = "tulmin.visitor-id-v1";
 const TOUR_REPEAT_MS = 30 * 24 * 60 * 60 * 1000;
 const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
 
 type PersistedTour = {
-  v: 3;
+  v: 4;
   visitorId: string;
   status: "in_progress" | "done" | "skipped";
-  /** Step index 0–4 while in progress; 5 = reached completion card (optional) */
+  /** Step index while in progress; TOTAL_MAIN = reached completion card (optional) */
   step: number;
   /** Last time this visitor was given the tour. */
   shownAt: number;
@@ -96,13 +96,13 @@ function readPersisted(): PersistedTour | null {
   if (!raw) return null;
   try {
     const o = JSON.parse(raw) as Partial<PersistedTour>;
-    if (o.v !== 3 || !o.status || typeof o.visitorId !== "string") return null;
-    if (typeof o.step !== "number" || o.step < 0 || o.step > 5) return null;
+    if (o.v !== 4 || !o.status || typeof o.visitorId !== "string") return null;
+    if (typeof o.step !== "number" || o.step < 0 || o.step > TOTAL_MAIN) return null;
     if (typeof o.shownAt !== "number" || typeof o.updatedAt !== "number") {
       return null;
     }
     return {
-      v: 3,
+      v: 4,
       visitorId: o.visitorId,
       status: o.status,
       step: o.step,
@@ -140,6 +140,7 @@ type TourStepDef = {
 function canAutoLaunchTour(pathname: string) {
   const p = pathname || "/";
   if (
+    p === "/" ||
     p.startsWith("/login") ||
     p.startsWith("/blog") ||
     p.startsWith("/privacy") ||
@@ -156,7 +157,7 @@ function shouldRouteToWorkspaceBeforeTour(pathname: string) {
 
 function stepTitle(step: TourStepDef, launchKind: TourLaunchKind) {
   if (step.id === "welcome" && launchKind === "signup") {
-    return "Set up your Tulmin workspace";
+    return "Set up Tulmin AI";
   }
   if (step.id === "welcome" && launchKind === "monthly_refresh") {
     return "Quick workspace refresher";
@@ -166,7 +167,7 @@ function stepTitle(step: TourStepDef, launchKind: TourLaunchKind) {
 
 function stepDescription(step: TourStepDef, launchKind: TourLaunchKind) {
   if (step.id === "welcome" && launchKind === "signup") {
-    return "Your account is ready. Here is the fastest path from uploaded labels to dispatch-ready exports.";
+    return "Your account is ready. Here is the fastest path from marketplace labels to dispatch-ready exports.";
   }
   if (step.id === "welcome" && launchKind === "monthly_refresh") {
     return "A short refresher so your team remembers the fastest label workflow.";
@@ -186,40 +187,52 @@ const MAIN_STEPS: TourStepDef[] = [
     id: "welcome",
     target: null,
     placement: "center",
-    title: "Welcome to Tulmin 👋",
-    description: "Filter and download Meesho labels in minutes instead of hours.",
-    badge: "Saves Hours Daily",
-    flow: ["Upload", "Filter", "Download"],
+    title: "Run marketplace labels with Tulmin AI",
+    description: "Filter, auto-crop, and export Meesho, Flipkart, and Amazon labels from one workspace.",
+    badge: "Dispatch AI",
+    flow: ["Upload labels", "Filter or crop", "Export clean files"],
   },
   {
     id: "login",
     target: '[data-tour="login-cloud"]',
     placement: "bottom",
-    title: "Your SKU Mappings Stay Saved ☁️",
+    title: "Keep SKU maps backed up",
     description:
-      "Login once and Tulmin securely remembers your SKU mappings automatically.",
-    benefits: ["No repeated mapping", "Faster future uploads", "Access from any device"],
-    flow: ["Map Once", "Auto Save", "Auto Detect"],
+      "Sign in when you want Tulmin to remember SKU mappings and keep your workspace available across browsers.",
+    benefits: ["No repeated mapping", "Faster future label runs", "Continue from another device"],
+    flow: ["Map once", "Sync safely", "Use again"],
     yOffset: 14,
   },
   {
     id: "sku",
     target: '[data-tour="sku-map-link"]',
     placement: "bottom",
-    title: "Map SKU Once",
-    description: "Connect supplier SKU with your master SKU one time only.",
-    benefit: "Tulmin auto-remembers future mappings.",
-    badge: "Removes Repetitive Work",
+    title: "Map SKUs once",
+    description: "Download the template, fill your marketplace SKU, then upload it back.",
+    benefit: "Tulmin can match listing SKUs to your master SKU during label runs.",
+    badge: "SKU clarity",
     yOffset: 12,
   },
   {
     id: "upload",
     target: '[data-tour="import-pdf"]',
     placement: "bottom",
-    title: "Upload & Filter Instantly",
-    description: "Upload labels and filter by SKU, courier, quantity, and more.",
-    benefit: "Find exactly what you need in seconds.",
-    badge: "Smart Filtering",
+    title: "Upload marketplace labels",
+    description: "Drop Meesho, Flipkart, and Amazon PDFs together. Tulmin detects marketplace, SKU, QTY, courier, and payment mode.",
+    benefit: "No need to separate files before starting.",
+    badge: "Auto detect",
+    route: "/export-labels",
+    yOffset: 14,
+  },
+  {
+    id: "filter-crop",
+    target: '[data-tour="filter-bar"]',
+    placement: "bottom",
+    title: "Filter or auto-crop",
+    description: "Use live filters for SKU, quantity, payment, courier, and marketplace, or auto-crop shipping labels and invoices.",
+    benefit: "Amazon labels keep SKU + QTY on the shipping label when invoice data is matched.",
+    badge: "Filter + crop AI",
+    flow: ["SKU", "QTY", "Courier", "Auto-crop"],
     route: "/export-labels",
     yOffset: 14,
   },
@@ -227,19 +240,19 @@ const MAIN_STEPS: TourStepDef[] = [
     id: "download",
     target: '[data-tour="download-btn"]',
     placement: "top",
-    title: "Download Ready Labels",
-    description: "Export perfectly filtered labels in one click.",
-    benefit: "Turn hours of work into minutes.",
-    badge: "One Click Export",
+    title: "Download clean output",
+    description: "Export the selected labels as PDF or bundle SKU-wise files as ZIP.",
+    benefit: "Your team prints only the labels needed for dispatch.",
+    badge: "Print ready",
     route: "/export-labels",
     yOffset: -12,
   },
 ];
 
 const COMPLETION = {
-  title: "You're Ready 🚀",
-  description: "Tulmin is ready to simplify your entire label workflow.",
-  cta: "Start Using Tulmin",
+  title: "Tulmin AI is ready",
+  description: "Your workspace is ready for marketplace label filtering, auto-cropping, and clean dispatch exports.",
+  cta: "Start label run",
 };
 
 const SPOTLIGHT_PADDING = 12;
@@ -877,7 +890,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
 
   const [mounted, setMounted] = React.useState(false);
   const [active, setActive] = React.useState(false);
-  /** 0–4 main steps, 5 = completion */
+  /** Main step index; TOTAL_MAIN = completion */
   const [stepIndex, setStepIndex] = React.useState(0);
   const [launchKind, setLaunchKind] = React.useState<TourLaunchKind>("first_visit");
   const [spotlightRect, setSpotlightRect] = React.useState<SpotlightRect>(null);
@@ -910,7 +923,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
         setStepIndex(0);
         setActive(true);
         writePersisted({
-          v: 3,
+          v: 4,
           visitorId,
           status: "in_progress",
           step: 0,
@@ -1015,7 +1028,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
     const previous = readPersisted();
     const now = Date.now();
     writePersisted({
-      v: 3,
+      v: 4,
       visitorId,
       status,
       step: idx,
@@ -1064,7 +1077,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
     setStepIndex(0);
     setActive(true);
     writePersisted({
-      v: 3,
+      v: 4,
       visitorId,
       status: "in_progress",
       step: 0,

@@ -374,12 +374,27 @@ function SidebarChrome({
             >
               <ChevronsLeft className="size-5 rotate-180" strokeWidth={1.85} />
             </button>
-            <SidebarBrandSigil compact />
+            <Link
+              href="/"
+              prefetch={false}
+              title="Back to Tulmin landing page"
+              aria-label="Back to Tulmin landing page"
+              className="rounded-xl outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]"
+            >
+              <SidebarBrandSigil compact />
+            </Link>
           </>
         ) : (
           <>
             <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <Link
+                href="/"
+                prefetch={false}
+                onClick={variant === "mobile" ? onMobileClose : undefined}
+                title="Back to Tulmin landing page"
+                aria-label="Back to Tulmin landing page"
+                className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar)]"
+              >
                 <SidebarBrandSigil />
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
@@ -389,7 +404,7 @@ function SidebarChrome({
                     Dispatch AI workspace
                   </span>
                 </span>
-              </div>
+              </Link>
               {variant === "desktop" ? (
                 <Button
                   type="button"
