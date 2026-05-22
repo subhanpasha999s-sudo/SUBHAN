@@ -95,7 +95,7 @@ const heroActions = [
   [Barcode, "SKU", "Listing or mapped SKU"],
   [Boxes, "QTY", "1, 2, 3+"],
   [BadgeCheck, "Payment", "COD / Prepaid"],
-  [Truck, "Courier", "Delhivery · E-Kart · ATS · etc."],
+  [Truck, "Courier", "Delhivery · E-Kart · ATS + more"],
   [Scissors, "Auto-crop", "Label or invoice"],
 ];
 
@@ -314,13 +314,13 @@ export default async function HomePage() {
                     PDF + ZIP ready
                   </span>
                 </div>
-                <div className="grid gap-px bg-slate-200/70 p-px sm:grid-cols-2 dark:bg-white/10">
+                <div className="grid gap-px bg-slate-200/70 p-px md:grid-cols-2 dark:bg-white/10">
                   {heroActions.map(([Icon, label, value], index) => {
                     const ActionIcon = Icon as typeof Layers3;
                     return (
                       <div
                         key={label as string}
-                        className="motion-preview-card flex items-center gap-3 bg-white px-3 py-3.5 dark:bg-[#111b2b]"
+                        className="motion-preview-card flex items-center gap-3 bg-white px-3 py-3.5 dark:bg-[#111b2b] sm:px-4"
                         style={{ animationDelay: `${index * 70}ms` }}
                       >
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-[#335cff] dark:bg-[#6b86ff]/14 dark:text-[#aebcff]">
@@ -330,7 +330,7 @@ export default async function HomePage() {
                           <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                             {label as string}
                           </span>
-                          <span className="mt-0.5 block truncate text-sm font-semibold text-slate-950 dark:text-white">
+                          <span className="mt-0.5 block text-sm font-semibold leading-snug text-slate-950 dark:text-white">
                             {value as string}
                           </span>
                         </span>
