@@ -100,9 +100,9 @@ const heroActions = [
 ];
 
 const marketplaceBadges = [
-  ["Meesho", "filter + crop"],
-  ["Flipkart", "sort + crop"],
-  ["Amazon", "match + print SKU"],
+  ["Meesho", "filter + auto-crop"],
+  ["Flipkart", "filter + auto-crop"],
+  ["Amazon", "filter + auto-crop + SKU/QTY on Shipping Labels"],
 ];
 
 function ProductPreview() {
