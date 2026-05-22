@@ -6,7 +6,7 @@ import {
   ArrowRight,
   BookOpenText,
   CircleUserRound,
-  FileDown,
+  FileScan,
   Link2,
   MenuIcon,
 } from "lucide-react";
@@ -97,7 +97,7 @@ function pageChrome(pathname: string) {
 
 const TOPBAR_FLOW = [
   { href: "/mapping", label: "Map", icon: Link2 },
-  { href: "/export-labels", label: "Run", icon: FileDown },
+  { href: "/export-labels", label: "Run", icon: FileScan },
   { href: "/blog", label: "Learn", icon: BookOpenText },
 ];
 

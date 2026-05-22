@@ -11,7 +11,7 @@ import {
   ChevronsLeft,
   CircleUserRound,
   Cloud,
-  FileDown,
+  FileScan,
   Link2,
   LockKeyhole,
   Settings2,
@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 
-import { TulminBrand, TulminLogoMark } from "@/components/brand/tulmin-logo";
+import { TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
@@ -65,7 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/export-labels",
         label: "Run Labels",
         description: "Filter, crop, export",
-        icon: FileDown,
+        icon: FileScan,
         step: "02",
       },
       {
@@ -99,6 +99,26 @@ const railEase = "cubic-bezier(0.32, 0.72, 0, 1)";
 const navInteraction =
   "transition-[background-color,box-shadow,color,transform] duration-150 ease-smooth active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100";
 const TOUR_MOBILE_NAV_EVENT = "tulmin:tour-mobile-nav";
+
+function SidebarBrandSigil({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "relative isolate flex shrink-0 items-center justify-center",
+        compact ? "size-[3.25rem]" : "size-10"
+      )}
+      aria-hidden
+    >
+      <span className="absolute inset-0 rounded-[1.15rem] bg-[radial-gradient(circle_at_30%_18%,rgba(146,170,255,0.18),transparent_42%),linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.015))] shadow-[inset_0_1px_0_rgba(255,255,255,0.11),0_18px_34px_-28px_rgba(77,120,255,0.95)] ring-1 ring-white/[0.07]" />
+      <span className="absolute -inset-1 rounded-[1.35rem] bg-[conic-gradient(from_120deg,transparent,rgba(251,191,36,0.18),rgba(137,177,255,0.22),transparent)] opacity-60 blur-md" />
+      <TulminLogoMark
+        className={cn("relative z-10", compact ? "size-10" : "size-8")}
+        imageClassName="drop-shadow-[0_8px_18px_rgba(0,0,0,0.32)]"
+      />
+      <span className="absolute right-1.5 top-1.5 z-20 size-1.5 rounded-full bg-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.9)]" />
+    </span>
+  );
+}
 
 function navItemActive(pathname: string, sp: URLSearchParamsLike, item: NavDef): boolean {
   if (!item.href || item.soon || item.quickLink) return false;
@@ -365,21 +385,21 @@ function SidebarChrome({
             >
               <ChevronsLeft className="size-5 rotate-180" strokeWidth={1.85} />
             </button>
-            <TulminLogoMark className="size-9" />
+            <SidebarBrandSigil compact />
           </>
         ) : (
           <>
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <TulminBrand
-                  markClassName="size-9"
-                  titleClassName="text-[15px] text-sidebar-foreground"
-                  subtitleClassName="mt-0.5 text-[10.5px] font-medium text-sidebar-foreground/42"
-                  subtitle="Dispatch workspace"
-                  textClassName="flex-1"
-                  className="min-w-0 flex-1"
-                  priority
-                />
+                <SidebarBrandSigil />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                    Tulmin
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10.5px] font-medium text-sidebar-foreground/42">
+                    Dispatch AI workspace
+                  </span>
+                </span>
               </div>
               {variant === "desktop" ? (
                 <Button

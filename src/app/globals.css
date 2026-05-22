@@ -156,6 +156,28 @@
     }
   }
 
+  @keyframes tulmin-panel-sheen {
+    from {
+      transform: translate3d(-140%, 0, 0);
+    }
+    to {
+      transform: translate3d(140%, 0, 0);
+    }
+  }
+
+  @keyframes tulmin-preview-card {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0);
+      filter: blur(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+      filter: blur(0);
+    }
+  }
+
   .motion-page-enter {
     animation: tulmin-page-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
     transform-origin: top center;
@@ -190,6 +212,14 @@
     animation: tulmin-soft-float 8s ease-in-out infinite;
   }
 
+  .motion-panel-sheen {
+    animation: tulmin-panel-sheen 8s ease-in-out infinite;
+  }
+
+  .motion-preview-card {
+    animation: tulmin-preview-card 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   @supports (animation-timeline: view()) {
     .scroll-fade-up {
       animation-timeline: view();
@@ -199,7 +229,9 @@
 
   @media (prefers-reduced-motion: reduce) {
     .scroll-fade-up,
-    .motion-soft-float {
+    .motion-soft-float,
+    .motion-panel-sheen,
+    .motion-preview-card {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;

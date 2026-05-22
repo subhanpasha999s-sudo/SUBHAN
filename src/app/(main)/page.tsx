@@ -27,7 +27,7 @@ import { getSiteUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Tulmin AI Label Filter & Auto-Crop AI for Meesho, Flipkart & Amazon",
+  title: "Tulmin AI for Meesho, Flipkart & Amazon Label Filtering",
   description:
     "Tulmin AI is a label filter and auto-crop AI for Meesho, Flipkart, and Amazon sellers. Filter labels by SKU, quantity, courier, marketplace, and COD or prepaid payment mode, then export clean dispatch PDFs.",
   alternates: { canonical: `${getSiteUrl()}/` },
@@ -91,12 +91,18 @@ const workflow = [
 ];
 
 const heroActions = [
-  "Marketplace",
-  "SKU",
-  "Quantity",
-  "Payment Type",
-  "Courier Partner",
-  "Auto Crop",
+  ["Marketplace", "Meesho · Flipkart · Amazon"],
+  ["SKU", "Listing or mapped SKU"],
+  ["QTY", "1, 2, 3+"],
+  ["Payment", "COD / Prepaid"],
+  ["Courier", "Delhivery · E-Kart · ATS"],
+  ["Auto-crop", "Label or invoice"],
+];
+
+const marketplaceBadges = [
+  ["Meesho", "filter + crop"],
+  ["Flipkart", "sort + crop"],
+  ["Amazon", "match + print SKU"],
 ];
 
 function ProductPreview() {
@@ -114,9 +120,11 @@ function ProductPreview() {
 
   return (
     <div className="scroll-fade-up motion-soft-float relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-[#0d1728] shadow-[0_28px_100px_-54px_rgb(0_0_0/0.95)] ring-1 ring-white/[0.05]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(143,164,255,0.75),transparent)]" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.06)_42%,transparent_54%)] opacity-60 motion-panel-sheen" aria-hidden />
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-white">Tulmin AI label workspace</p>
+          <p className="text-sm font-semibold text-white">Tulmin AI dispatch run</p>
           <p className="text-[11px] font-medium text-slate-400">Meesho, Flipkart, and Amazon in one run</p>
         </div>
         <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-300/15">
@@ -139,9 +147,10 @@ function ProductPreview() {
             <div
               key={label}
               className={cn(
-                "rounded-xl border border-white/10 bg-[#0b1424] px-3 py-2.5",
+                "motion-preview-card rounded-xl border border-white/10 bg-[#0b1424] px-3 py-2.5",
                 index < 3 ? "lg:col-span-2" : "lg:col-span-3"
               )}
+              style={{ animationDelay: `${index * 90}ms` }}
             >
               <p className="text-[11px] font-semibold text-slate-400">{label}</p>
               <p className="mt-1 text-[13px] font-semibold leading-snug text-white">{value}</p>
@@ -154,9 +163,9 @@ function ProductPreview() {
           <div className="rounded-2xl border border-white/10 bg-[#07101f] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-white">Ready for all three marketplaces</p>
+                <p className="text-sm font-semibold text-white">Ready for Meesho, Flipkart, and Amazon</p>
                 <p className="mt-1 text-xs font-medium leading-5 text-slate-400">
-                  AI filter, auto-crop, and export without separating files first.
+                  Filter, auto-crop, and export without separating files first.
                 </p>
               </div>
               <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-200 ring-1 ring-emerald-300/15">
@@ -165,10 +174,11 @@ function ProductPreview() {
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              {readyStats.map(([label, value]) => (
+              {readyStats.map(([label, value], index) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5"
+                  className="motion-preview-card rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5"
+                  style={{ animationDelay: `${360 + index * 80}ms` }}
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                     {label}
@@ -181,12 +191,13 @@ function ProductPreview() {
             </div>
 
             <div className="mt-3 space-y-2">
-              {outputCards.map(([Icon, title, copy]) => {
+              {outputCards.map(([Icon, title, copy], index) => {
                 const OutputIcon = Icon as typeof Filter;
                 return (
                   <div
                     key={title as string}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.045] p-3"
+                    className="motion-preview-card flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.045] p-3"
+                    style={{ animationDelay: `${620 + index * 90}ms` }}
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#6b86ff]/12 text-[#aebcff]">
                       <OutputIcon className="size-4" strokeWidth={1.8} aria-hidden />
@@ -209,7 +220,7 @@ function ProductPreview() {
                 </p>
                 <p className="mt-1 text-sm font-semibold text-white">PDF</p>
               </div>
-              <div className="rounded-xl border border-[#6b86ff]/35 bg-[#6b86ff]/16 px-3 py-2.5">
+              <div className="rounded-xl border border-[#6b86ff]/35 bg-[#6b86ff]/16 px-3 py-2.5 shadow-[0_0_34px_-22px_rgba(107,134,255,0.95)]">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-[#b9c5ff]">
                   Bundle
                 </p>
@@ -268,27 +279,40 @@ export default async function HomePage() {
       <main>
         <section className="relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_12%,rgba(51,92,255,0.18),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.15),transparent_28%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(99,125,255,0.2),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.12),transparent_28%)]" aria-hidden />
-          <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
+          <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.88fr_1.12fr] lg:px-8">
             <div className="scroll-fade-up max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300">
                 <Clock3 className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
-                Tulmin AI for Meesho, Flipkart, and Amazon sellers
+                Built for marketplace sellers
               </div>
-              <h1 className="mt-6 max-w-[13ch] text-[clamp(3rem,5.6vw,6rem)] font-semibold leading-[1.03] tracking-tight text-slate-950 sm:max-w-[14ch] dark:text-white">
-                AI label filtering and auto-crop before dispatch.
+              <h1 className="mt-6 max-w-[14ch] text-[clamp(2.85rem,5vw,5.45rem)] font-semibold leading-[1.02] text-slate-950 sm:max-w-[15ch] dark:text-white">
+                Filter and auto-crop Meesho, Flipkart, and Amazon labels.
               </h1>
-              <div className="mt-5 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-3.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
+              <div className="mt-5 grid max-w-xl gap-2 sm:grid-cols-3">
+                {marketplaceBadges.map(([name, action], index) => (
+                  <div
+                    key={name}
+                    className="motion-preview-card rounded-2xl border border-slate-200 bg-white/82 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.055]"
+                    style={{ animationDelay: `${index * 110}ms` }}
+                  >
+                    <p className="text-base font-semibold text-slate-950 dark:text-white">{name}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#335cff] dark:text-[#91a3ff]">{action}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 max-w-2xl rounded-[1.35rem] border border-slate-200 bg-white/76 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
                 <p className="text-base font-semibold leading-7 text-slate-800 sm:text-lg dark:text-slate-100">
-                  Tulmin AI filters Meesho, Flipkart, and Amazon labels by SKU, QTY, payment, courier, and marketplace.
+                  Tulmin AI turns mixed marketplace PDFs into exact dispatch files by SKU, QTY, payment, courier, and marketplace.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {heroActions.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-slate-200 bg-slate-950/[0.035] px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-[inset_0_1px_0_rgb(255_255_255/0.75)] dark:border-white/10 dark:bg-white/[0.065] dark:text-slate-200"
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {heroActions.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-950/[0.035] px-3 py-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.75)] dark:border-white/10 dark:bg-white/[0.065]"
                     >
-                      {item}
-                    </span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
+                      <span className="truncate text-right text-xs font-semibold text-slate-900 dark:text-slate-100">{value}</span>
+                    </div>
                   ))}
                 </div>
                 <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-400">
@@ -314,12 +338,13 @@ export default async function HomePage() {
                 </a>
               </div>
               <div className="mt-6 grid max-w-xl gap-2 sm:grid-cols-3">
-                {["Stop hunting", "Print cleaner", "Pack faster"].map((title) => (
+                {["Find faster", "Print cleaner", "Pack safer"].map((title) => (
                   <div
                     key={title}
-                    className="flex min-h-12 items-center rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
+                    className="motion-lift flex min-h-12 items-center rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
                   >
-                    <p className="text-base font-semibold tracking-tight">{title}</p>
+                    <Check className="mr-2 size-4 text-emerald-500" strokeWidth={2} aria-hidden />
+                    <p className="text-base font-semibold">{title}</p>
                   </div>
                 ))}
               </div>
