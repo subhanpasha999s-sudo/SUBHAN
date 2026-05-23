@@ -265,6 +265,9 @@ export default async function HomePage() {
             <a href="#workflow" className="hover:text-slate-950 dark:hover:text-white">
               Workflow
             </a>
+            <Link href="/pricing" className="hover:text-slate-950 dark:hover:text-white">
+              Pricing
+            </Link>
           </nav>
           <Link
             href="/export-labels"

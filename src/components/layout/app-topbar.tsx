@@ -199,6 +199,13 @@ export function AppTopbar({
             data-tour="login-cloud"
           >
             <Link
+              href="/pricing"
+              prefetch={false}
+              className="motion-lift hidden h-10 items-center rounded-2xl border border-border/60 bg-card/70 px-3 text-[12px] font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground md:inline-flex"
+            >
+              View Plans
+            </Link>
+            <Link
               href={ctaHref}
               prefetch={false}
               className={cn(

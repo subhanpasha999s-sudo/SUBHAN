@@ -3,82 +3,112 @@ export type TulminPlanId = "free" | "starter" | "pro" | "business";
 export type TulminPlan = {
   id: TulminPlanId;
   name: string;
-  price: string;
-  period: string;
+  monthlyPrice: number;
+  yearlyMonthlyEquivalent: number;
+  yearlyTotal: number;
   labelLimit: number | null;
   dailyFit: string;
   tagline: string;
   cta: string;
+  badge?: string;
   highlighted?: boolean;
   features: string[];
 };
+
+export type BillingCycle = "monthly" | "yearly";
+
+export const YEARLY_SAVINGS_PERCENT = 29;
 
 export const TULMIN_PLANS: readonly TulminPlan[] = [
   {
     id: "free",
     name: "Free",
-    price: "₹0",
-    period: "forever",
+    monthlyPrice: 0,
+    yearlyMonthlyEquivalent: 0,
+    yearlyTotal: 0,
     labelLimit: 150,
     dailyFit: "Try with 150 labels/month",
     tagline: "Experience the workflow before paying.",
-    cta: "Start free",
+    cta: "Current Plan",
     features: [
-      "150 labels every month",
-      "Marketplace, SKU, and QTY filters",
+      "150 labels/month",
+      "Marketplace filters",
+      "SKU filters",
+      "QTY filters",
       "Single PDF export",
       "Local SKU mapping",
+      "Try workflow before upgrading",
     ],
   },
   {
     id: "starter",
     name: "Starter",
-    price: "₹99",
-    period: "month",
+    monthlyPrice: 99,
+    yearlyMonthlyEquivalent: 70,
+    yearlyTotal: 840,
     labelLimit: 1500,
     dailyFit: "Up to 50 labels/day",
     tagline: "For small sellers who dispatch daily.",
     cta: "Upgrade to Starter",
     features: [
-      "1,500 labels every month",
-      "SKU, QTY, payment, courier filters",
+      "1,500 labels/month",
+      "Up to 50 labels/day",
+      "SKU filtering",
+      "QTY filtering",
+      "Payment filtering",
+      "Courier filtering",
       "Marketplace-wise filtering",
       "PDF export",
+      "Basic upload history",
+      "Faster processing",
     ],
   },
   {
     id: "pro",
     name: "Pro",
-    price: "₹199",
-    period: "month",
+    monthlyPrice: 199,
+    yearlyMonthlyEquivalent: 141,
+    yearlyTotal: 1692,
     labelLimit: null,
     dailyFit: "Unlimited normal seller use",
     tagline: "The best value for active dispatch teams.",
     cta: "Upgrade to Pro",
+    badge: "BEST VALUE",
     highlighted: true,
     features: [
-      "Unlimited label filtering",
-      "Auto-crop labels and invoices",
-      "ZIP by SKU",
-      "Amazon SKU/QTY on shipping labels",
+      "Unlimited normal label filtering",
+      "Auto-crop labels",
+      "Auto-detect shipping labels",
+      "Invoice auto-crop",
+      "ZIP export by SKU",
+      "Amazon SKU/QTY printing",
       "Cloud SKU mapping",
+      "Multi-marketplace support",
+      "Priority processing",
+      "Better workflow automation",
     ],
   },
   {
     id: "business",
     name: "Business",
-    price: "₹499",
-    period: "month",
+    monthlyPrice: 499,
+    yearlyMonthlyEquivalent: 354,
+    yearlyTotal: 4248,
     labelLimit: null,
     dailyFit: "Team and heavy batch use",
     tagline: "For warehouses that need priority workflows.",
-    cta: "Talk to sales",
+    cta: "Talk to Sales",
+    badge: "FOR TEAMS",
     features: [
+      "Unlimited heavy batch processing",
       "Team workspace",
-      "Bulk heavy processing",
-      "Upload history",
       "Multi-user access",
+      "Upload history",
+      "Bulk processing",
       "Priority support",
+      "Advanced workflow control",
+      "Warehouse-friendly workflow",
+      "Team dispatch management",
     ],
   },
 ] as const;
@@ -95,4 +125,24 @@ export function planLabelLimitText(plan: TulminPlan): string {
 
 export function isPaidPlan(planId: TulminPlanId): boolean {
   return planId !== "free";
+}
+
+export function formatPlanPrice(plan: TulminPlan, cycle: BillingCycle): string {
+  const amount = cycle === "yearly" ? plan.yearlyMonthlyEquivalent : plan.monthlyPrice;
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+export function planCycleCaption(plan: TulminPlan, cycle: BillingCycle): string {
+  if (plan.id === "free") return "forever";
+  if (cycle === "yearly") {
+    return `per month, billed ₹${plan.yearlyTotal.toLocaleString("en-IN")}/year`;
+  }
+  return "per month";
+}
+
+export function nextPlanRecommendation(planId: TulminPlanId): TulminPlan {
+  if (planId === "free") return TULMIN_PLAN_BY_ID.starter;
+  if (planId === "starter") return TULMIN_PLAN_BY_ID.pro;
+  if (planId === "pro") return TULMIN_PLAN_BY_ID.business;
+  return TULMIN_PLAN_BY_ID.business;
 }

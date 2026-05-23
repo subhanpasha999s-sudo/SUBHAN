@@ -18,7 +18,15 @@ export type SubscriptionEntitlement = {
 };
 
 export type UsageReservationResult =
-  | { ok: true; entitlement: SubscriptionEntitlement }
+  | {
+      ok: true;
+      entitlement: SubscriptionEntitlement;
+      acceptedLabelCount: number;
+      rejectedLabelCount: number;
+      partial?: boolean;
+      limitReached?: boolean;
+      message?: string;
+    }
   | {
       ok: false;
       reason: "limit_reached" | "signin_required" | "abuse_review" | "server_unavailable";
@@ -85,7 +93,11 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
   }, [refresh]);
 
   const reserveLabels = React.useCallback(
-    async (labelCount: number, action: "import" | "export" = "import"): Promise<UsageReservationResult> => {
+    async (
+      labelCount: number,
+      action: "import" | "export" = "import",
+      options?: { allowPartial?: boolean }
+    ): Promise<UsageReservationResult> => {
       if (!userId) {
         return {
           ok: false,
@@ -112,12 +124,17 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
           body: JSON.stringify({
             action,
             labelCount,
+            allowPartial: Boolean(options?.allowPartial),
             browser: getBillingBrowserSignals(),
           }),
         });
         const data = (await res.json()) as UsageReservationResult;
         if (data.ok) {
           setEntitlement({ ...data.entitlement, loaded: true });
+          if (data.limitReached && data.message) {
+            setUpgradeReason(data.message);
+            setUpgradeOpen(true);
+          }
         } else {
           if (data.entitlement) setEntitlement({ ...data.entitlement, loaded: true });
           setUpgradeReason(data.message);

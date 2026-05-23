@@ -69,7 +69,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
-import { TULMIN_PLAN_BY_ID } from "@/lib/billing/plans";
+import { TULMIN_PLAN_BY_ID, nextPlanRecommendation } from "@/lib/billing/plans";
 import { useSubscriptionEntitlement } from "@/lib/billing/use-subscription";
 import {
   analyzeCropperPdfBytes,
@@ -2006,6 +2006,8 @@ export function MeeshoLabelExportTool() {
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
     null
   );
+  const [loginRequiredOpen, setLoginRequiredOpen] = React.useState(false);
+  const pendingLoginFilesRef = React.useRef<File[] | null>(null);
 
   const [mapSnapshot, setMapSnapshot] = React.useState<{
     masters: MasterSkuRecord[];
@@ -2091,6 +2093,14 @@ export function MeeshoLabelExportTool() {
   );
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (!userId || !pendingLoginFilesRef.current) return;
+    const pending = pendingLoginFilesRef.current;
+    pendingLoginFilesRef.current = null;
+    setLoginRequiredOpen(false);
+    void ingestPdfFiles(pending);
+  }, [userId]);
 
   const viewMode = useLabelExportViewMode();
   const perf = useRuntimePerformanceProfile();
@@ -2513,10 +2523,14 @@ export function MeeshoLabelExportTool() {
   const canUsePremiumExports =
     entitlement.plan === "pro" || entitlement.plan === "business";
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
+  const recommendedPlan = nextPlanRecommendation(entitlement.plan);
   const usagePct =
     entitlement.labelsLimit != null && entitlement.labelsLimit > 0
       ? Math.min(100, Math.round((100 * entitlement.labelsUsed) / entitlement.labelsLimit))
       : 100;
+  const usageCloseToLimit = entitlement.labelsLimit != null && usagePct >= 90 && usagePct < 100;
+  const usageLimitExhausted =
+    entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
 
   const selectedDistinctSkuBuckets = React.useMemo(() => {
     const keys = new Set<string>();
@@ -2657,8 +2671,9 @@ export function MeeshoLabelExportTool() {
       return;
     }
     if (!userId) {
+      pendingLoginFilesRef.current = files;
       trackEvent("billing_signin_required", { intent: "import_labels" });
-      openOptionalSignIn();
+      setLoginRequiredOpen(true);
       return;
     }
 
@@ -2770,13 +2785,15 @@ export function MeeshoLabelExportTool() {
       return;
     }
 
+    let usableNextRows = nextRows;
     if (nextRows.length > 0) {
-      const reservation = await reserveLabels(nextRows.length, "import");
+      const reservation = await reserveLabels(nextRows.length, "import", { allowPartial: true });
       if (!reservation.ok) {
         setParsing(false);
         setParseProgress(null);
         if (reservation.reason === "signin_required") {
-          openOptionalSignIn();
+          pendingLoginFilesRef.current = files;
+          setLoginRequiredOpen(true);
         } else {
           notify.info("Upgrade to continue", {
             description: reservation.message,
@@ -2788,10 +2805,23 @@ export function MeeshoLabelExportTool() {
         });
         return;
       }
+      if (reservation.partial) {
+        const accepted = Math.max(0, reservation.acceptedLabelCount);
+        usableNextRows = nextRows.slice(0, accepted);
+        notify.info("Plan limit reached", {
+          description: `${accepted.toLocaleString()} labels processed. ${reservation.rejectedLabelCount.toLocaleString()} labels paused until you upgrade.`,
+          duration: 8000,
+        });
+        trackEvent("billing_usage_partial_import", {
+          accepted_label_count: reservation.acceptedLabelCount,
+          rejected_label_count: reservation.rejectedLabelCount,
+          plan: entitlement.plan,
+        });
+      }
     }
 
     const mergedInvoices = [...amazonInvoices, ...nextAmazonInvoices];
-    const mergedRows = pairAmazonShippingRows([...rows, ...nextRows], mergedInvoices);
+    const mergedRows = pairAmazonShippingRows([...rows, ...usableNextRows], mergedInvoices);
     const mergedSources = [...pdfSources, ...nextSources];
 
     setRows(mergedRows);
@@ -2800,7 +2830,7 @@ export function MeeshoLabelExportTool() {
     const shouldPrepareCropNow =
       nextSources.length > 0 &&
       nextSources.length <= AUTO_CROP_PREP_MAX_IMPORT_FILES &&
-      nextRows.length <= AUTO_CROP_PREP_MAX_LABELS;
+      usableNextRows.length <= AUTO_CROP_PREP_MAX_LABELS;
     if (shouldPrepareCropNow) {
       setCropperBusy(true);
       void (async () => {
@@ -2846,11 +2876,11 @@ export function MeeshoLabelExportTool() {
     const invalid = mergedRows.filter((r) => !r.listing_sku.trim()).length;
 
     notify.success("Imported", {
-      description: `${nextRows.length.toLocaleString()} labels added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart · ${amazon.toLocaleString()} Amazon${amazon ? ` (${amazonMatched.toLocaleString()} matched)` : ""}${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
+      description: `${usableNextRows.length.toLocaleString()} labels added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart · ${amazon.toLocaleString()} Amazon${amazon ? ` (${amazonMatched.toLocaleString()} matched)` : ""}${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
     });
     trackEvent("meesho_pdf_import_succeeded", {
       file_count: nextSources.length,
-      label_count: nextRows.length,
+      label_count: usableNextRows.length,
       total_label_count: mergedRows.length,
       flipkart_count: flipkart,
       meesho_count: meesho,
@@ -3620,6 +3650,16 @@ export function MeeshoLabelExportTool() {
                       : `${entitlement.labelsRemaining?.toLocaleString() ?? "0"} labels left this month`
                     : "Start with 150 free labels and protect your workspace."}
                 </p>
+                {userId && usageCloseToLimit ? (
+                  <p className="mt-1 text-[11px] font-bold text-amber-300">
+                    90% plan usage completed
+                  </p>
+                ) : null}
+                {userId && usageLimitExhausted ? (
+                  <p className="mt-1 text-[11px] font-bold text-destructive">
+                    You have used your current label limit. Upgrade to continue.
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -3669,7 +3709,7 @@ export function MeeshoLabelExportTool() {
               multiple
               className="sr-only"
               id="meesho-pdf-upload"
-              disabled={parsing || !authReady || !userId}
+              disabled={parsing}
               onChange={onFileInput}
             />
             {parsing ? (
@@ -3738,17 +3778,12 @@ export function MeeshoLabelExportTool() {
                 </div>
                 <label
                   htmlFor="meesho-pdf-upload"
-                  onClick={(event) => {
-                    if (!authReady || userId) return;
-                    event.preventDefault();
-                    openOptionalSignIn();
-                  }}
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "min-h-11 w-full cursor-pointer touch-manipulation justify-center rounded-xl font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
                   )}
                 >
-                  {authReady && !userId ? "Sign in to upload" : "Choose PDFs"}
+                  Choose PDFs
                 </label>
               </>
             )}
@@ -4585,8 +4620,74 @@ export function MeeshoLabelExportTool() {
         </WorkspaceSurfaceCard>
       ) : null}
 
+      <Dialog open={loginRequiredOpen} onOpenChange={setLoginRequiredOpen}>
+        <DialogContent className="overflow-hidden border-primary/20 bg-background/98 p-0 shadow-[0_28px_90px_-38px_rgb(37_99_235/0.85)] backdrop-blur-xl sm:max-w-[31rem]">
+          <div className="bg-[radial-gradient(circle_at_12%_0%,hsl(var(--primary)/0.2),transparent_35%),linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] px-5 py-5">
+            <DialogHeader className="text-left sm:text-left">
+              <div className="mb-3 grid size-12 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary shadow-inner">
+                <Lock className="size-5" aria-hidden />
+              </div>
+              <DialogTitle className="text-2xl font-semibold tracking-tight">
+                Login to continue
+              </DialogTitle>
+              <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+                Uploads are welcome anytime. Sign in before processing so Tulmin AI can protect your usage, save your workspace, and keep dispatch history clean.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="space-y-3 px-5 pb-5">
+            {[
+              "Save SKU mapping",
+              "Track uploads",
+              "Access plans",
+              "Process labels securely",
+            ].map((benefit) => (
+              <div
+                key={benefit}
+                className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/65 px-3 py-2.5 text-sm font-semibold text-foreground"
+              >
+                <Check className="size-4 text-emerald-400" aria-hidden />
+                {benefit}
+              </div>
+            ))}
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                className="h-11 w-full rounded-2xl"
+                onClick={() => {
+                  setLoginRequiredOpen(false);
+                  openOptionalSignIn();
+                }}
+              >
+                Login to Continue
+                <ArrowDown className="size-4 rotate-[-90deg]" aria-hidden />
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
         <DialogContent className="max-h-[88dvh] overflow-y-auto border-primary/20 bg-background/98 p-4 shadow-[0_24px_90px_-38px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-5xl sm:p-5">
+          {upgradeReason ? (
+            <div className="mb-4 rounded-[1.35rem] border border-amber-400/20 bg-amber-400/10 p-4">
+              <p className="text-lg font-semibold text-foreground">
+                You have reached your current plan limit
+              </p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                You have exhausted your available labels for this plan. Upgrade to continue processing more labels without interruption.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                <RunMetric label="Current plan" value={plan.name} />
+                <RunMetric label="Used labels" value={entitlement.labelsUsed.toLocaleString()} />
+                <RunMetric
+                  label="Remaining"
+                  value={entitlement.labelsRemaining == null ? "∞" : entitlement.labelsRemaining.toLocaleString()}
+                />
+                <RunMetric label="Next plan" value={recommendedPlan.name} tone="amazon" />
+              </div>
+            </div>
+          ) : null}
           <PricingCards
             currentPlan={entitlement.plan}
             reason={upgradeReason}
