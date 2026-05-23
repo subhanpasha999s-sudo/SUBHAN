@@ -13,11 +13,14 @@ import {
   Download,
   FileUp,
   Loader2,
+  Lock,
   Search,
   SlidersHorizontal,
+  Sparkles,
   X,
 } from "lucide-react";
 
+import { PricingCards } from "@/components/billing/pricing-cards";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { ShippingLabelCropper } from "@/components/label-cropper/shipping-label-cropper";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -66,6 +69,8 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
+import { TULMIN_PLAN_BY_ID } from "@/lib/billing/plans";
+import { useSubscriptionEntitlement } from "@/lib/billing/use-subscription";
 import {
   analyzeCropperPdfBytes,
   cropEntriesToPdf,
@@ -1973,6 +1978,15 @@ export function MeeshoLabelExportTool() {
   const { user, authReady } = useAuth();
   const { openOptionalSignIn } = useValueFirstAuth();
   const userId = user?.id;
+  const {
+    entitlement,
+    loading: entitlementLoading,
+    reserveLabels,
+    upgradeOpen,
+    setUpgradeOpen,
+    upgradeReason,
+    promptUpgrade,
+  } = useSubscriptionEntitlement(userId);
 
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
   const [pdfSources, setPdfSources] = React.useState<ImportedPdfSource[]>([]);
@@ -2496,6 +2510,13 @@ export function MeeshoLabelExportTool() {
   );
   const showAmazonInvoiceDownloadOption =
     (selectedHasAmazonRows || filteredHasAmazonRows) && amazonInvoices.length > 0;
+  const canUsePremiumExports =
+    entitlement.plan === "pro" || entitlement.plan === "business";
+  const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
+  const usagePct =
+    entitlement.labelsLimit != null && entitlement.labelsLimit > 0
+      ? Math.min(100, Math.round((100 * entitlement.labelsUsed) / entitlement.labelsLimit))
+      : 100;
 
   const selectedDistinctSkuBuckets = React.useMemo(() => {
     const keys = new Set<string>();
@@ -2631,6 +2652,16 @@ export function MeeshoLabelExportTool() {
   }
 
   async function ingestPdfFiles(files: File[]) {
+    if (!authReady) {
+      notify.info("Checking your workspace access...");
+      return;
+    }
+    if (!userId) {
+      trackEvent("billing_signin_required", { intent: "import_labels" });
+      openOptionalSignIn();
+      return;
+    }
+
     const pdfFiles = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
     if (pdfFiles.length === 0) {
       trackEvent("meesho_pdf_import_rejected", { reason: "unsupported_file_type" });
@@ -2737,6 +2768,26 @@ export function MeeshoLabelExportTool() {
         source_file_count: pdfFiles.length,
       });
       return;
+    }
+
+    if (nextRows.length > 0) {
+      const reservation = await reserveLabels(nextRows.length, "import");
+      if (!reservation.ok) {
+        setParsing(false);
+        setParseProgress(null);
+        if (reservation.reason === "signin_required") {
+          openOptionalSignIn();
+        } else {
+          notify.info("Upgrade to continue", {
+            description: reservation.message,
+          });
+        }
+        trackEvent("billing_usage_blocked", {
+          reason: reservation.reason,
+          label_count: nextRows.length,
+        });
+        return;
+      }
     }
 
     const mergedInvoices = [...amazonInvoices, ...nextAmazonInvoices];
@@ -2980,6 +3031,10 @@ export function MeeshoLabelExportTool() {
     zipFilename: string,
     scope: "filtered" | "selected"
   ) {
+    if (!canUsePremiumExports) {
+      promptUpgrade("ZIP by SKU is available on Pro. Upgrade when you want one clean PDF per SKU.");
+      return;
+    }
     if (pdfSources.length === 0 || sourceRows.length === 0) {
       if (scope === "filtered") {
         trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
@@ -3434,6 +3489,10 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropPdf() {
+    if (!canUsePremiumExports) {
+      promptUpgrade("Auto-crop is available on Pro. Upgrade to remove blank space and print cleaner labels.");
+      return;
+    }
     if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
@@ -3472,6 +3531,10 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropZip() {
+    if (!canUsePremiumExports) {
+      promptUpgrade("Cropped ZIP export is available on Pro. Upgrade to bundle clean labels faster.");
+      return;
+    }
     if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
@@ -3541,6 +3604,53 @@ export function MeeshoLabelExportTool() {
             ) : null}
           </div>
 
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/55 bg-background/55 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                {userId ? <Sparkles className="size-4" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-foreground">
+                  {userId ? `${plan.name} plan` : "Sign in required"}
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                  {userId
+                    ? entitlement.labelsLimit == null
+                      ? "Unlimited normal seller use"
+                      : `${entitlement.labelsRemaining?.toLocaleString() ?? "0"} labels left this month`
+                    : "Start with 150 free labels and protect your workspace."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {userId && entitlement.labelsLimit != null ? (
+                <div className="hidden w-32 space-y-1 sm:block">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width] duration-500"
+                      style={{ width: `${usagePct}%` }}
+                    />
+                  </div>
+                  <p className="text-right text-[10px] font-semibold text-muted-foreground">
+                    {entitlement.labelsUsed.toLocaleString()} / {entitlement.labelsLimit.toLocaleString()}
+                  </p>
+                </div>
+              ) : null}
+              <Button
+                type="button"
+                variant={userId ? "outline" : "default"}
+                className="h-9 rounded-xl px-3 text-xs font-semibold"
+                disabled={entitlementLoading}
+                onClick={() => {
+                  if (!userId) openOptionalSignIn();
+                  else promptUpgrade("Choose the plan that matches your monthly dispatch volume.");
+                }}
+              >
+                {userId ? "View plans" : "Sign in"}
+              </Button>
+            </div>
+          </div>
+
           <div
             data-tour="import-pdf"
             className={cn(
@@ -3559,7 +3669,7 @@ export function MeeshoLabelExportTool() {
               multiple
               className="sr-only"
               id="meesho-pdf-upload"
-              disabled={parsing}
+              disabled={parsing || !authReady || !userId}
               onChange={onFileInput}
             />
             {parsing ? (
@@ -3628,12 +3738,17 @@ export function MeeshoLabelExportTool() {
                 </div>
                 <label
                   htmlFor="meesho-pdf-upload"
+                  onClick={(event) => {
+                    if (!authReady || userId) return;
+                    event.preventDefault();
+                    openOptionalSignIn();
+                  }}
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "min-h-11 w-full cursor-pointer touch-manipulation justify-center rounded-xl font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
                   )}
                 >
-                  Choose PDFs
+                  {authReady && !userId ? "Sign in to upload" : "Choose PDFs"}
                 </label>
               </>
             )}
@@ -4469,6 +4584,26 @@ export function MeeshoLabelExportTool() {
           </section>
         </WorkspaceSurfaceCard>
       ) : null}
+
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto border-primary/20 bg-background/98 p-4 shadow-[0_24px_90px_-38px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-5xl sm:p-5">
+          <PricingCards
+            currentPlan={entitlement.plan}
+            reason={upgradeReason}
+            compact
+            onChoosePlan={(planId) => {
+              trackEvent("billing_plan_selected", {
+                plan: planId,
+                current_plan: entitlement.plan,
+              });
+              notify.info("Payments are being connected", {
+                description:
+                  "This plan screen is ready. Connect Razorpay or Stripe checkout to activate paid plans.",
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={pdfExportState != null} disablePointerDismissal onOpenChange={() => {}}>
         <DialogContent
