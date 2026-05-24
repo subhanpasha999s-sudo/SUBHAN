@@ -4457,22 +4457,24 @@ export function MeeshoLabelExportTool() {
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 {amazonInvoiceDownloadToggle}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  title="ZIP · one PDF per SKU for rows matching the current filters"
-                  className="min-h-11 gap-1 rounded-xl border-border/55 bg-background/55 text-xs font-semibold shadow-sm sm:h-8 sm:min-h-0"
-                  disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null}
-                  onClick={() => void requestDownloadAllSkuFiles()}
-                >
-                  {bulkSkuZipState ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Download className="size-3.5" aria-hidden />
-                  )}
-                  {bulkExportLabel}
-                </Button>
+                {!selectionShowsMergeVsZipChoice ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="ZIP · one PDF per SKU for rows matching the current filters"
+                    className="min-h-11 gap-1 rounded-xl border-border/55 bg-background/55 text-xs font-semibold shadow-sm sm:h-8 sm:min-h-0"
+                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null}
+                    onClick={() => void requestDownloadAllSkuFiles()}
+                  >
+                    {bulkSkuZipState ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Download className="size-3.5" aria-hidden />
+                    )}
+                    {bulkExportLabel}
+                  </Button>
+                ) : null}
                 {selectionShowsMergeVsZipChoice ? (
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger
@@ -4504,6 +4506,12 @@ export function MeeshoLabelExportTool() {
                         onClick={() => void downloadSelectedSkuFilesZip()}
                       >
                         ZIP — one PDF per SKU (selected rows only)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                        onClick={() => void requestDownloadAllSkuFiles()}
+                      >
+                        ZIP — one PDF per SKU (all visible rows)
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -4623,6 +4631,12 @@ export function MeeshoLabelExportTool() {
                           onClick={() => void downloadSelectedSkuFilesZip()}
                         >
                           ZIP — one PDF per SKU
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                          onClick={() => void requestDownloadAllSkuFiles()}
+                        >
+                          ZIP — all visible rows
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
