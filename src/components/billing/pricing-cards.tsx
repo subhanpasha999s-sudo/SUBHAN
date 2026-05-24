@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { ArrowRight, Check, Crown, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,32 @@ type PricingCardsProps = {
   compact?: boolean;
 };
 
+const PLAN_SELLING_COPY: Record<
+  TulminPlanId,
+  { promise: string; bestFor: string; bullets: string[] }
+> = {
+  free: {
+    promise: "Test Tulmin AI with real labels before paying.",
+    bestFor: "New sellers checking the workflow",
+    bullets: ["150 labels/month", "Basic filters", "Single PDF export"],
+  },
+  starter: {
+    promise: "Run daily dispatch without manually opening every PDF.",
+    bestFor: "Small teams packing up to 50 labels/day",
+    bullets: ["1,500 labels/month", "SKU, QTY, payment and courier filters", "Basic upload history"],
+  },
+  pro: {
+    promise: "The complete workflow for active Meesho, Flipkart, and Amazon sellers.",
+    bestFor: "Sellers who want filter + crop + ZIP",
+    bullets: ["Unlimited normal filtering", "Auto-crop labels and invoices", "ZIP by SKU", "Amazon SKU/QTY printing"],
+  },
+  business: {
+    promise: "Heavy batch processing and team controls for warehouse dispatch.",
+    bestFor: "Warehouses and multi-user teams",
+    bullets: ["Unlimited heavy batch processing", "Team workspace", "Priority support", "Upload history"],
+  },
+};
+
 export function PricingCards({
   currentPlan = "free",
   reason,
@@ -31,19 +57,19 @@ export function PricingCards({
   const [cycle, setCycle] = React.useState<BillingCycle>("monthly");
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#050506] px-4 py-6 text-white shadow-[0_30px_120px_-50px_rgb(0_0_0/0.9)] sm:px-6 sm:py-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_0%,rgba(101,91,255,0.22),transparent_35%)]" />
+    <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#070708] px-4 py-6 text-white shadow-[0_30px_120px_-50px_rgb(0_0_0/0.9)] sm:px-6 sm:py-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(101,91,255,0.18),transparent_42%)]" />
       <div className="relative mx-auto max-w-7xl">
         <div className="mx-auto max-w-3xl text-center">
           <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-white/70">
             <Sparkles className="size-3.5 text-[#7d8cff]" aria-hidden />
-            Tulmin AI billing
+            Choose your dispatch limit
           </p>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Upgrade your plan
+            Upgrade only when Tulmin saves enough time.
           </h2>
           <p className="mt-3 text-sm leading-6 text-white/62">
-            Choose the label processing limit and workflow power your packing desk needs.
+            Start free, then pick the plan that matches your monthly label volume. No confusion, no feature overload.
           </p>
           {reason ? (
             <div className="mt-4 rounded-2xl border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-left text-sm font-medium text-amber-50">
@@ -74,22 +100,18 @@ export function PricingCards({
           ) : null}
         </div>
 
-        <div
-          className={cn(
-            "mt-7 grid gap-4",
-            compact ? "xl:grid-cols-4" : "lg:grid-cols-2 xl:grid-cols-4"
-          )}
-        >
+        <div className={cn("mt-7 grid gap-4", compact ? "xl:grid-cols-4" : "lg:grid-cols-2 xl:grid-cols-4")}>
           {TULMIN_PLANS.map((plan) => {
             const active = plan.id === currentPlan;
             const highlighted = plan.id === "pro";
             const paid = plan.id !== "free";
+            const copy = PLAN_SELLING_COPY[plan.id];
 
             return (
               <article
                 key={plan.id}
                 className={cn(
-                  "relative flex min-h-[34rem] flex-col rounded-[1.45rem] border bg-[#202020] p-5 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
+                  "relative flex min-h-[28rem] flex-col rounded-[1.45rem] border bg-[#202020] p-5 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
                   highlighted
                     ? "border-[#6b63ff]/70 bg-[linear-gradient(145deg,#353164,#202026)] shadow-[0_24px_92px_-55px_rgb(107_99_255/0.85)]"
                     : "border-white/10 hover:border-white/20",
@@ -102,7 +124,7 @@ export function PricingCards({
                   </span>
                 ) : null}
                 <h3 className="text-2xl font-semibold tracking-tight">{plan.name}</h3>
-                <div className="mt-12">
+                <div className="mt-9">
                   {paid && cycle === "yearly" ? (
                     <p className="mb-1 text-sm font-semibold text-white/42 line-through">
                       ₹{plan.monthlyPrice.toLocaleString("en-IN")} / month
@@ -116,8 +138,11 @@ export function PricingCards({
                       {planCycleCaption(plan, cycle)}
                     </span>
                   </div>
-                  <p className="mt-5 min-h-12 text-base font-semibold leading-6 text-white/92">
-                    {plan.tagline}
+                  <p className="mt-5 min-h-14 text-base font-semibold leading-6 text-white/92">
+                    {copy.promise}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/42">
+                    {copy.bestFor}
                   </p>
                 </div>
 
@@ -135,14 +160,10 @@ export function PricingCards({
                   {!active ? <ArrowRight className="size-4" aria-hidden /> : null}
                 </Button>
 
-                <ul className="mt-7 space-y-4">
-                  {plan.features.map((feature) => (
+                <ul className="mt-7 space-y-3.5">
+                  {copy.bullets.map((feature) => (
                     <li key={feature} className="flex gap-3 text-sm leading-5 text-white/78">
-                      {highlighted ? (
-                        <Crown className="mt-0.5 size-4 shrink-0 text-white/86" aria-hidden />
-                      ) : (
-                        <Check className="mt-0.5 size-4 shrink-0 text-white/86" aria-hidden />
-                      )}
+                      <Check className="mt-0.5 size-4 shrink-0 text-white/86" aria-hidden />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -150,12 +171,12 @@ export function PricingCards({
 
                 <p className="mt-auto pt-8 text-xs leading-5 text-white/45">
                   {plan.id === "free"
-                    ? "Try the core workflow before upgrading."
+                    ? "Upload freely. Processing starts after sign-in."
                     : plan.id === "starter"
-                      ? "Built for daily sellers who need simple limits."
+                      ? "Good first paid plan for regular dispatch."
                       : plan.id === "pro"
-                        ? "Best for active sellers who want filtering, crop, and ZIP."
-                        : "For teams with heavy batch work and shared dispatch."}
+                        ? "Most sellers should start here when volume grows."
+                        : "Use this when multiple people handle dispatch."}
                 </p>
               </article>
             );
