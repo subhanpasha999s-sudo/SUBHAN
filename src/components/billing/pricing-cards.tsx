@@ -2,7 +2,21 @@
 
 import * as React from "react";
 
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Boxes,
+  Cloud,
+  CreditCard,
+  FileDown,
+  FileText,
+  Filter,
+  PackageCheck,
+  Scissors,
+  Sparkles,
+  Truck,
+  Users,
+  Zap,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,31 +36,45 @@ type PricingCardsProps = {
   compact?: boolean;
 };
 
-const PLAN_SELLING_COPY: Record<
+const PLAN_COPY: Record<
   TulminPlanId,
-  { promise: string; bestFor: string; bullets: string[] }
+  { promise: string; bestFor: string; footer: string }
 > = {
   free: {
-    promise: "Test Tulmin AI with real labels before paying.",
+    promise: "See what Tulmin AI can do with your real marketplace labels.",
     bestFor: "New sellers checking the workflow",
-    bullets: ["150 labels/month", "Basic filters", "Single PDF export"],
+    footer: "Use this to test the workflow before upgrading.",
   },
   starter: {
-    promise: "Run daily dispatch without manually opening every PDF.",
+    promise: "Filter daily dispatch batches without opening every PDF manually.",
     bestFor: "Small teams packing up to 50 labels/day",
-    bullets: ["1,500 labels/month", "SKU, QTY, payment and courier filters", "Basic upload history"],
+    footer: "Good first paid plan for regular dispatch.",
   },
   pro: {
-    promise: "The complete workflow for active Meesho, Flipkart, and Amazon sellers.",
-    bestFor: "Sellers who want filter + crop + ZIP",
-    bullets: ["Unlimited normal filtering", "Auto-crop labels and invoices", "ZIP by SKU", "Amazon SKU/QTY printing"],
+    promise: "Unlock the complete filter, crop, ZIP, and Amazon SKU/QTY workflow.",
+    bestFor: "Active sellers who want faster dispatch",
+    footer: "Most growing sellers should start here.",
   },
   business: {
-    promise: "Heavy batch processing and team controls for warehouse dispatch.",
+    promise: "Scale heavy batch processing with team controls and priority workflow.",
     bestFor: "Warehouses and multi-user teams",
-    bullets: ["Unlimited heavy batch processing", "Team workspace", "Priority support", "Upload history"],
+    footer: "Use this when multiple people handle dispatch.",
   },
 };
+
+const FEATURE_ICONS = [
+  Filter,
+  Boxes,
+  PackageCheck,
+  CreditCard,
+  Truck,
+  FileDown,
+  Scissors,
+  FileText,
+  Cloud,
+  Users,
+  Zap,
+] as const;
 
 export function PricingCards({
   currentPlan = "free",
@@ -57,34 +85,36 @@ export function PricingCards({
   const [cycle, setCycle] = React.useState<BillingCycle>("monthly");
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#070708] px-4 py-6 text-white shadow-[0_30px_120px_-50px_rgb(0_0_0/0.9)] sm:px-6 sm:py-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(101,91,255,0.18),transparent_42%)]" />
-      <div className="relative mx-auto max-w-7xl">
+    <section className="relative min-h-[calc(100vh-2rem)] overflow-hidden bg-black px-4 py-10 text-white sm:px-6 sm:py-14">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(115,109,255,0.16),transparent_40%)]" />
+      <div className="relative mx-auto max-w-[94rem]">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-white/70">
-            <Sparkles className="size-3.5 text-[#7d8cff]" aria-hidden />
-            Choose your dispatch limit
+          <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-1 text-xs font-semibold text-white/62">
+            <Sparkles className="size-3.5 text-[#8d87ff]" aria-hidden />
+            Pick your dispatch workspace
           </p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Upgrade only when Tulmin saves enough time.
+          <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Upgrade your plan
           </h2>
           <p className="mt-3 text-sm leading-6 text-white/62">
-            Start free, then pick the plan that matches your monthly label volume. No confusion, no feature overload.
+            Choose the label volume and automation level that fits your Meesho, Flipkart, and Amazon dispatch work.
           </p>
+
           {reason ? (
             <div className="mt-4 rounded-2xl border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-left text-sm font-medium text-amber-50">
               {reason}
             </div>
           ) : null}
-          <div className="mx-auto mt-5 inline-flex rounded-full border border-white/10 bg-white/[0.08] p-1 shadow-inner">
+
+          <div className="mx-auto mt-6 inline-flex rounded-full border border-white/10 bg-[#2b2b2b] p-1 shadow-inner">
             {(["monthly", "yearly"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
                 className={cn(
-                  "h-10 min-w-28 rounded-full px-5 text-sm font-semibold capitalize transition-all duration-200",
+                  "h-10 min-w-32 rounded-full px-5 text-sm font-semibold capitalize transition-all duration-200",
                   cycle === option
-                    ? "bg-white text-black shadow-[0_14px_34px_-20px_rgb(255_255_255/0.7)]"
+                    ? "bg-[#1f1f1f] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]"
                     : "text-white/55 hover:text-white"
                 )}
                 onClick={() => setCycle(option)}
@@ -93,6 +123,7 @@ export function PricingCards({
               </button>
             ))}
           </div>
+
           {cycle === "yearly" ? (
             <p className="mt-2 text-xs font-bold text-emerald-300">
               SAVE {YEARLY_SAVINGS_PERCENT}% with yearly billing
@@ -100,21 +131,21 @@ export function PricingCards({
           ) : null}
         </div>
 
-        <div className={cn("mt-7 grid gap-4", compact ? "xl:grid-cols-4" : "lg:grid-cols-2 xl:grid-cols-4")}>
+        <div className={cn("mt-8 grid gap-5", compact ? "xl:grid-cols-4" : "lg:grid-cols-2 xl:grid-cols-4")}>
           {TULMIN_PLANS.map((plan) => {
             const active = plan.id === currentPlan;
             const highlighted = plan.id === "pro";
             const paid = plan.id !== "free";
-            const copy = PLAN_SELLING_COPY[plan.id];
+            const copy = PLAN_COPY[plan.id];
 
             return (
               <article
                 key={plan.id}
                 className={cn(
-                  "relative flex min-h-[28rem] flex-col rounded-[1.45rem] border bg-[#202020] p-5 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
+                  "relative flex min-h-[42rem] flex-col rounded-[1.25rem] border bg-[#202020] p-6 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
                   highlighted
-                    ? "border-[#6b63ff]/70 bg-[linear-gradient(145deg,#353164,#202026)] shadow-[0_24px_92px_-55px_rgb(107_99_255/0.85)]"
-                    : "border-white/10 hover:border-white/20",
+                    ? "border-[#726bff]/80 bg-[linear-gradient(145deg,#34305f,#202026_70%)] shadow-[0_26px_96px_-58px_rgb(107_99_255/0.95)]"
+                    : "border-white/[0.14] hover:border-white/25",
                   active && "ring-1 ring-emerald-300/35"
                 )}
               >
@@ -123,34 +154,38 @@ export function PricingCards({
                     {plan.badge === "BEST VALUE" ? "Popular" : plan.badge}
                   </span>
                 ) : null}
-                <h3 className="text-2xl font-semibold tracking-tight">{plan.name}</h3>
-                <div className="mt-9">
+
+                <h3 className="text-[1.65rem] font-semibold tracking-tight">{plan.name}</h3>
+
+                <div className="mt-12">
                   {paid && cycle === "yearly" ? (
                     <p className="mb-1 text-sm font-semibold text-white/42 line-through">
                       ₹{plan.monthlyPrice.toLocaleString("en-IN")} / month
                     </p>
                   ) : null}
+
                   <div className="flex items-end gap-2">
-                    <span className="text-5xl font-semibold tracking-tight">
+                    <span className="text-[3.35rem] font-semibold leading-none tracking-tight">
                       {formatPlanPrice(plan, cycle)}
                     </span>
-                    <span className="pb-2 text-xs font-medium text-white/55">
+                    <span className="pb-2 text-[12px] font-medium leading-snug text-white/55">
                       {planCycleCaption(plan, cycle)}
                     </span>
                   </div>
-                  <p className="mt-5 min-h-14 text-base font-semibold leading-6 text-white/92">
+
+                  <p className="mt-6 min-h-16 text-[1rem] font-semibold leading-6 text-white/92">
                     {copy.promise}
                   </p>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/42">
+                  <p className="mt-2 min-h-9 text-xs font-semibold uppercase tracking-[0.16em] text-white/48">
                     {copy.bestFor}
                   </p>
                 </div>
 
                 <Button
                   className={cn(
-                    "mt-5 h-12 rounded-full text-sm font-semibold",
+                    "mt-6 h-12 rounded-full text-sm font-semibold",
                     highlighted
-                      ? "bg-[#635bff] text-white hover:bg-[#716aff]"
+                      ? "bg-[#635bff] text-white shadow-[0_16px_36px_-22px_rgb(99_91_255/0.95)] hover:bg-[#716aff]"
                       : "bg-white text-black hover:bg-white/90"
                   )}
                   disabled={active}
@@ -161,22 +196,19 @@ export function PricingCards({
                 </Button>
 
                 <ul className="mt-7 space-y-3.5">
-                  {copy.bullets.map((feature) => (
-                    <li key={feature} className="flex gap-3 text-sm leading-5 text-white/78">
-                      <Check className="mt-0.5 size-4 shrink-0 text-white/86" aria-hidden />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
+                  {plan.features.map((feature, index) => {
+                    const Icon = FEATURE_ICONS[index % FEATURE_ICONS.length];
+                    return (
+                      <li key={feature} className="flex gap-3 text-sm leading-5 text-white/78">
+                        <Icon className="mt-0.5 size-4 shrink-0 text-white/82" aria-hidden />
+                        <span>{feature}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <p className="mt-auto pt-8 text-xs leading-5 text-white/45">
-                  {plan.id === "free"
-                    ? "Upload freely. Processing starts after sign-in."
-                    : plan.id === "starter"
-                      ? "Good first paid plan for regular dispatch."
-                      : plan.id === "pro"
-                        ? "Most sellers should start here when volume grows."
-                        : "Use this when multiple people handle dispatch."}
+                  {copy.footer}
                 </p>
               </article>
             );
