@@ -4488,15 +4488,19 @@ export function MeeshoLabelExportTool() {
                       Download
                       <ChevronDown className="size-3.5 opacity-85" strokeWidth={2.25} aria-hidden />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[17rem]">
+                    <DropdownMenuContent
+                      align="end"
+                      sideOffset={10}
+                      className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.06] backdrop-blur-xl"
+                    >
                       <DropdownMenuItem
-                        className="cursor-pointer py-2.5 font-medium"
+                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
                         onClick={() => void downloadFilteredPdf()}
                       >
                         Merged PDF — one file (pages in PDF order)
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="cursor-pointer py-2.5 font-medium"
+                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
                         onClick={() => void downloadSelectedSkuFilesZip()}
                       >
                         ZIP — one PDF per SKU (selected rows only)
@@ -4602,15 +4606,20 @@ export function MeeshoLabelExportTool() {
                         Download
                         <ChevronDown className="size-4 shrink-0 opacity-85" strokeWidth={2.25} aria-hidden />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="end" sideOffset={10} className="min-w-[min(100vw-2rem,19rem)]">
+                      <DropdownMenuContent
+                        side="top"
+                        align="end"
+                        sideOffset={10}
+                        className="w-[min(100vw-2rem,22rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06] backdrop-blur-xl"
+                      >
                         <DropdownMenuItem
-                          className="cursor-pointer py-2.5 text-[13px] font-medium"
+                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
                           onClick={() => void downloadFilteredPdf()}
                         >
                           Merged PDF — one file
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="cursor-pointer py-2.5 text-[13px] font-medium"
+                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
                           onClick={() => void downloadSelectedSkuFilesZip()}
                         >
                           ZIP — one PDF per SKU
