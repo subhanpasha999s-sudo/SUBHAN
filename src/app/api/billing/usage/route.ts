@@ -7,6 +7,7 @@ import {
   requireBillingUser,
   touchDeviceTrial,
 } from "@/lib/billing/server";
+import type { ServerEntitlement } from "@/lib/billing/server";
 
 type UsageBody = {
   action?: "import" | "export";
@@ -14,6 +15,27 @@ type UsageBody = {
   allowPartial?: boolean;
   browser?: Record<string, unknown>;
 };
+
+function projectEntitlementUsage(
+  entitlement: ServerEntitlement,
+  acceptedLabelCount: number
+): ServerEntitlement {
+  const nextLabelsUsed = entitlement.labelsUsed + acceptedLabelCount;
+  const nextDailyLabelsUsed = entitlement.dailyLabelsUsed + acceptedLabelCount;
+  return {
+    ...entitlement,
+    labelsUsed: nextLabelsUsed,
+    labelsRemaining:
+      entitlement.labelsLimit == null
+        ? null
+        : Math.max(0, entitlement.labelsLimit - nextLabelsUsed),
+    dailyLabelsUsed: nextDailyLabelsUsed,
+    dailyLabelsRemaining:
+      entitlement.dailyLabelsLimit == null
+        ? null
+        : Math.max(0, entitlement.dailyLabelsLimit - nextDailyLabelsUsed),
+  };
+}
 
 export async function POST(req: NextRequest) {
   const auth = await requireBillingUser(req);
@@ -85,11 +107,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (insert.error) {
+      if (before.plan === "free") {
+        await touchDeviceTrial(auth.sb, auth.user.id, fp, acceptedLabelCount);
+      }
+      const projectedEntitlement = projectEntitlementUsage(before, acceptedLabelCount);
       return NextResponse.json({
         ok: true,
-        entitlement: before,
-        acceptedLabelCount: labelCount,
-        rejectedLabelCount: 0,
+        entitlement: projectedEntitlement,
+        acceptedLabelCount,
+        rejectedLabelCount,
+        partial: rejectedLabelCount > 0,
+        limitReached: rejectedLabelCount > 0,
         trackingUnavailable: true,
         message:
           "Usage tracking is still being prepared. Your labels can continue processing while billing sync catches up.",

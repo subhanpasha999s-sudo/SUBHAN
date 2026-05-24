@@ -2546,9 +2546,8 @@ export function MeeshoLabelExportTool() {
     [selectedLabelRows]
   );
 
-  /** Multiple mapped buckets in the current checkbox selection → offer merged PDF vs per-SKU ZIP. */
-  const selectionShowsMergeVsZipChoice =
-    selectedTotal > 0 && selectedDistinctSkuBuckets >= 2;
+  /** Download actions stay visible after import; selection just changes the scope labels. */
+  const showDownloadMenu = filteredLabels.length > 0;
 
   function headerClick(key: SortKey) {
     if (sortKey === key) {
@@ -2956,17 +2955,19 @@ export function MeeshoLabelExportTool() {
     setSelected({});
   }
 
-  async function downloadFilteredPdf() {
-    if (pdfSources.length === 0 || selectedTotal === 0) {
+  async function downloadRowsPdf(
+    sourceRows: readonly EnrichedMeeshoLabelRow[],
+    scope: "selected" | "visible"
+  ) {
+    if (pdfSources.length === 0 || sourceRows.length === 0) {
       trackEvent("meesho_export_selected_blocked", {
-        reason: "no_selection",
+        reason: scope === "selected" ? "no_selection" : "no_visible_labels",
         visible_count: filteredLabels.length,
       });
-      notify.info("Select at least one row.");
+      notify.info(scope === "selected" ? "Select at least one row." : "Nothing matches filters.");
       return;
     }
-    const idSet = new Set(Object.keys(selected));
-    const exportedEnriched = enrichedRows.filter((r) => idSet.has(r.id));
+    const exportedEnriched = [...sourceRows];
     if (processingMode === "filter_crop") {
       setCropExportBusy(true);
       setPdfExportState({ phase: "loading", done: 0, total: exportedEnriched.length, label: "Preparing cropped PDF" });
@@ -3000,14 +3001,16 @@ export function MeeshoLabelExportTool() {
         });
         trackEvent("meesho_export_selected_succeeded", {
           page_count: out.pageCount,
-          selected_count: selectedTotal,
+          selected_count: scope === "selected" ? sourceRows.length : 0,
           visible_count: filteredLabels.length,
           crop_mode: autoCropMode,
+          export_scope: scope,
         });
       } catch (e) {
         trackEvent("meesho_export_selected_failed", {
           reason: "crop_export_error",
-          selected_count: selectedTotal,
+          selected_count: scope === "selected" ? sourceRows.length : 0,
+          export_scope: scope,
         });
         notify.error("Couldn’t export cropped PDF yet", {
           description: describeExportFailure(e),
@@ -3024,7 +3027,8 @@ export function MeeshoLabelExportTool() {
     if (steps.length === 0) {
       trackEvent("meesho_export_selected_failed", {
         reason: "selection_page_mismatch",
-        selected_count: selectedTotal,
+        selected_count: scope === "selected" ? sourceRows.length : 0,
+        export_scope: scope,
       });
       notify.error("Could not map selection to PDF pages.");
       return;
@@ -3052,13 +3056,15 @@ export function MeeshoLabelExportTool() {
       });
       trackEvent("meesho_export_selected_succeeded", {
         page_count: steps.length,
-        selected_count: selectedTotal,
+        selected_count: scope === "selected" ? sourceRows.length : 0,
         visible_count: filteredLabels.length,
+        export_scope: scope,
       });
     } catch (e) {
       trackEvent("meesho_export_selected_failed", {
         reason: "export_error",
-        selected_count: selectedTotal,
+        selected_count: scope === "selected" ? sourceRows.length : 0,
+        export_scope: scope,
       });
       notify.error("Couldn’t export that PDF yet", {
         description: describeExportFailure(e),
@@ -3066,6 +3072,14 @@ export function MeeshoLabelExportTool() {
     } finally {
       setPdfExportState(null);
     }
+  }
+
+  async function downloadFilteredPdf() {
+    await downloadRowsPdf(selectedLabelRows, "selected");
+  }
+
+  async function downloadVisiblePdf() {
+    await downloadRowsPdf(filteredLabels, "visible");
   }
 
   async function downloadSkuFilesZipFromRows(
@@ -4457,30 +4471,12 @@ export function MeeshoLabelExportTool() {
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 {amazonInvoiceDownloadToggle}
-                {!selectionShowsMergeVsZipChoice ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    title="ZIP · one PDF per SKU for rows matching the current filters"
-                    className="min-h-11 gap-1 rounded-xl border-border/55 bg-background/55 text-xs font-semibold shadow-sm sm:h-8 sm:min-h-0"
-                    disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null}
-                    onClick={() => void requestDownloadAllSkuFiles()}
-                  >
-                    {bulkSkuZipState ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <Download className="size-3.5" aria-hidden />
-                    )}
-                    {bulkExportLabel}
-                  </Button>
-                ) : null}
-                {selectionShowsMergeVsZipChoice ? (
+                {showDownloadMenu ? (
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger
                       type="button"
-                      disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
-                      title="Export checked rows"
+                      disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
+                      title="Export rows"
                       className={cn(
                         buttonVariants({ variant: "default", size: "sm" }),
                         "min-h-11 gap-1 rounded-xl text-xs font-semibold shadow-sm sm:h-8 sm:min-h-0"
@@ -4495,17 +4491,27 @@ export function MeeshoLabelExportTool() {
                       sideOffset={10}
                       className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                     >
+                      {selectedTotal > 0 ? (
+                        <DropdownMenuItem
+                          className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                          onClick={() => void downloadFilteredPdf()}
+                        >
+                          Merged PDF — selected rows only
+                        </DropdownMenuItem>
+                      ) : null}
+                      {selectedTotal > 0 ? (
+                        <DropdownMenuItem
+                          className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                          onClick={() => void downloadSelectedSkuFilesZip()}
+                        >
+                          ZIP — one PDF per SKU (selected rows only)
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem
                         className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                        onClick={() => void downloadFilteredPdf()}
+                        onClick={() => void downloadVisiblePdf()}
                       >
-                        Merged PDF — one file (pages in PDF order)
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                        onClick={() => void downloadSelectedSkuFilesZip()}
-                      >
-                        ZIP — one PDF per SKU (selected rows only)
+                        Merged PDF — all visible rows
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
@@ -4515,20 +4521,7 @@ export function MeeshoLabelExportTool() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    data-tour="download-btn"
-                    title="Checked rows · PDF order"
-                    className="min-h-11 gap-1 rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40 sm:h-8 sm:min-h-0"
-                    disabled={selectedTotal === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
-                    onClick={() => void downloadFilteredPdf()}
-                  >
-                    <Download className="size-3.5" aria-hidden />
-                    Download
-                  </Button>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -4574,7 +4567,7 @@ export function MeeshoLabelExportTool() {
               </div>
             )}
 
-            {viewMode === "mobile" && selectedTotal > 0 ? (
+            {viewMode === "mobile" && filteredLabels.length > 0 ? (
               <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/94 px-4 pt-3 shadow-[0_-10px_34px_-26px_rgba(0,0,0,0.55)] backdrop-blur-sm supports-[backdrop-filter]:bg-background/86 dark:shadow-[0_-12px_40px_-30px_rgb(0_0_0/0.75)] sm:hidden">
                 {amazonInvoiceDownloadToggle ? (
                   <div className="mx-auto mb-2 flex max-w-lg justify-end">
@@ -4584,27 +4577,29 @@ export function MeeshoLabelExportTool() {
                 <div className="mx-auto flex max-w-lg items-center gap-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
                   <div className="min-w-0 flex-1 truncate">
                     <p className="truncate text-[17px] font-semibold leading-tight tracking-tight text-foreground tabular-nums">
-                      {selectedTotal.toLocaleString()}
+                      {(selectedTotal > 0 ? selectedTotal : filteredLabels.length).toLocaleString()}
                       <span className="ml-1.5 text-[12px] font-medium tabular-nums text-muted-foreground/90">
-                        selected
+                        {selectedTotal > 0 ? "selected" : "visible"}
                       </span>
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-11 shrink-0 touch-manipulation rounded-xl px-3 text-[13px] font-semibold text-muted-foreground"
-                    onClick={clearSelection}
-                  >
-                    Clear
-                  </Button>
-                  {selectionShowsMergeVsZipChoice ? (
+                  {selectedTotal > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-11 shrink-0 touch-manipulation rounded-xl px-3 text-[13px] font-semibold text-muted-foreground"
+                      onClick={clearSelection}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
+                  {showDownloadMenu ? (
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger
                         type="button"
                         data-tour="download-btn"
-                        disabled={bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
-                        title="Export selected rows"
+                        disabled={filteredLabels.length === 0 || bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
+                        title="Export rows"
                         className={cn(
                           buttonVariants({ variant: "default", size: "lg" }),
                           "h-11 min-w-[7.5rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
@@ -4620,17 +4615,27 @@ export function MeeshoLabelExportTool() {
                         sideOffset={10}
                         className="w-[min(100vw-2rem,22rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                       >
+                        {selectedTotal > 0 ? (
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                            onClick={() => void downloadFilteredPdf()}
+                          >
+                            Merged PDF — selected rows only
+                          </DropdownMenuItem>
+                        ) : null}
+                        {selectedTotal > 0 ? (
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                            onClick={() => void downloadSelectedSkuFilesZip()}
+                          >
+                            ZIP — one PDF per SKU (selected rows only)
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem
                           className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                          onClick={() => void downloadFilteredPdf()}
+                          onClick={() => void downloadVisiblePdf()}
                         >
-                          Merged PDF — one file
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                          onClick={() => void downloadSelectedSkuFilesZip()}
-                        >
-                          ZIP — one PDF per SKU
+                          Merged PDF — all visible rows
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
@@ -4640,18 +4645,7 @@ export function MeeshoLabelExportTool() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : (
-                    <Button
-                      type="button"
-                      data-tour="download-btn"
-                      className="h-11 min-w-[6.75rem] touch-manipulation gap-1.5 rounded-xl px-4 text-[13px] font-semibold shadow-[0_8px_32px_-14px_rgb(96_165_250/0.9)]"
-                      disabled={bulkSkuZipState != null || pdfExportState != null || cropExportBusy}
-                      onClick={() => void downloadFilteredPdf()}
-                    >
-                      <Download className="size-[18px] shrink-0" aria-hidden />
-                      Download
-                    </Button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ) : null}
