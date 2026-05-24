@@ -29,6 +29,7 @@ export type UsageReservationResult =
       rejectedLabelCount: number;
       partial?: boolean;
       limitReached?: boolean;
+      trackingUnavailable?: boolean;
       message?: string;
     }
   | {
@@ -142,11 +143,16 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
           if (data.limitReached && data.message) {
             setUpgradeReason(data.message);
             setUpgradeOpen(true);
+          } else {
+            setUpgradeReason("");
+            setUpgradeOpen(false);
           }
         } else {
           if (data.entitlement) setEntitlement({ ...data.entitlement, loaded: true });
-          setUpgradeReason(data.message);
-          setUpgradeOpen(true);
+          if (data.reason === "limit_reached" || data.reason === "abuse_review") {
+            setUpgradeReason(data.message);
+            setUpgradeOpen(true);
+          }
         }
         return data;
       } catch {

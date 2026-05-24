@@ -2794,6 +2794,10 @@ export function MeeshoLabelExportTool() {
         if (reservation.reason === "signin_required") {
           pendingLoginFilesRef.current = files;
           setLoginRequiredOpen(true);
+        } else if (reservation.reason === "server_unavailable") {
+          notify.error("Usage check unavailable", {
+            description: "Tulmin could not verify this run right now. Please try again in a moment.",
+          });
         } else {
           notify.info("Upgrade to continue", {
             description: reservation.message,
@@ -2804,6 +2808,14 @@ export function MeeshoLabelExportTool() {
           label_count: nextRows.length,
         });
         return;
+      }
+      if (reservation.trackingUnavailable) {
+        notify.info("Processing allowed", {
+          description:
+            reservation.message ||
+            "Usage tracking is still being prepared. Tulmin will continue this run normally.",
+          duration: 7000,
+        });
       }
       if (reservation.partial) {
         const accepted = Math.max(0, reservation.acceptedLabelCount);

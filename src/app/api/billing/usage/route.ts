@@ -85,15 +85,15 @@ export async function POST(req: NextRequest) {
     });
 
     if (insert.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          reason: "server_unavailable",
-          message:
-            "Usage validation is not ready yet. Please apply the billing migration and try again.",
-        },
-        { status: 503 }
-      );
+      return NextResponse.json({
+        ok: true,
+        entitlement: before,
+        acceptedLabelCount: labelCount,
+        rejectedLabelCount: 0,
+        trackingUnavailable: true,
+        message:
+          "Usage tracking is still being prepared. Your labels can continue processing while billing sync catches up.",
+      });
     }
 
     if (before.plan === "free") {
