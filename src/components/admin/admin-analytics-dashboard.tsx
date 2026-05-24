@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import Link from "next/link";
 import { Activity, BarChart3, CreditCard, RefreshCw, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -124,10 +125,19 @@ export function AdminAnalyticsDashboard() {
               Live usage, revenue, plans, uploads, and dispatch processing signals for the SaaS.
             </p>
           </div>
-          <Button className="h-11 rounded-2xl" onClick={() => void load()} disabled={loading}>
-            <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} aria-hidden />
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/billing"
+              className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-white hover:bg-white/[0.1]"
+            >
+              <CreditCard className="mr-2 size-4" aria-hidden />
+              Billing
+            </Link>
+            <Button className="h-11 rounded-2xl" onClick={() => void load()} disabled={loading}>
+              <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} aria-hidden />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {error ? (

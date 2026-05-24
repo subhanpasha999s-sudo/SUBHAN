@@ -1,0 +1,166 @@
+import { NextResponse, type NextRequest } from "next/server";
+
+import { requireAdmin } from "@/lib/admin/auth";
+import {
+  defaultBillingPlans,
+  encryptBillingSecret,
+  secretLast4,
+  type AdminBillingPlanSetting,
+} from "@/lib/admin/billing-settings";
+import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
+
+type BillingSettingsRow = {
+  provider: "razorpay";
+  mode: "test" | "live";
+  checkout_enabled: boolean;
+  razorpay_key_id: string | null;
+  razorpay_key_secret_encrypted: string | null;
+  razorpay_key_secret_last4: string | null;
+  razorpay_webhook_secret_encrypted: string | null;
+  razorpay_webhook_secret_last4: string | null;
+};
+
+type PlanRow = {
+  plan: AdminBillingPlanSetting["plan"];
+  enabled: boolean;
+  monthly_price: number;
+  yearly_monthly_equivalent: number;
+  yearly_total: number;
+  label_limit: number | null;
+  daily_limit: number | null;
+  razorpay_monthly_plan_id: string | null;
+  razorpay_yearly_plan_id: string | null;
+};
+
+type PutBody = {
+  settings?: {
+    mode?: "test" | "live";
+    checkoutEnabled?: boolean;
+    razorpayKeyId?: string;
+    razorpayKeySecret?: string;
+    razorpayWebhookSecret?: string;
+  };
+  plans?: AdminBillingPlanSetting[];
+};
+
+function mapSettings(row?: BillingSettingsRow | null) {
+  return {
+    provider: "razorpay" as const,
+    mode: row?.mode ?? "test",
+    checkoutEnabled: Boolean(row?.checkout_enabled),
+    razorpayKeyId: row?.razorpay_key_id ?? "",
+    razorpayKeySecretSaved: Boolean(row?.razorpay_key_secret_encrypted),
+    razorpayKeySecretLast4: row?.razorpay_key_secret_last4 ?? "",
+    razorpayWebhookSecretSaved: Boolean(row?.razorpay_webhook_secret_encrypted),
+    razorpayWebhookSecretLast4: row?.razorpay_webhook_secret_last4 ?? "",
+  };
+}
+
+function mapPlan(row: PlanRow): AdminBillingPlanSetting {
+  return {
+    plan: row.plan,
+    enabled: row.enabled,
+    monthlyPrice: row.monthly_price,
+    yearlyMonthlyEquivalent: row.yearly_monthly_equivalent,
+    yearlyTotal: row.yearly_total,
+    labelLimit: row.label_limit,
+    dailyLimit: row.daily_limit,
+    razorpayMonthlyPlanId: row.razorpay_monthly_plan_id ?? "",
+    razorpayYearlyPlanId: row.razorpay_yearly_plan_id ?? "",
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
+
+  const sb = getSupabaseServiceRole();
+  if (!sb) return NextResponse.json({ error: "Service role is not configured." }, { status: 503 });
+
+  const [settingsResult, plansResult] = await Promise.all([
+    sb.from("tulmin_billing_settings").select("*").eq("id", true).maybeSingle(),
+    sb.from("tulmin_plan_settings").select("*").order("monthly_price", { ascending: true }),
+  ]);
+
+  if (settingsResult.error || plansResult.error) {
+    return NextResponse.json(
+      {
+        error:
+          "Billing admin tables are not ready. Apply supabase migration 008_billing_admin.sql.",
+      },
+      { status: 503 }
+    );
+  }
+
+  return NextResponse.json({
+    admin,
+    settings: mapSettings(settingsResult.data as BillingSettingsRow | null),
+    plans:
+      plansResult.data && plansResult.data.length > 0
+        ? (plansResult.data as PlanRow[]).map(mapPlan)
+        : defaultBillingPlans(),
+  });
+}
+
+export async function PUT(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
+  if (admin.role !== "super_admin") {
+    return NextResponse.json({ error: "Only super admins can update billing." }, { status: 403 });
+  }
+
+  const sb = getSupabaseServiceRole();
+  if (!sb) return NextResponse.json({ error: "Service role is not configured." }, { status: 503 });
+  const body = (await req.json().catch(() => ({}))) as PutBody;
+
+  if (body.settings) {
+    const existing = await sb.from("tulmin_billing_settings").select("*").eq("id", true).maybeSingle();
+    if (existing.error) {
+      return NextResponse.json(
+        { error: "Billing admin tables are not ready. Apply supabase migration 008_billing_admin.sql." },
+        { status: 503 }
+      );
+    }
+    const update: Record<string, unknown> = {
+      id: true,
+      provider: "razorpay",
+      mode: body.settings.mode ?? "test",
+      checkout_enabled: Boolean(body.settings.checkoutEnabled),
+      razorpay_key_id: body.settings.razorpayKeyId?.trim() ?? "",
+      updated_by: admin.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (body.settings.razorpayKeySecret?.trim()) {
+      update.razorpay_key_secret_encrypted = encryptBillingSecret(body.settings.razorpayKeySecret);
+      update.razorpay_key_secret_last4 = secretLast4(body.settings.razorpayKeySecret);
+    }
+    if (body.settings.razorpayWebhookSecret?.trim()) {
+      update.razorpay_webhook_secret_encrypted = encryptBillingSecret(body.settings.razorpayWebhookSecret);
+      update.razorpay_webhook_secret_last4 = secretLast4(body.settings.razorpayWebhookSecret);
+    }
+
+    const saved = await sb.from("tulmin_billing_settings").upsert(update, { onConflict: "id" });
+    if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
+  }
+
+  if (Array.isArray(body.plans)) {
+    const rows = body.plans.map((plan) => ({
+      plan: plan.plan,
+      enabled: Boolean(plan.enabled),
+      monthly_price: Math.max(0, Math.floor(Number(plan.monthlyPrice) || 0)),
+      yearly_monthly_equivalent: Math.max(0, Math.floor(Number(plan.yearlyMonthlyEquivalent) || 0)),
+      yearly_total: Math.max(0, Math.floor(Number(plan.yearlyTotal) || 0)),
+      label_limit: plan.labelLimit == null ? null : Math.max(0, Math.floor(Number(plan.labelLimit) || 0)),
+      daily_limit: plan.dailyLimit == null ? null : Math.max(0, Math.floor(Number(plan.dailyLimit) || 0)),
+      razorpay_monthly_plan_id: plan.razorpayMonthlyPlanId?.trim() ?? "",
+      razorpay_yearly_plan_id: plan.razorpayYearlyPlanId?.trim() ?? "",
+      updated_by: admin.id,
+      updated_at: new Date().toISOString(),
+    }));
+    const savedPlans = await sb.from("tulmin_plan_settings").upsert(rows, { onConflict: "plan" });
+    if (savedPlans.error) return NextResponse.json({ error: savedPlans.error.message }, { status: 500 });
+  }
+
+  return GET(req);
+}
