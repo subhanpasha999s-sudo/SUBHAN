@@ -41,20 +41,32 @@ export async function POST(req: NextRequest) {
 
   const labelsRemaining =
     before.labelsLimit == null ? null : Math.max(0, before.labelsLimit - before.labelsUsed);
+  const dailyLabelsRemaining =
+    before.dailyLabelsLimit == null
+      ? null
+      : Math.max(0, before.dailyLabelsLimit - before.dailyLabelsUsed);
+  const effectiveRemaining =
+    labelsRemaining == null && dailyLabelsRemaining == null
+      ? null
+      : Math.min(labelsRemaining ?? Number.POSITIVE_INFINITY, dailyLabelsRemaining ?? Number.POSITIVE_INFINITY);
   const acceptedLabelCount =
-    before.labelsLimit == null
+    effectiveRemaining == null
       ? labelCount
       : allowPartial
-        ? Math.min(labelCount, labelsRemaining ?? 0)
+        ? Math.min(labelCount, effectiveRemaining)
         : labelCount;
   const rejectedLabelCount = Math.max(0, labelCount - acceptedLabelCount);
+  const monthlyLimitHit = labelsRemaining != null && labelCount > labelsRemaining;
+  const dailyLimitHit = dailyLabelsRemaining != null && labelCount > dailyLabelsRemaining;
 
-  if (before.labelsLimit != null && before.labelsUsed + labelCount > before.labelsLimit && acceptedLabelCount <= 0) {
+  if ((monthlyLimitHit || dailyLimitHit) && acceptedLabelCount <= 0) {
     return NextResponse.json(
       {
         ok: false,
         reason: "limit_reached",
-        message: "You have exhausted your available labels for this plan. Upgrade to continue processing more labels without interruption.",
+        message: dailyLimitHit
+          ? "You have used today's label credit. Add credit or upgrade to continue processing without waiting."
+          : "You have exhausted your available labels for this plan. Add credit or upgrade to continue processing more labels without interruption.",
         entitlement: before,
       },
       { status: 402 }
@@ -99,7 +111,9 @@ export async function POST(req: NextRequest) {
     limitReached: rejectedLabelCount > 0,
     message:
       rejectedLabelCount > 0
-        ? "You have exhausted your available labels for this plan. Upgrade to continue processing more labels without interruption."
+        ? dailyLimitHit
+          ? "You have used today's label credit. Add credit or upgrade to continue processing without waiting."
+          : "You have exhausted your available labels for this plan. Add credit or upgrade to continue processing more labels without interruption."
         : undefined,
   });
 }

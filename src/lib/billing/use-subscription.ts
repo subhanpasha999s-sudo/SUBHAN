@@ -12,7 +12,11 @@ export type SubscriptionEntitlement = {
   labelsUsed: number;
   labelsLimit: number | null;
   labelsRemaining: number | null;
+  dailyLabelsUsed: number;
+  dailyLabelsLimit: number | null;
+  dailyLabelsRemaining: number | null;
   monthKey: string;
+  dayKey: string;
   abuseReview: boolean;
   loaded: boolean;
 };
@@ -40,7 +44,11 @@ const DEFAULT_FREE_ENTITLEMENT: SubscriptionEntitlement = {
   labelsUsed: 0,
   labelsLimit: TULMIN_PLAN_BY_ID.free.labelLimit,
   labelsRemaining: TULMIN_PLAN_BY_ID.free.labelLimit,
+  dailyLabelsUsed: 0,
+  dailyLabelsLimit: TULMIN_PLAN_BY_ID.free.dailyLabelLimit ?? null,
+  dailyLabelsRemaining: TULMIN_PLAN_BY_ID.free.dailyLabelLimit ?? null,
   monthKey: "",
+  dayKey: "",
   abuseReview: false,
   loaded: false,
 };

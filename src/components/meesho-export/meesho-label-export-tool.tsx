@@ -2809,7 +2809,7 @@ export function MeeshoLabelExportTool() {
         const accepted = Math.max(0, reservation.acceptedLabelCount);
         usableNextRows = nextRows.slice(0, accepted);
         notify.info("Plan limit reached", {
-          description: `${accepted.toLocaleString()} labels processed. ${reservation.rejectedLabelCount.toLocaleString()} labels paused until you upgrade.`,
+          description: `${accepted.toLocaleString()} labels processed. ${reservation.rejectedLabelCount.toLocaleString()} labels paused. Add credit or upgrade to continue.`,
           duration: 8000,
         });
         trackEvent("billing_usage_partial_import", {
@@ -3647,7 +3647,11 @@ export function MeeshoLabelExportTool() {
                   {userId
                     ? entitlement.labelsLimit == null
                       ? "Unlimited normal seller use"
-                      : `${entitlement.labelsRemaining?.toLocaleString() ?? "0"} labels left this month`
+                      : `${entitlement.labelsRemaining?.toLocaleString() ?? "0"} labels left this month${
+                          entitlement.dailyLabelsLimit != null
+                            ? ` · ${entitlement.dailyLabelsRemaining?.toLocaleString() ?? "0"} left today`
+                            : ""
+                        }`
                     : "Start with 150 free labels and protect your workspace."}
                 </p>
                 {userId && usageCloseToLimit ? (
@@ -4675,7 +4679,7 @@ export function MeeshoLabelExportTool() {
                 You have reached your current plan limit
               </p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                You have exhausted your available labels for this plan. Upgrade to continue processing more labels without interruption.
+                {upgradeReason || "You have exhausted your available labels for this plan. Add credit or upgrade to continue processing more labels without interruption."}
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-4">
                 <RunMetric label="Current plan" value={plan.name} />
@@ -4685,6 +4689,27 @@ export function MeeshoLabelExportTool() {
                   value={entitlement.labelsRemaining == null ? "∞" : entitlement.labelsRemaining.toLocaleString()}
                 />
                 <RunMetric label="Next plan" value={recommendedPlan.name} tone="amazon" />
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/15"
+                  onClick={() =>
+                    notify.info("Credit packs are ready for checkout wiring", {
+                      description: "Connect Razorpay add-on credit checkout from Admin Billing to activate this.",
+                    })
+                  }
+                >
+                  Add credit
+                </Button>
+                <Button
+                  type="button"
+                  className="h-10 rounded-xl"
+                  onClick={() => trackEvent("billing_upgrade_popup_cta", { plan: entitlement.plan })}
+                >
+                  Upgrade Now
+                </Button>
               </div>
             </div>
           ) : null}

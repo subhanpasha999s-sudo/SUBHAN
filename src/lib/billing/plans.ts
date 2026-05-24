@@ -7,6 +7,7 @@ export type TulminPlan = {
   yearlyMonthlyEquivalent: number;
   yearlyTotal: number;
   labelLimit: number | null;
+  dailyLabelLimit?: number | null;
   dailyFit: string;
   tagline: string;
   cta: string;
@@ -27,6 +28,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     yearlyMonthlyEquivalent: 0,
     yearlyTotal: 0,
     labelLimit: 150,
+    dailyLabelLimit: null,
     dailyFit: "Try with 150 labels/month",
     tagline: "Experience the workflow before paying.",
     cta: "Current Plan",
@@ -47,6 +49,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     yearlyMonthlyEquivalent: 70,
     yearlyTotal: 840,
     labelLimit: 1500,
+    dailyLabelLimit: 50,
     dailyFit: "Up to 50 labels/day",
     tagline: "For small sellers who dispatch daily.",
     cta: "Upgrade to Starter",
@@ -70,6 +73,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     yearlyMonthlyEquivalent: 141,
     yearlyTotal: 1692,
     labelLimit: null,
+    dailyLabelLimit: null,
     dailyFit: "Unlimited normal seller use",
     tagline: "The best value for active dispatch teams.",
     cta: "Upgrade to Pro",
@@ -95,6 +99,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     yearlyMonthlyEquivalent: 354,
     yearlyTotal: 4248,
     labelLimit: null,
+    dailyLabelLimit: null,
     dailyFit: "Team and heavy batch use",
     tagline: "For warehouses that need priority workflows.",
     cta: "Talk to Sales",

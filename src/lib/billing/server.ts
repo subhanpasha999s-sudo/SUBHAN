@@ -15,13 +15,21 @@ export type ServerEntitlement = {
   labelsUsed: number;
   labelsLimit: number | null;
   labelsRemaining: number | null;
+  dailyLabelsUsed: number;
+  dailyLabelsLimit: number | null;
+  dailyLabelsRemaining: number | null;
   monthKey: string;
+  dayKey: string;
   abuseReview: boolean;
   loaded: boolean;
 };
 
 export function currentMonthKey(date = new Date()) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export function currentDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
 }
 
 function sha(input: string) {
@@ -95,6 +103,7 @@ export async function getServerEntitlement(
   deviceHash?: string
 ): Promise<ServerEntitlement> {
   const monthKey = currentMonthKey();
+  const dayKey = currentDayKey();
   let plan: TulminPlanId = "free";
   let status: ServerEntitlement["status"] = "free";
 
@@ -118,7 +127,7 @@ export async function getServerEntitlement(
 
   const usage = await sb
     .from("tulmin_usage_events")
-    .select("label_count")
+    .select("label_count,created_at")
     .eq("user_id", userId)
     .eq("month_key", monthKey);
 
@@ -126,6 +135,13 @@ export async function getServerEntitlement(
     usage.error || !usage.data
       ? 0
       : usage.data.reduce((sum, row) => sum + (Number(row.label_count) || 0), 0);
+  const dailyLabelsUsed =
+    usage.error || !usage.data
+      ? 0
+      : usage.data.reduce((sum, row) => {
+          const createdAt = typeof row.created_at === "string" ? row.created_at : "";
+          return createdAt.startsWith(dayKey) ? sum + (Number(row.label_count) || 0) : sum;
+        }, 0);
 
   let abuseReview = false;
   if (deviceHash && plan === "free") {
@@ -136,11 +152,13 @@ export async function getServerEntitlement(
       .limit(6);
     if (!deviceUsers.error && deviceUsers.data) {
       const users = new Set(deviceUsers.data.map((row) => String(row.user_id)));
-      if (users.size >= 2 && !users.has(userId)) abuseReview = true;
+      if (users.size >= 4 && !users.has(userId)) abuseReview = true;
     }
   }
 
-  const labelsLimit = TULMIN_PLAN_BY_ID[plan].labelLimit;
+  const planConfig = TULMIN_PLAN_BY_ID[plan];
+  const labelsLimit = planConfig.labelLimit;
+  const dailyLabelsLimit = planConfig.dailyLabelLimit ?? null;
   return {
     plan,
     status,
@@ -148,7 +166,12 @@ export async function getServerEntitlement(
     labelsLimit,
     labelsRemaining:
       labelsLimit == null ? null : Math.max(0, labelsLimit - labelsUsed),
+    dailyLabelsUsed,
+    dailyLabelsLimit,
+    dailyLabelsRemaining:
+      dailyLabelsLimit == null ? null : Math.max(0, dailyLabelsLimit - dailyLabelsUsed),
     monthKey,
+    dayKey,
     abuseReview,
     loaded: true,
   };
