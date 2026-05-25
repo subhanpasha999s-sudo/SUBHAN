@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
     providerOrderId: row.provider_order_id,
     providerPaymentId: paymentId,
     providerSubscriptionId: row.provider_subscription_id,
+    userEmail: auth.user.email ?? null,
     plan: row.plan,
     cycle: row.billing_cycle,
     labelCredits: row.label_credits,

@@ -19,6 +19,10 @@ export function periodEndForCycle(cycle: BillingCycle | "topup" | undefined, fro
   return next.toISOString();
 }
 
+function missingColumn(error: { message?: string } | null | undefined, column: string) {
+  return Boolean(error?.message?.includes(column));
+}
+
 export async function fulfilBillingPayment(
   sb: SupabaseClient,
   input: {
@@ -28,6 +32,7 @@ export async function fulfilBillingPayment(
     providerPaymentId?: string | null;
     providerInvoiceId?: string | null;
     providerSubscriptionId?: string | null;
+    userEmail?: string | null;
     plan?: TulminPlanId | null;
     cycle?: BillingCycle | "topup" | null;
     labelCredits?: number | null;
@@ -38,26 +43,49 @@ export async function fulfilBillingPayment(
   const now = new Date().toISOString();
   const labelCredits = Math.max(0, Math.floor(Number(input.labelCredits) || 0));
   const cycle = input.cycle ?? null;
+  let paymentClaimed = false;
+
+  if (input.paymentEventId) {
+    const claimed = await sb
+      .from("tulmin_payment_events")
+      .update({
+        status: "fulfilling",
+        updated_at: now,
+      })
+      .eq("id", input.paymentEventId)
+      .neq("status", "paid")
+      .neq("status", "fulfilling")
+      .select("id")
+      .maybeSingle();
+    if (claimed.error || !claimed.data) return;
+    paymentClaimed = true;
+  }
 
   if (input.plan && input.plan !== "free") {
-    await sb.from("tulmin_user_subscriptions").upsert(
-      {
-        user_id: input.userId,
-        plan: input.plan,
-        status: "active",
-        current_period_start: now,
-        current_period_end: periodEndForCycle(cycle === "yearly" ? "yearly" : "monthly"),
-        provider: "razorpay",
-        provider_subscription_id: input.providerSubscriptionId ?? undefined,
-        updated_at: now,
-      },
-      { onConflict: "user_id" }
-    );
+    const subscriptionRow = {
+      user_id: input.userId,
+      user_email: input.userEmail?.toLowerCase() ?? null,
+      plan: input.plan,
+      status: "active",
+      current_period_start: now,
+      current_period_end: periodEndForCycle(cycle === "yearly" ? "yearly" : "monthly"),
+      provider: "razorpay",
+      provider_subscription_id: input.providerSubscriptionId ?? undefined,
+      updated_at: now,
+    };
+    const subscription = await sb
+      .from("tulmin_user_subscriptions")
+      .upsert(subscriptionRow, { onConflict: "user_id" });
+    if (missingColumn(subscription.error, "user_email")) {
+      const { user_email: _userEmail, ...fallbackRow } = subscriptionRow;
+      await sb.from("tulmin_user_subscriptions").upsert(fallbackRow, { onConflict: "user_id" });
+    }
   }
 
   if (labelCredits > 0) {
-    await sb.from("tulmin_label_credit_grants").insert({
+    const creditGrantRow = {
       user_id: input.userId,
+      user_email: input.userEmail?.toLowerCase() ?? null,
       label_count: labelCredits,
       reason: input.plan ? "plan_bonus" : "topup_payment",
       payment_event_id: input.paymentEventId ?? null,
@@ -67,7 +95,25 @@ export async function fulfilBillingPayment(
         providerPaymentId: input.providerPaymentId,
         cycle,
       },
-    });
+    };
+    let creditGrant = await sb.from("tulmin_label_credit_grants").insert(creditGrantRow);
+    if (missingColumn(creditGrant.error, "user_email")) {
+      const { user_email: _userEmail, ...fallbackRow } = creditGrantRow;
+      creditGrant = await sb.from("tulmin_label_credit_grants").insert(fallbackRow);
+    }
+    if (creditGrant.error && creditGrant.error.code !== "23505") {
+      if (paymentClaimed && input.paymentEventId) {
+        await sb
+          .from("tulmin_payment_events")
+          .update({
+            status: "failed",
+            failure_reason: creditGrant.error.message,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", input.paymentEventId);
+      }
+      return;
+    }
   }
 
   const paymentPatch: Record<string, unknown> = {

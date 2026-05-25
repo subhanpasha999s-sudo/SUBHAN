@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
         customerNotify: true,
         notes: {
           userId: auth.user.id,
+          userEmail: auth.user.email ?? "",
           type: body.type,
           plan,
           cycle,
@@ -164,6 +165,7 @@ export async function POST(req: NextRequest) {
         receipt,
         notes: {
           userId: auth.user.id,
+          userEmail: auth.user.email ?? "",
           type: body.type,
           plan: plan ?? "",
           cycle,
@@ -179,23 +181,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const payment = await service
+  const paymentRow = {
+    user_id: auth.user.id,
+    user_email: auth.user.email?.toLowerCase() ?? null,
+    provider: "razorpay",
+    provider_order_id: order?.id ?? null,
+    provider_subscription_id: subscriptionId || null,
+    plan,
+    amount: amountRupees,
+    currency: "INR",
+    status: "created",
+    billing_cycle: cycle,
+    label_credits: labelCredits,
+    metadata: { description, receipt, mode: config.mode, checkoutKind: body.type === "plan" ? "subscription" : "order" },
+  };
+  let payment = await service
     .from("tulmin_payment_events")
-    .insert({
-      user_id: auth.user.id,
-      provider: "razorpay",
-      provider_order_id: order?.id ?? null,
-      provider_subscription_id: subscriptionId || null,
-      plan,
-      amount: amountRupees,
-      currency: "INR",
-      status: "created",
-      billing_cycle: cycle,
-      label_credits: labelCredits,
-      metadata: { description, receipt, mode: config.mode, checkoutKind: body.type === "plan" ? "subscription" : "order" },
-    })
+    .insert(paymentRow)
     .select("id")
     .maybeSingle();
+  if (payment.error?.message?.includes("user_email")) {
+    const { user_email: _userEmail, ...fallbackRow } = paymentRow;
+    payment = await service.from("tulmin_payment_events").insert(fallbackRow).select("id").maybeSingle();
+  }
 
   if (payment.error) {
     return NextResponse.json({ error: payment.error.message }, { status: 500 });

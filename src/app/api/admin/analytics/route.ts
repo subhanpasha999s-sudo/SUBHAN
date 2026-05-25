@@ -6,6 +6,7 @@ import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
 type SubscriptionRow = {
   user_id: string;
+  user_email?: string | null;
   plan: TulminPlanId;
   status: string | null;
   current_period_start: string | null;
@@ -16,6 +17,7 @@ type SubscriptionRow = {
 
 type UsageRow = {
   user_id: string;
+  user_email?: string | null;
   action: string | null;
   label_count: number | null;
   month_key: string | null;
@@ -24,6 +26,7 @@ type UsageRow = {
 
 type PaymentRow = {
   user_id: string | null;
+  user_email?: string | null;
   plan: TulminPlanId | null;
   amount: number | null;
   status: string | null;
@@ -100,23 +103,25 @@ export async function GET(req: NextRequest) {
   const currentMonth = monthKey(now);
   const previousMonth = previousMonthKey(now);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
+  const activityWindowStart = new Date(now.getTime() - 180 * 86_400_000);
   const renewalWindowEnd = new Date(now.getTime() + 14 * 86_400_000);
 
   const [{ data: subscriptions }, { data: usageEvents }, { data: paymentEvents }] = await Promise.all([
     sb
       .from("tulmin_user_subscriptions")
-      .select("user_id, plan, status, current_period_start, current_period_end, created_at, updated_at")
-      .limit(20000),
+      .select("user_id, user_email, plan, status, current_period_start, current_period_end, created_at, updated_at")
+      .limit(50000),
     sb
       .from("tulmin_usage_events")
-      .select("user_id, action, label_count, month_key, created_at")
+      .select("user_id, user_email, action, label_count, month_key, created_at")
+      .gte("created_at", activityWindowStart.toISOString())
       .order("created_at", { ascending: false })
       .limit(30000),
     sb
       .from("tulmin_payment_events")
-      .select("user_id, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
+      .select("user_id, user_email, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
       .order("created_at", { ascending: false })
-      .limit(20000),
+      .limit(50000),
   ]);
 
   const subs = (subscriptions ?? []) as SubscriptionRow[];
@@ -130,9 +135,13 @@ export async function GET(req: NextRequest) {
       ...payments.map((row) => row.user_id ?? ""),
     ].filter(Boolean)
   );
+  const directEmails = new Map<string, string>();
+  for (const row of [...subs, ...usage, ...payments]) {
+    if (row.user_id && row.user_email) directEmails.set(row.user_id, row.user_email.toLowerCase());
+  }
   const { emails, createdAt } = await loadUserEmails(userIds);
   const displayUser = (userId: string | null | undefined) =>
-    userId ? emails.get(userId) ?? userId : "unknown";
+    userId ? directEmails.get(userId) ?? emails.get(userId) ?? userId : "unknown";
 
   const planCounts: Record<TulminPlanId, number> = {
     free: 0,

@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
   const paymentId = payment?.id ?? "";
   const notes = payment?.notes ?? {};
   const userId = notes.userId;
+  const userEmail = notes.userEmail?.trim().toLowerCase() || null;
 
   if ((!orderId && !subscriptionId) || !paymentId || !userId) {
     return NextResponse.json({ ok: true, ignored: true });
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
         plan: notes.plan || null,
         amount: Math.round((Number(payment?.amount) || 0) / 100),
         currency: payment?.currency ?? "INR",
-        status: "paid",
+        status: "created",
         billing_cycle: notes.cycle || null,
         label_credits: Math.max(0, Math.floor(Number(notes.labelCredits) || 0)),
         raw_event: event,
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest) {
     }
     await fulfilBillingPayment(service, {
       userId,
+      userEmail,
       paymentEventId: inserted.data.id,
       providerOrderId: orderId,
       providerSubscriptionId: subscriptionId || inserted.data.provider_subscription_id,
@@ -150,6 +152,7 @@ export async function POST(req: NextRequest) {
     .eq("id", row.id);
   await fulfilBillingPayment(service, {
     userId: row.user_id,
+    userEmail,
     paymentEventId: row.id,
     providerOrderId: row.provider_order_id,
     providerSubscriptionId: row.provider_subscription_id,
