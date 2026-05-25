@@ -266,7 +266,7 @@ export default async function HomePage() {
               Workflow
             </a>
             <Link href="/pricing" className="hover:text-slate-950 dark:hover:text-white">
-              Pricing
+              Plan
             </Link>
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:hidden">
@@ -279,11 +279,14 @@ export default async function HomePage() {
           </div>
           <Link
             href="/export-labels"
-            className={cn(buttonVariants({ size: "lg" }), "h-10 shrink-0 rounded-full px-3 text-sm sm:px-4")}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "h-11 shrink-0 rounded-full bg-[linear-gradient(135deg,#7ea2ff,#5f7dff_58%,#7b6dff)] px-4 text-[15px] font-bold text-[#06101f] shadow-[0_14px_34px_-14px_rgba(96,125,255,0.95),inset_0_1px_0_rgba(255,255,255,0.34)] ring-1 ring-white/18 hover:translate-y-0 hover:bg-[linear-gradient(135deg,#8bafff,#6b89ff_58%,#887aff)] hover:shadow-[0_16px_42px_-16px_rgba(96,125,255,1),inset_0_1px_0_rgba(255,255,255,0.4)] active:scale-[0.98] sm:px-5"
+            )}
           >
             <span className="sm:hidden">Run</span>
             <span className="hidden sm:inline">Run Labels Now</span>
-            <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
+            <ArrowRight className="size-5 rounded-full bg-black/10 p-0.5" strokeWidth={2.2} aria-hidden />
           </Link>
         </div>
       </header>
