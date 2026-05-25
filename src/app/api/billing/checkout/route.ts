@@ -6,7 +6,11 @@ import {
   requireBillingUser,
 } from "@/lib/billing/server";
 import { TULMIN_PLAN_BY_ID, type BillingCycle, type TulminPlanId } from "@/lib/billing/plans";
-import { createRazorpayOrder, getRazorpayBillingConfig } from "@/lib/billing/razorpay";
+import {
+  createRazorpayOrder,
+  createRazorpaySubscription,
+  getRazorpayBillingConfig,
+} from "@/lib/billing/razorpay";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
 type CheckoutBody =
@@ -30,6 +34,15 @@ function planAmount(plan: TulminPlanId, cycle: BillingCycle, row?: Record<string
   const monthly = Number(row?.monthly_price ?? fallback.monthlyPrice) || 0;
   const yearly = Number(row?.yearly_total ?? fallback.yearlyTotal) || 0;
   return cycle === "yearly" ? yearly : monthly;
+}
+
+function subscriptionTotalCount(cycle: BillingCycle) {
+  return cycle === "yearly" ? 10 : 120;
+}
+
+function envRazorpayPlanId(plan: TulminPlanId, cycle: BillingCycle) {
+  const key = `RAZORPAY_PLAN_${plan.toUpperCase()}_${cycle.toUpperCase()}_ID`;
+  return process.env[key]?.trim() ?? "";
 }
 
 export async function POST(req: NextRequest) {
@@ -64,6 +77,8 @@ export async function POST(req: NextRequest) {
   let cycle: BillingCycle | "topup" = "monthly";
   let labelCredits = 0;
   let description = "";
+  let subscriptionId = "";
+  let order: { id: string; amount: number; currency: string } | null = null;
 
   if (body.type === "plan") {
     plan = body.plan && body.plan in TULMIN_PLAN_BY_ID ? body.plan : null;
@@ -73,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
     const settings = await service
       .from("tulmin_plan_settings")
-      .select("enabled,monthly_price,yearly_total")
+      .select("enabled,monthly_price,yearly_total,razorpay_monthly_plan_id,razorpay_yearly_plan_id")
       .eq("plan", plan)
       .maybeSingle();
     if (!settings.error && settings.data && settings.data.enabled === false) {
@@ -81,6 +96,38 @@ export async function POST(req: NextRequest) {
     }
     amountRupees = planAmount(plan, cycle, settings.data as Record<string, unknown> | null);
     description = `${TULMIN_PLAN_BY_ID[plan].name} ${cycle} plan`;
+
+    const settingsRow = (settings.data ?? {}) as {
+      razorpay_monthly_plan_id?: string | null;
+      razorpay_yearly_plan_id?: string | null;
+    };
+    const razorpayPlanId =
+      (cycle === "yearly" ? settingsRow.razorpay_yearly_plan_id : settingsRow.razorpay_monthly_plan_id) ||
+      envRazorpayPlanId(plan, cycle);
+    if (!razorpayPlanId) {
+      return NextResponse.json(
+        {
+          error:
+            "Razorpay subscription plan ID is missing. Add monthly/yearly plan IDs in Admin > MRR & billing.",
+        },
+        { status: 503 }
+      );
+    }
+
+    const subscription = await createRazorpaySubscription({
+      keyId: config.keyId,
+      keySecret: config.keySecret,
+      planId: razorpayPlanId,
+      totalCount: subscriptionTotalCount(cycle),
+      customerNotify: true,
+      notes: {
+        userId: auth.user.id,
+        type: body.type,
+        plan,
+        cycle,
+      },
+    });
+    subscriptionId = subscription.id;
   } else if (body.type === "topup") {
     const requested = Math.max(0, Math.floor(Number(body.labelCredits) || 0));
     const closest = ALLOWED_TOPUPS.find((value) => value === requested);
@@ -100,33 +147,36 @@ export async function POST(req: NextRequest) {
   }
 
   const receipt = `tulmin_${auth.user.id.slice(0, 8)}_${Date.now()}`;
-  const order = await createRazorpayOrder({
-    keyId: config.keyId,
-    keySecret: config.keySecret,
-    amountPaise: amountRupees * 100,
-    receipt,
-    notes: {
-      userId: auth.user.id,
-      type: body.type,
-      plan: plan ?? "",
-      cycle,
-      labelCredits: String(labelCredits),
-    },
-  });
+  if (body.type === "topup") {
+    order = await createRazorpayOrder({
+      keyId: config.keyId,
+      keySecret: config.keySecret,
+      amountPaise: amountRupees * 100,
+      receipt,
+      notes: {
+        userId: auth.user.id,
+        type: body.type,
+        plan: plan ?? "",
+        cycle,
+        labelCredits: String(labelCredits),
+      },
+    });
+  }
 
   const payment = await service
     .from("tulmin_payment_events")
     .insert({
       user_id: auth.user.id,
       provider: "razorpay",
-      provider_order_id: order.id,
+      provider_order_id: order?.id ?? null,
+      provider_subscription_id: subscriptionId || null,
       plan,
       amount: amountRupees,
       currency: "INR",
       status: "created",
       billing_cycle: cycle,
       label_credits: labelCredits,
-      metadata: { description, receipt, mode: config.mode },
+      metadata: { description, receipt, mode: config.mode, checkoutKind: body.type === "plan" ? "subscription" : "order" },
     })
     .select("id")
     .maybeSingle();
@@ -138,9 +188,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     keyId: config.keyId,
-    orderId: order.id,
-    amount: order.amount,
-    currency: order.currency,
+    orderId: order?.id,
+    subscriptionId: subscriptionId || undefined,
+    amount: order?.amount ?? amountRupees * 100,
+    currency: order?.currency ?? "INR",
     paymentEventId: payment.data?.id,
     description,
     plan,

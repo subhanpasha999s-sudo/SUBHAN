@@ -1,12 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { fulfilBillingPayment } from "@/lib/billing/payment-fulfillment";
-import { getRazorpayBillingConfig, verifyRazorpayPaymentSignature } from "@/lib/billing/razorpay";
+import {
+  getRazorpayBillingConfig,
+  verifyRazorpayPaymentSignature,
+  verifyRazorpaySubscriptionSignature,
+} from "@/lib/billing/razorpay";
 import { requireBillingUser } from "@/lib/billing/server";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
 type VerifyBody = {
   orderId?: string;
+  subscriptionId?: string;
   paymentId?: string;
   signature?: string;
 };
@@ -17,9 +22,10 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => ({}))) as VerifyBody;
   const orderId = body.orderId?.trim() ?? "";
+  const subscriptionId = body.subscriptionId?.trim() ?? "";
   const paymentId = body.paymentId?.trim() ?? "";
   const signature = body.signature?.trim() ?? "";
-  if (!orderId || !paymentId || !signature) {
+  if ((!orderId && !subscriptionId) || !paymentId || !signature) {
     return NextResponse.json({ error: "Missing Razorpay verification data." }, { status: 400 });
   }
 
@@ -28,33 +34,46 @@ export async function POST(req: NextRequest) {
   if (!config?.keySecret) {
     return NextResponse.json({ error: "Razorpay verification is not configured." }, { status: 503 });
   }
-  const valid = verifyRazorpayPaymentSignature({
-    orderId,
-    paymentId,
-    signature,
-    secret: config.keySecret,
-  });
+  const valid = subscriptionId
+    ? verifyRazorpaySubscriptionSignature({
+        subscriptionId,
+        paymentId,
+        signature,
+        secret: config.keySecret,
+      })
+    : verifyRazorpayPaymentSignature({
+        orderId,
+        paymentId,
+        signature,
+        secret: config.keySecret,
+      });
   if (!valid) {
-    await service
+    let failed = service
       .from("tulmin_payment_events")
       .update({
-        status: "failed",
-        failure_reason: "signature_verification_failed",
-        provider_payment_id: paymentId,
-        updated_at: new Date().toISOString(),
-      })
+          status: "failed",
+          failure_reason: "signature_verification_failed",
+          provider_payment_id: paymentId,
+          updated_at: new Date().toISOString(),
+        })
       .eq("provider", "razorpay")
-      .eq("provider_order_id", orderId)
       .eq("user_id", auth.user.id);
+    failed = subscriptionId
+      ? failed.eq("provider_subscription_id", subscriptionId)
+      : failed.eq("provider_order_id", orderId);
+    await failed;
     return NextResponse.json({ error: "Payment verification failed." }, { status: 400 });
   }
 
-  const payment = await service
+  let paymentQuery = service
     .from("tulmin_payment_events")
-    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id")
+    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id")
     .eq("provider", "razorpay")
-    .eq("provider_order_id", orderId)
-    .eq("user_id", auth.user.id)
+    .eq("user_id", auth.user.id);
+  paymentQuery = subscriptionId
+    ? paymentQuery.eq("provider_subscription_id", subscriptionId)
+    : paymentQuery.eq("provider_order_id", orderId);
+  const payment = await paymentQuery
     .maybeSingle();
   if (payment.error || !payment.data) {
     return NextResponse.json({ error: "Payment order was not found." }, { status: 404 });
@@ -67,6 +86,7 @@ export async function POST(req: NextRequest) {
     billing_cycle?: "monthly" | "yearly" | "topup" | null;
     label_credits?: number | null;
     provider_order_id?: string | null;
+    provider_subscription_id?: string | null;
   };
 
   await fulfilBillingPayment(service, {
@@ -74,6 +94,7 @@ export async function POST(req: NextRequest) {
     paymentEventId: row.id,
     providerOrderId: row.provider_order_id,
     providerPaymentId: paymentId,
+    providerSubscriptionId: row.provider_subscription_id,
     plan: row.plan,
     cycle: row.billing_cycle,
     labelCredits: row.label_credits,

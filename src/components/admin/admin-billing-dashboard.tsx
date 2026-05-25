@@ -3,9 +3,10 @@
 import * as React from "react";
 
 import Link from "next/link";
-import { ArrowLeft, BarChart3, CreditCard, Gift, KeyRound, Loader2, Save } from "lucide-react";
+import { BarChart3, CreditCard, Gift, KeyRound, Loader2, LockKeyhole, Save } from "lucide-react";
 import { toast as notify } from "sonner";
 
+import { AdminNav } from "@/components/admin/admin-nav";
 import { Button } from "@/components/ui/button";
 import type { AdminBillingPlanSetting, AdminBillingSettings } from "@/lib/admin/billing-settings";
 
@@ -27,20 +28,21 @@ function Field({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-xs font-bold uppercase tracking-[0.14em] text-white/42">{label}</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
       {children}
     </label>
   );
 }
 
 function inputClass() {
-  return "h-11 rounded-2xl border border-white/10 bg-black/25 px-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-white/28 focus:border-[#7d8cff]/60";
+  return "h-10 rounded-md border border-white/10 bg-black/25 px-3 text-sm font-semibold text-white outline-none transition-colors placeholder:text-slate-600 focus:border-[#7d8cff]/60";
 }
 
 export function AdminBillingDashboard() {
   const [data, setData] = React.useState<BillingPayload | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState("");
   const [secretForm, setSecretForm] = React.useState({
     razorpayKeySecret: "",
     razorpayWebhookSecret: "",
@@ -53,13 +55,16 @@ export function AdminBillingDashboard() {
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/billing", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load billing.");
       setData(json as BillingPayload);
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : "Could not load billing.");
+      const message = err instanceof Error ? err.message : "Could not load billing.";
+      setError(message);
+      notify.error(message);
     } finally {
       setLoading(false);
     }
@@ -135,51 +140,76 @@ export function AdminBillingDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#05070c] px-4 py-6 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <main className="min-h-screen bg-[#070a0f] text-white">
+      <header className="border-b border-white/10 bg-[#0b0f17]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div>
-            <Link href="/admin/analytics" className="inline-flex items-center gap-2 text-sm font-semibold text-white/55 hover:text-white">
-              <ArrowLeft className="size-4" aria-hidden />
-              Analytics
-            </Link>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-              Billing control
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55">
-              Connect Razorpay, manage checkout readiness, and update plan pricing from one secure admin screen.
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8fa8ff]">Tulmin Admin</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">MRR & billing</h1>
           </div>
-          <Button className="h-11 rounded-2xl" disabled={saving || loading || !data} onClick={() => void save()}>
-            {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
-            Save changes
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminNav />
+            <Button className="h-9 rounded-md" disabled={saving || loading || !data} onClick={() => void save()}>
+              {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+              Save changes
+            </Button>
+          </div>
         </div>
+      </header>
 
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-5">
+          <h2 className="text-2xl font-semibold tracking-tight">Billing control</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
+            Connect Razorpay, manage checkout readiness, update plan pricing, and grant usage credits.
+          </p>
+        </div>
         {loading ? (
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-36 animate-pulse rounded-[1.35rem] border border-white/10 bg-white/[0.06]" />
+              <div key={i} className="h-32 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
             ))}
           </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-400/20 bg-[#1a0f13] p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-md border border-red-400/20 bg-red-400/10 text-red-100">
+                  <LockKeyhole className="size-5" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-red-50">{error}</h3>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-red-100/62">
+                    Sign in with a super admin account to manage plan pricing, payment settings, and usage credits.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/admin/login"
+                className="inline-flex h-9 items-center justify-center rounded-md bg-[#335cff] px-3 text-sm font-semibold text-white transition-colors hover:bg-[#284ae4]"
+              >
+                Admin login
+              </Link>
+            </div>
+          </div>
         ) : data ? (
-          <div className="mt-8 space-y-6">
+          <div className="space-y-5">
             <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-5">
+              <div className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
                 <div className="flex items-center gap-3">
-                  <span className="grid size-11 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+                  <span className="grid size-9 place-items-center rounded-md border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
                     <CreditCard className="size-5" aria-hidden />
                   </span>
                   <div>
-                    <h2 className="text-lg font-semibold">Razorpay account</h2>
-                    <p className="text-sm text-white/45">
+                    <h2 className="text-base font-semibold">Razorpay account</h2>
+                    <p className="text-sm text-slate-500">
                       {data.settings.razorpayKeySecretSaved
                         ? `Secret saved •••• ${data.settings.razorpayKeySecretLast4}`
                         : "No secret saved yet"}
                     </p>
                   </div>
                 </div>
-                <div className="mt-5 grid gap-3">
+                <div className="mt-4 grid gap-3">
                   <Field label="Mode">
                     <select
                       className={inputClass()}
@@ -228,7 +258,7 @@ export function AdminBillingDashboard() {
                   </Field>
                   <button
                     type="button"
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left"
+                    className="flex items-center justify-between rounded-md border border-white/10 bg-black/25 px-3 py-2.5 text-left"
                     onClick={() =>
                       setData((prev) =>
                         prev
@@ -243,9 +273,9 @@ export function AdminBillingDashboard() {
                       )
                     }
                   >
-                    <span>
-                      <span className="block text-sm font-semibold">Checkout enabled</span>
-                      <span className="text-xs text-white/45">Turn on only after live keys and webhooks are ready.</span>
+                      <span>
+                        <span className="block text-sm font-semibold">Checkout enabled</span>
+                      <span className="text-xs text-slate-500">Turn on only after live keys and webhooks are ready.</span>
                     </span>
                     <span className={data.settings.checkoutEnabled ? "text-emerald-300" : "text-white/35"}>
                       {data.settings.checkoutEnabled ? "On" : "Off"}
@@ -254,29 +284,29 @@ export function AdminBillingDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-5">
+              <div className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
                 <div className="flex items-center gap-3">
-                  <span className="grid size-11 place-items-center rounded-2xl border border-[#7d8cff]/25 bg-[#7d8cff]/12 text-[#bdc5ff]">
+                  <span className="grid size-9 place-items-center rounded-md border border-[#7d8cff]/25 bg-[#7d8cff]/12 text-[#bdc5ff]">
                     <KeyRound className="size-5" aria-hidden />
                   </span>
                   <div>
-                    <h2 className="text-lg font-semibold">Plan pricing</h2>
-                    <p className="text-sm text-white/45">Change prices and attach Razorpay plan IDs anytime.</p>
+                    <h2 className="text-base font-semibold">Plan pricing</h2>
+                    <p className="text-sm text-slate-500">Change prices and attach Razorpay plan IDs anytime.</p>
                   </div>
                 </div>
-                <div className="mt-5 grid gap-3">
+                <div className="mt-4 grid gap-3">
                   {data.plans.map((plan) => (
-                    <div key={plan.plan} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <div key={plan.plan} className="rounded-lg border border-white/10 bg-black/20 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-base font-semibold capitalize">{plan.plan}</p>
-                          <p className="text-xs text-white/45">
+                          <p className="text-sm font-semibold capitalize">{plan.plan}</p>
+                          <p className="text-xs text-slate-500">
                             {plan.labelLimit == null ? "Unlimited labels" : `${plan.labelLimit.toLocaleString("en-IN")} labels/month`}
                           </p>
                         </div>
                         <button
                           type="button"
-                          className={plan.enabled ? "rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200" : "rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/45"}
+                          className={plan.enabled ? "rounded-md bg-emerald-400/10 px-2.5 py-1 text-xs font-bold text-emerald-200" : "rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-slate-500"}
                           onClick={() => updatePlan(plan.plan, { enabled: !plan.enabled })}
                         >
                           {plan.enabled ? "Enabled" : "Disabled"}
@@ -346,14 +376,14 @@ export function AdminBillingDashboard() {
               </div>
             </section>
 
-            <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-5">
+            <section className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
               <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
+                <span className="grid size-9 place-items-center rounded-md border border-amber-300/20 bg-amber-300/10 text-amber-100">
                   <Gift className="size-5" aria-hidden />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold">Add bonus usage</h2>
-                  <p className="text-sm text-white/45">Give a seller extra label credits without changing their plan.</p>
+                  <h2 className="text-base font-semibold">Add bonus usage</h2>
+                  <p className="text-sm text-slate-500">Give a seller extra label credits without changing their plan.</p>
                 </div>
               </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_14rem_auto] lg:items-end">
@@ -381,16 +411,16 @@ export function AdminBillingDashboard() {
                     placeholder="support_bonus"
                   />
                 </Field>
-                <Button className="h-11 rounded-2xl" disabled={saving} onClick={() => void grantCredits()}>
+                <Button className="h-10 rounded-md" disabled={saving} onClick={() => void grantCredits()}>
                   Add credits
                 </Button>
               </div>
             </section>
 
-            <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-5">
+            <section className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
               <div className="flex items-center gap-3">
                 <BarChart3 className="size-5 text-[#bdc5ff]" aria-hidden />
-                <h2 className="text-lg font-semibold">Secure billing architecture</h2>
+                <h2 className="text-base font-semibold">Secure billing architecture</h2>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {[
@@ -398,7 +428,7 @@ export function AdminBillingDashboard() {
                   "Plan prices can be changed without redeploying the public UI.",
                   "Payment events have a dedicated table for webhooks and revenue tracking.",
                 ].map((item) => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/62">
+                  <div key={item} className="rounded-md border border-white/10 bg-black/20 p-3 text-sm leading-6 text-slate-400">
                     {item}
                   </div>
                 ))}

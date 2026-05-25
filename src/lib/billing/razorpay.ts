@@ -20,7 +20,32 @@ type RazorpayOrderResponse = {
   status?: string;
 };
 
+type RazorpaySubscriptionResponse = {
+  id: string;
+  status?: string;
+  plan_id?: string;
+  short_url?: string;
+  current_start?: number;
+  current_end?: number;
+  charge_at?: number;
+};
+
+export function getRazorpayEnvConfig(): RazorpayBillingConfig | null {
+  const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
+  const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+  if (!keyId || !keySecret) return null;
+
+  return {
+    mode: keyId.includes("_live_") ? "live" : "test",
+    checkoutEnabled: process.env.RAZORPAY_CHECKOUT_ENABLED !== "false",
+    keyId,
+    keySecret,
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
+  };
+}
+
 export async function getRazorpayBillingConfig(sb: SupabaseClient): Promise<RazorpayBillingConfig | null> {
+  const envConfig = getRazorpayEnvConfig();
   const result = await sb
     .from("tulmin_billing_settings")
     .select(
@@ -29,7 +54,7 @@ export async function getRazorpayBillingConfig(sb: SupabaseClient): Promise<Razo
     .eq("id", true)
     .maybeSingle();
 
-  if (result.error || !result.data) return null;
+  if (result.error || !result.data) return envConfig;
   const row = result.data as {
     mode?: "test" | "live";
     checkout_enabled?: boolean;
@@ -39,10 +64,10 @@ export async function getRazorpayBillingConfig(sb: SupabaseClient): Promise<Razo
   };
   return {
     mode: row.mode ?? "test",
-    checkoutEnabled: Boolean(row.checkout_enabled),
-    keyId: row.razorpay_key_id ?? "",
-    keySecret: decryptBillingSecret(row.razorpay_key_secret_encrypted),
-    webhookSecret: decryptBillingSecret(row.razorpay_webhook_secret_encrypted),
+    checkoutEnabled: Boolean(row.checkout_enabled) || Boolean(envConfig?.checkoutEnabled),
+    keyId: row.razorpay_key_id || envConfig?.keyId || "",
+    keySecret: decryptBillingSecret(row.razorpay_key_secret_encrypted) || envConfig?.keySecret || "",
+    webhookSecret: decryptBillingSecret(row.razorpay_webhook_secret_encrypted) || envConfig?.webhookSecret || "",
   };
 }
 
@@ -55,6 +80,19 @@ export function verifyRazorpayPaymentSignature(input: {
   if (!input.secret || !input.signature) return false;
   const expected = createHmac("sha256", input.secret)
     .update(`${input.orderId}|${input.paymentId}`)
+    .digest("hex");
+  return expected === input.signature;
+}
+
+export function verifyRazorpaySubscriptionSignature(input: {
+  subscriptionId: string;
+  paymentId: string;
+  signature: string;
+  secret: string;
+}) {
+  if (!input.secret || !input.signature) return false;
+  const expected = createHmac("sha256", input.secret)
+    .update(`${input.subscriptionId}|${input.paymentId}`)
     .digest("hex");
   return expected === input.signature;
 }
@@ -93,6 +131,47 @@ export async function createRazorpayOrder(input: {
   const json = (await res.json().catch(() => ({}))) as RazorpayOrderResponse & { error?: { description?: string } };
   if (!res.ok) {
     throw new Error(json.error?.description || "Could not create Razorpay order.");
+  }
+  return json;
+}
+
+export async function createRazorpaySubscription(input: {
+  keyId: string;
+  keySecret: string;
+  planId: string;
+  totalCount: number;
+  quantity?: number;
+  customerNotify?: boolean;
+  notes?: Record<string, string>;
+}): Promise<RazorpaySubscriptionResponse> {
+  if (!input.keyId || !input.keySecret) {
+    throw new Error("Razorpay keys are not configured.");
+  }
+  if (!input.planId) {
+    throw new Error("Razorpay subscription plan ID is not configured.");
+  }
+
+  const auth = Buffer.from(`${input.keyId}:${input.keySecret}`).toString("base64");
+  const res = await fetch("https://api.razorpay.com/v1/subscriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      plan_id: input.planId,
+      total_count: Math.max(1, Math.floor(input.totalCount)),
+      quantity: Math.max(1, Math.floor(input.quantity ?? 1)),
+      customer_notify: input.customerNotify === true ? 1 : 0,
+      notes: input.notes ?? {},
+    }),
+  });
+
+  const json = (await res.json().catch(() => ({}))) as RazorpaySubscriptionResponse & {
+    error?: { description?: string };
+  };
+  if (!res.ok) {
+    throw new Error(json.error?.description || "Could not create Razorpay subscription.");
   }
   return json;
 }

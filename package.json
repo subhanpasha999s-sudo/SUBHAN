@@ -33,6 +33,7 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.7.284",
     "posthog-js": "^1.372.8",
+    "razorpay": "^2.9.6",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "shadcn": "^4.6.0",

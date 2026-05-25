@@ -27,6 +27,7 @@ export async function fulfilBillingPayment(
     providerOrderId?: string | null;
     providerPaymentId?: string | null;
     providerInvoiceId?: string | null;
+    providerSubscriptionId?: string | null;
     plan?: TulminPlanId | null;
     cycle?: BillingCycle | "topup" | null;
     labelCredits?: number | null;
@@ -47,6 +48,7 @@ export async function fulfilBillingPayment(
         current_period_start: now,
         current_period_end: periodEndForCycle(cycle === "yearly" ? "yearly" : "monthly"),
         provider: "razorpay",
+        provider_subscription_id: input.providerSubscriptionId ?? undefined,
         updated_at: now,
       },
       { onConflict: "user_id" }
@@ -74,6 +76,7 @@ export async function fulfilBillingPayment(
   };
   if (input.providerPaymentId) paymentPatch.provider_payment_id = input.providerPaymentId;
   if (input.providerInvoiceId) paymentPatch.provider_invoice_id = input.providerInvoiceId;
+  if (input.providerSubscriptionId) paymentPatch.provider_subscription_id = input.providerSubscriptionId;
   if (input.invoiceUrl) paymentPatch.invoice_url = input.invoiceUrl;
   if (input.rawEvent) paymentPatch.raw_event = input.rawEvent;
 

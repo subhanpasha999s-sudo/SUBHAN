@@ -235,12 +235,12 @@ function ProductPreview() {
   );
 }
 
-/** Root URL opens the admin CMS on the admin host; otherwise it is the public product landing page. */
+/** Root URL opens the admin command center on the admin host; otherwise it is the public product landing page. */
 export default async function HomePage() {
   const host = (await headers()).get("host")?.split(":")[0].toLowerCase();
 
   if (host === "admin.tulmin.com") {
-    redirect("/admin/blogs");
+    redirect("/admin/analytics");
   }
 
   return (

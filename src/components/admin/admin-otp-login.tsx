@@ -110,14 +110,14 @@ export function AdminOtpLogin() {
             <ShieldCheck className="size-6 text-[#335cff] dark:text-sky-200" />
           </div>
           <p className="mt-8 text-xs font-semibold uppercase tracking-[0.24em] text-[#335cff] dark:text-sky-200/80">
-            Tulmin Blog Admin
+            Tulmin Admin Console
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Private publishing console for Tulmin content.
+            Private control center for Tulmin operations.
           </h1>
           <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
             This area is separate from the seller AI workspace. Only allowlisted
-            Tulmin admins can create, edit, publish, or delete blog content.
+            Tulmin admins can view analytics, manage MRR and billing, and publish content.
           </p>
         </section>
 

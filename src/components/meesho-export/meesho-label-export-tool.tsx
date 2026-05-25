@@ -127,6 +127,7 @@ function marketplaceDisplay(value: MarketplaceKind): string {
 
 /** Session key for “already exported” hints — scoped per imported PDF fingerprint. */
 const MEESHO_SKU_EXPORT_MARK_STORAGE = "lable.meeshoSkuExported.v1";
+const MEESHO_DOWNLOAD_USAGE_MARK_STORAGE = "tulmin.meeshoDownloadUsageMarked.v1";
 const AMAZON_INCLUDE_INVOICE_DOWNLOAD_STORAGE =
   "tulmin.amazonIncludeInvoiceDownload.v1";
 const ROW_MASTER_EXPORT_KEY_UNMAPPED = "__unmapped__";
@@ -225,6 +226,31 @@ function saveExportedMasterKeysToSession(fp: string, keys: ReadonlySet<string>) 
   try {
     sessionStorage.setItem(
       `${MEESHO_SKU_EXPORT_MARK_STORAGE}:${fp}`,
+      JSON.stringify([...keys])
+    );
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function loadDownloadUsageMarkedRowIdsFromSession(fp: string): Set<string> {
+  if (!fp) return new Set();
+  try {
+    const raw = sessionStorage.getItem(`${MEESHO_DOWNLOAD_USAGE_MARK_STORAGE}:${fp}`);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.filter((x): x is string => typeof x === "string" && x.length > 0));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDownloadUsageMarkedRowIdsToSession(fp: string, keys: ReadonlySet<string>) {
+  if (!fp) return;
+  try {
+    sessionStorage.setItem(
+      `${MEESHO_DOWNLOAD_USAGE_MARK_STORAGE}:${fp}`,
       JSON.stringify([...keys])
     );
   } catch {
@@ -366,20 +392,37 @@ type RazorpayCheckoutOptions = {
   currency: string;
   name: string;
   description: string;
-  order_id: string;
+  order_id?: string;
+  subscription_id?: string;
   prefill?: { email?: string; name?: string };
   notes?: Record<string, string>;
   handler: (response: {
     razorpay_order_id: string;
+    razorpay_subscription_id?: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
   }) => void | Promise<void>;
   modal?: { ondismiss?: () => void };
 };
 
+type RazorpayCheckoutFailure = {
+  error?: {
+    code?: string;
+    description?: string;
+    reason?: string;
+    source?: string;
+    step?: string;
+  };
+};
+
+type RazorpayCheckoutInstance = {
+  open: () => void;
+  on?: (event: "payment.failed", handler: (response: RazorpayCheckoutFailure) => void) => void;
+};
+
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => { open: () => void };
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckoutInstance;
   }
 }
 
@@ -2096,13 +2139,18 @@ export function MeeshoLabelExportTool() {
   const [mastersExportMarked, setMastersExportMarked] = React.useState<Set<string>>(
     () => new Set()
   );
+  const [downloadUsageMarkedRowIds, setDownloadUsageMarkedRowIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
 
   React.useEffect(() => {
     if (!exportMarkFingerprint) {
       setMastersExportMarked(new Set());
+      setDownloadUsageMarkedRowIds(new Set());
       return;
     }
     setMastersExportMarked(loadExportedMasterKeysFromSession(exportMarkFingerprint));
+    setDownloadUsageMarkedRowIds(loadDownloadUsageMarkedRowIdsFromSession(exportMarkFingerprint));
   }, [exportMarkFingerprint]);
 
   React.useEffect(() => {
@@ -2134,6 +2182,59 @@ export function MeeshoLabelExportTool() {
       });
     },
     []
+  );
+
+  const markDownloadUsageFromRows = React.useCallback(
+    (exportedRows: readonly EnrichedMeeshoLabelRow[]) => {
+      if (exportedRows.length === 0) return;
+      const fp = exportMarkFingerprintRef.current;
+      setDownloadUsageMarkedRowIds((prev) => {
+        const next = new Set(prev);
+        for (const row of exportedRows) next.add(row.id);
+        if (fp) saveDownloadUsageMarkedRowIdsToSession(fp, next);
+        return next;
+      });
+    },
+    []
+  );
+
+  const reserveDownloadUsageForRows = React.useCallback(
+    async (
+      exportedRows: readonly EnrichedMeeshoLabelRow[],
+      action: "crop" | "export"
+    ): Promise<boolean> => {
+      const rowsToCharge = exportedRows.filter((row) => !downloadUsageMarkedRowIds.has(row.id));
+      if (rowsToCharge.length === 0) return true;
+
+      const reservation = await reserveLabels(rowsToCharge.length, action);
+      if (!reservation.ok) {
+        if (reservation.reason === "signin_required") {
+          setLoginRequiredOpen(true);
+        } else if (reservation.reason === "server_unavailable") {
+          const setupRequired =
+            /SUPABASE_SERVICE_ROLE_KEY|billing migration|010_atomic_usage_reservations/i.test(
+              `${reservation.message} ${reservation.setupHint ?? ""} ${reservation.trackingError ?? ""}`
+            );
+          notify.error(setupRequired ? "Billing setup required" : "Usage check unavailable", {
+            description: reservation.setupHint || reservation.message,
+            duration: setupRequired ? 12000 : 7000,
+          });
+        } else {
+          notify.info("Upgrade to download", {
+            description: reservation.message,
+          });
+        }
+        trackEvent("billing_usage_blocked", {
+          reason: reservation.reason,
+          label_count: rowsToCharge.length,
+          action,
+        });
+        return false;
+      }
+
+      return true;
+    },
+    [downloadUsageMarkedRowIds, reserveLabels]
   );
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -2576,8 +2677,8 @@ export function MeeshoLabelExportTool() {
   const usageCloseToLimit = entitlement.labelsLimit != null && usagePct >= 90 && usagePct < 100;
   const usageLimitExhausted =
     entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
-  const canImportLabels = !parsing && (!userId || !usageLimitExhausted);
-  const importCtaLabel = userId && usageLimitExhausted ? "Limit reached" : "Choose PDFs";
+  const canImportLabels = !parsing;
+  const importCtaLabel = "Choose PDFs";
 
   const filteredSkuExportBuckets = React.useMemo(
     () => buildSkuExportBuckets(filteredLabels),
@@ -2713,17 +2814,6 @@ export function MeeshoLabelExportTool() {
       setLoginRequiredOpen(true);
       return;
     }
-    if (usageLimitExhausted) {
-      const message = "Your monthly label limit is exhausted. Upgrade or buy more usage to continue.";
-      notify.info("Plan limit reached", { description: message });
-      promptUpgrade(message);
-      trackEvent("billing_usage_blocked", {
-        reason: "limit_reached",
-        label_count: 0,
-      });
-      return;
-    }
-
     const pdfFiles = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
     if (pdfFiles.length === 0) {
       trackEvent("meesho_pdf_import_rejected", { reason: "unsupported_file_type" });
@@ -2836,53 +2926,8 @@ export function MeeshoLabelExportTool() {
       return;
     }
 
-    let usableNextRows = nextRows;
-    if (nextRows.length > 0) {
-      const reservation = await reserveLabels(nextRows.length, "filter", { allowPartial: true });
-      if (!reservation.ok) {
-        setParsing(false);
-        setImportPhase("idle");
-        setParseProgress(null);
-        if (reservation.reason === "signin_required") {
-          pendingLoginFilesRef.current = files;
-          setLoginRequiredOpen(true);
-        } else if (reservation.reason === "server_unavailable") {
-          const setupRequired =
-            /SUPABASE_SERVICE_ROLE_KEY|billing migration|010_atomic_usage_reservations/i.test(
-              `${reservation.message} ${reservation.setupHint ?? ""} ${reservation.trackingError ?? ""}`
-            );
-          notify.error(setupRequired ? "Billing setup required" : "Usage check unavailable", {
-            description: reservation.setupHint || reservation.message,
-            duration: setupRequired ? 12000 : 7000,
-          });
-        } else {
-          notify.info("Upgrade to continue", {
-            description: reservation.message,
-          });
-        }
-        trackEvent("billing_usage_blocked", {
-          reason: reservation.reason,
-          label_count: nextRows.length,
-        });
-        return;
-      }
-      if (reservation.partial) {
-        const accepted = Math.max(0, reservation.acceptedLabelCount);
-        usableNextRows = nextRows.slice(0, accepted);
-        notify.info("Plan limit reached", {
-          description: `${accepted.toLocaleString()} labels processed. ${reservation.rejectedLabelCount.toLocaleString()} labels paused. Add credit or upgrade to continue.`,
-          duration: 8000,
-        });
-        trackEvent("billing_usage_partial_import", {
-          accepted_label_count: reservation.acceptedLabelCount,
-          rejected_label_count: reservation.rejectedLabelCount,
-          plan: entitlement.plan,
-        });
-      }
-    }
-
     const mergedInvoices = [...amazonInvoices, ...nextAmazonInvoices];
-    const mergedRows = pairAmazonShippingRows([...rows, ...usableNextRows], mergedInvoices);
+    const mergedRows = pairAmazonShippingRows([...rows, ...nextRows], mergedInvoices);
     const mergedSources = [...pdfSources, ...nextSources];
 
     setRows(mergedRows);
@@ -2895,7 +2940,7 @@ export function MeeshoLabelExportTool() {
     const shouldPrepareCropNow =
       nextSources.length > 0 &&
       nextSources.length <= AUTO_CROP_PREP_MAX_IMPORT_FILES &&
-      usableNextRows.length <= AUTO_CROP_PREP_MAX_LABELS;
+      nextRows.length <= AUTO_CROP_PREP_MAX_LABELS;
     if (shouldPrepareCropNow) {
       setCropperBusy(true);
       void (async () => {
@@ -2941,11 +2986,11 @@ export function MeeshoLabelExportTool() {
     const invalid = mergedRows.filter((r) => !r.listing_sku.trim()).length;
 
     notify.success("Imported", {
-      description: `${usableNextRows.length.toLocaleString()} labels added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart · ${amazon.toLocaleString()} Amazon${amazon ? ` (${amazonMatched.toLocaleString()} matched)` : ""}${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
+      description: `${nextRows.length.toLocaleString()} labels added · ${mergedRows.length.toLocaleString()} total · ${meesho.toLocaleString()} Meesho · ${flipkart.toLocaleString()} Flipkart · ${amazon.toLocaleString()} Amazon${amazon ? ` (${amazonMatched.toLocaleString()} matched)` : ""}${invalid ? ` · ${invalid.toLocaleString()} need review` : ""}`,
     });
     trackEvent("meesho_pdf_import_succeeded", {
       file_count: nextSources.length,
-      label_count: usableNextRows.length,
+      label_count: nextRows.length,
       total_label_count: mergedRows.length,
       flipkart_count: flipkart,
       meesho_count: meesho,
@@ -2975,11 +3020,6 @@ export function MeeshoLabelExportTool() {
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     if (!canImportLabels) {
-      if (usageLimitExhausted) {
-        const message = "Your monthly label limit is exhausted. Upgrade or buy more usage to continue.";
-        notify.info("Plan limit reached", { description: message });
-        promptUpgrade(message);
-      }
       return;
     }
     const files = Array.from(e.dataTransfer.files ?? []);
@@ -3056,12 +3096,13 @@ export function MeeshoLabelExportTool() {
         ok?: boolean;
         keyId?: string;
         orderId?: string;
+        subscriptionId?: string;
         amount?: number;
         currency?: string;
         description?: string;
         error?: string;
       };
-      if (!checkout.ok || !order.ok || !order.keyId || !order.orderId || !order.amount) {
+      if (!checkout.ok || !order.ok || !order.keyId || (!order.orderId && !order.subscriptionId) || !order.amount) {
         throw new Error(order.error || "Could not start checkout.");
       }
       const scriptReady = await loadRazorpayScript();
@@ -3073,35 +3114,59 @@ export function MeeshoLabelExportTool() {
         currency: order.currency ?? "INR",
         name: "Tulmin AI",
         description: order.description ?? "Tulmin AI billing",
-        order_id: order.orderId,
+        ...(order.orderId ? { order_id: order.orderId } : {}),
+        ...(order.subscriptionId ? { subscription_id: order.subscriptionId } : {}),
         prefill: {
           email: user?.email ?? "",
           name: user?.user_metadata?.full_name ? String(user.user_metadata.full_name) : "",
         },
         handler: async (response) => {
-          const verified = await fetch("/api/billing/verify", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              orderId: response.razorpay_order_id,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-            }),
-          });
-          const json = await verified.json().catch(() => ({}));
-          if (!verified.ok) throw new Error(json.error || "Payment verification failed.");
-          await refreshEntitlement();
-          setUpgradeOpen(false);
-          notify.success(input.type === "topup" ? "Label credits added" : "Plan upgraded", {
-            description: "Your workspace is ready to continue.",
-          });
+          try {
+            const verified = await fetch("/api/billing/verify", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderId: response.razorpay_order_id,
+                subscriptionId: response.razorpay_subscription_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              }),
+            });
+            const json = await verified.json().catch(() => ({}));
+            if (!verified.ok) throw new Error(json.error || "Payment verification failed.");
+            await refreshEntitlement();
+            setUpgradeOpen(false);
+            notify.success(input.type === "topup" ? "Label credits added" : "Plan upgraded", {
+              description: "Your workspace is ready to continue.",
+            });
+          } catch (err) {
+            notify.error("Payment verification failed", {
+              description: err instanceof Error ? err.message : "Please contact support if money was debited.",
+            });
+          } finally {
+            setCheckoutBusy(false);
+          }
         },
         modal: {
-          ondismiss: () => setCheckoutBusy(false),
+          ondismiss: () => {
+            setCheckoutBusy(false);
+            notify.info("Checkout cancelled", {
+              description: "No payment was taken.",
+            });
+          },
         },
+      });
+      razorpay.on?.("payment.failed", (response) => {
+        setCheckoutBusy(false);
+        notify.error("Payment failed", {
+          description:
+            response.error?.description ||
+            response.error?.reason ||
+            "Razorpay could not complete this payment.",
+        });
       });
       razorpay.open();
     } catch (err) {
@@ -3126,6 +3191,7 @@ export function MeeshoLabelExportTool() {
       return;
     }
     const exportedEnriched = [...sourceRows];
+
     if (processingMode === "filter_crop") {
       setCropExportBusy(true);
       setPdfExportState({ phase: "loading", done: 0, total: exportedEnriched.length, label: "Preparing cropped PDF" });
@@ -3146,6 +3212,8 @@ export function MeeshoLabelExportTool() {
                     : "Cropping selected labels",
             })
         );
+        const usageReserved = await reserveDownloadUsageForRows(exportedEnriched, "crop");
+        if (!usageReserved) return;
         setPdfExportState({
           phase: "starting",
           done: out.pageCount,
@@ -3154,6 +3222,7 @@ export function MeeshoLabelExportTool() {
         });
         triggerPdfDownload(out.bytes, buildSelectedExportFilename(exportedEnriched));
         mergeExportedMastersFromRows(exportedEnriched);
+        markDownloadUsageFromRows(exportedEnriched);
         notify.success("Exported cropped labels", {
           description: `${out.pageCount.toLocaleString()} page(s)`,
         });
@@ -3206,9 +3275,12 @@ export function MeeshoLabelExportTool() {
                   : "Preparing PDF",
           }),
       });
+      const usageReserved = await reserveDownloadUsageForRows(exportedEnriched, "export");
+      if (!usageReserved) return;
       setPdfExportState({ phase: "starting", done: steps.length, total: steps.length, label: "Starting download" });
       triggerPdfDownload(out, buildSelectedExportFilename(exportedEnriched));
       mergeExportedMastersFromRows(exportedEnriched);
+      markDownloadUsageFromRows(exportedEnriched);
       notify.success("Exported", {
         description: `${steps.length.toLocaleString()} page(s) · ✓ = already in an export`,
       });
@@ -3323,9 +3395,15 @@ export function MeeshoLabelExportTool() {
         }
       );
 
+      const usageReserved = await reserveDownloadUsageForRows(
+        sourceRows,
+        processingMode === "filter_crop" ? "crop" : "export"
+      );
+      if (!usageReserved) return;
       setBulkSkuZipState({ phase: "starting" });
       triggerZipDownload(zipBytes, zipFilename);
       mergeExportedMastersFromRows(sourceRows);
+      markDownloadUsageFromRows(sourceRows);
       if (scope === "filtered") {
         notify.success("SKU ZIP ready", {
           description: `${bucketList.length.toLocaleString()} PDF(s) from the current filter · ${zipFilename}`,
@@ -3711,6 +3789,7 @@ export function MeeshoLabelExportTool() {
       notify.info("No crop pages available yet.");
       return;
     }
+
     setCropExportBusy(true);
     setPdfExportState({ phase: "loading", done: 0, total: cropScopedRows.length, label: "Preparing cropped PDF" });
     try {
@@ -3725,6 +3804,8 @@ export function MeeshoLabelExportTool() {
                 : "Cropping labels",
         })
       );
+      const usageReserved = await reserveDownloadUsageForRows(cropScopedRows, "crop");
+      if (!usageReserved) return;
       setPdfExportState({
         phase: "starting",
         done: out.pageCount,
@@ -3732,6 +3813,7 @@ export function MeeshoLabelExportTool() {
         label: "Starting download",
       });
       triggerPdfDownload(out.bytes, "tulmin-auto-cropped-labels.pdf");
+      markDownloadUsageFromRows(cropScopedRows);
       notify.success("Cropped PDF downloaded.");
     } catch (err) {
       notify.error("Could not crop PDF", {
@@ -3760,6 +3842,7 @@ export function MeeshoLabelExportTool() {
       });
       return;
     }
+
     setCropExportBusy(true);
     try {
       const JSZip = (await import("jszip")).default;
@@ -3772,6 +3855,7 @@ export function MeeshoLabelExportTool() {
         return a.page - b.page;
       });
       let added = 0;
+      const addedRows: EnrichedMeeshoLabelRow[] = [];
       for (const row of sortedRows) {
         try {
           const out = await cropOutputPdfForRows([row], autoCropMode, autoCropMode);
@@ -3779,6 +3863,7 @@ export function MeeshoLabelExportTool() {
           const fileBase = dedupeFilename(`${base}-${autoCropMode}`, usedNames);
           zip.file(`${fileBase}.pdf`, out.bytes);
           added += 1;
+          addedRows.push(row);
         } catch {
           /* Skip rows that do not have the requested crop target, e.g. a missing invoice. */
         }
@@ -3788,7 +3873,10 @@ export function MeeshoLabelExportTool() {
         return;
       }
       const zipBytes = await zip.generateAsync({ type: "uint8array" });
+      const usageReserved = await reserveDownloadUsageForRows(addedRows, "crop");
+      if (!usageReserved) return;
       triggerZipDownload(new Uint8Array(zipBytes), "tulmin-auto-cropped-labels.zip");
+      markDownloadUsageFromRows(addedRows);
       notify.success("Cropped ZIP downloaded.");
     } catch (err) {
       notify.error("Could not create ZIP", {

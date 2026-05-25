@@ -11,6 +11,7 @@ type RazorpayWebhook = {
       entity?: {
         id?: string;
         order_id?: string;
+        subscription_id?: string;
         invoice_id?: string;
         amount?: number;
         currency?: string;
@@ -40,27 +41,31 @@ export async function POST(req: NextRequest) {
   const providerEventId = req.headers.get("x-razorpay-event-id") || `${event.event ?? "event"}:${Date.now()}`;
   const payment = event.payload?.payment?.entity;
   const orderId = payment?.order_id ?? "";
+  const subscriptionId = payment?.subscription_id ?? "";
   const paymentId = payment?.id ?? "";
   const notes = payment?.notes ?? {};
   const userId = notes.userId;
 
-  if (!orderId || !paymentId || !userId) {
+  if ((!orderId && !subscriptionId) || !paymentId || !userId) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  const existing = await service
+  let existingQuery = service
     .from("tulmin_payment_events")
-    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,status")
-    .eq("provider", "razorpay")
-    .eq("provider_order_id", orderId)
-    .maybeSingle();
+    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id,status")
+    .eq("provider", "razorpay");
+  existingQuery = subscriptionId
+    ? existingQuery.eq("provider_subscription_id", subscriptionId)
+    : existingQuery.eq("provider_order_id", orderId);
+  const existing = await existingQuery.maybeSingle();
 
   if (event.event === "payment.failed") {
     const failurePayload = {
       user_id: existing.data?.user_id ?? userId,
       provider: "razorpay",
       provider_event_id: providerEventId,
-      provider_order_id: orderId,
+      provider_order_id: orderId || null,
+      provider_subscription_id: subscriptionId || null,
       provider_payment_id: paymentId,
       amount: Math.round((Number(payment?.amount) || 0) / 100),
       currency: payment?.currency ?? "INR",
@@ -89,6 +94,7 @@ export async function POST(req: NextRequest) {
         billing_cycle?: "monthly" | "yearly" | "topup" | null;
         label_credits?: number | null;
         provider_order_id?: string | null;
+        provider_subscription_id?: string | null;
         status?: string | null;
       }
     | null;
@@ -100,7 +106,8 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         provider: "razorpay",
         provider_event_id: providerEventId,
-        provider_order_id: orderId,
+        provider_order_id: orderId || null,
+        provider_subscription_id: subscriptionId || null,
         provider_payment_id: paymentId,
         provider_invoice_id: payment?.invoice_id ?? null,
         plan: notes.plan || null,
@@ -112,7 +119,7 @@ export async function POST(req: NextRequest) {
         raw_event: event,
         metadata: { webhookCreated: true },
       })
-      .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id")
+      .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id")
       .maybeSingle();
     if (inserted.error || !inserted.data) {
       return NextResponse.json({ error: inserted.error?.message ?? "Could not save payment." }, { status: 500 });
@@ -121,6 +128,7 @@ export async function POST(req: NextRequest) {
       userId,
       paymentEventId: inserted.data.id,
       providerOrderId: orderId,
+      providerSubscriptionId: subscriptionId || inserted.data.provider_subscription_id,
       providerPaymentId: paymentId,
       providerInvoiceId: payment?.invoice_id ?? null,
       plan: inserted.data.plan,
@@ -144,6 +152,7 @@ export async function POST(req: NextRequest) {
     userId: row.user_id,
     paymentEventId: row.id,
     providerOrderId: row.provider_order_id,
+    providerSubscriptionId: row.provider_subscription_id,
     providerPaymentId: paymentId,
     providerInvoiceId: payment?.invoice_id ?? null,
     plan: row.plan,

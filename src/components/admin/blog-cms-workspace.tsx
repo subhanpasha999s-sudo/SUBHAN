@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Bold,
   Heading1,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast as notify } from "sonner";
 
+import { AdminNav } from "@/components/admin/admin-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -431,8 +433,8 @@ export function BlogCmsWorkspace() {
 
   if (authState === "checking") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+      <main className="flex min-h-screen items-center justify-center bg-[#070a0f] px-4 text-white">
+        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-[#0f151f] px-5 py-4 shadow-sm">
           <Loader2 className="size-5 animate-spin text-[#335cff]" />
           <span className="text-sm font-medium">Verifying admin access...</span>
         </div>
@@ -442,21 +444,21 @@ export function BlogCmsWorkspace() {
 
   if (authState === "blocked") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
-        <section className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#335cff]/10 text-[#335cff] ring-1 ring-[#335cff]/20">
+      <main className="flex min-h-screen items-center justify-center bg-[#070a0f] px-4 text-white">
+        <section className="w-full max-w-md rounded-lg border border-white/10 bg-[#0f151f] p-6 text-center shadow-sm">
+          <span className="mx-auto flex size-11 items-center justify-center rounded-md bg-[#335cff]/10 text-[#9fb0ff] ring-1 ring-[#335cff]/20">
             <FileText className="size-6" />
           </span>
-          <h1 className="mt-4 text-2xl font-semibold">Blog admin only</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Sign in with an allowlisted Tulmin admin email to manage drafts and published blogs.
+          <h1 className="mt-4 text-xl font-semibold">Admin access required</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            Sign in with an allowlisted Tulmin admin email to manage analytics, MRR, billing, and content.
           </p>
-          <a
+          <Link
             href="/admin/login"
-            className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#335cff] text-sm font-semibold text-white shadow-[0_16px_36px_-22px_rgb(51_92_255/0.9)]"
+            className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#335cff] text-sm font-semibold text-white shadow-[0_16px_36px_-22px_rgb(51_92_255/0.9)]"
           >
-            Go to Admin Login
-          </a>
+            Go to Admin Console
+          </Link>
         </section>
       </main>
     );
@@ -464,35 +466,35 @@ export function BlogCmsWorkspace() {
 
   if (authState === "setup") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f8fd] px-4 text-slate-950 dark:bg-[#07101f] dark:text-white">
-        <section className="w-full max-w-xl rounded-[1.75rem] border border-amber-300/35 bg-white p-6 shadow-sm dark:border-amber-300/20 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_-42px_rgba(245,158,11,0.45)]">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-200">
+      <main className="flex min-h-screen items-center justify-center bg-[#070a0f] px-4 text-white">
+        <section className="w-full max-w-xl rounded-lg border border-amber-300/20 bg-[#0f151f] p-6 shadow-sm">
+          <span className="flex size-11 items-center justify-center rounded-md bg-amber-300/10 text-amber-100 ring-1 ring-amber-300/20">
             <FileText className="size-6" />
           </span>
-          <h1 className="mt-4 text-2xl font-semibold">Blog database setup required</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <h1 className="mt-4 text-xl font-semibold">Blog database setup required</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
             Admin login worked, but the backend still needs one Supabase setup
             step before it can load, save, or publish blogs.
           </p>
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-black/30 dark:text-slate-200">
-            <p className="font-semibold text-amber-800 dark:text-amber-100">Required setup</p>
-            <code className="mt-2 block break-words text-xs text-slate-600 dark:text-slate-300">
+          <div className="mt-5 rounded-md border border-amber-300/20 bg-black/25 p-4 text-sm text-slate-300">
+            <p className="font-semibold text-amber-100">Required setup</p>
+            <code className="mt-2 block break-words text-xs text-slate-400">
               Run supabase/migrations/006_blog_cms.sql and set SUPABASE_SERVICE_ROLE_KEY in deployment env.
             </code>
           </div>
           {setupError ? (
-            <p className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-700 dark:text-red-100">
+            <p className="mt-4 rounded-md border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-100">
               {setupError}
             </p>
           ) : null}
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button type="button" className="h-11 rounded-xl" onClick={() => window.location.reload()}>
+            <Button type="button" className="h-10 rounded-md" onClick={() => window.location.reload()}>
               Refresh after migration
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="h-11 rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
+              className="h-10 rounded-md border-white/10 bg-[#0d121b] text-white hover:bg-white/10"
               onClick={() => void logout()}
             >
               Logout
@@ -504,26 +506,24 @@ export function BlogCmsWorkspace() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f8fd] text-slate-950 dark:bg-[#07101f] dark:text-white">
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f8fd]/86 px-4 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/84 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4">
+    <main className="min-h-screen bg-[#070a0f] text-white">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0f17]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#335cff]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8fa8ff]">
               Tulmin Admin
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Blog publishing desk</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Edit articles in the same premium system used by the public blog.
-            </p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">Blogs</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="rounded-full bg-[#335cff]/10 px-3 py-1 text-[#335cff] hover:bg-[#335cff]/10">
+            <AdminNav />
+            <Badge className="rounded-md bg-[#335cff]/10 px-2.5 py-1 text-[#9fb0ff] hover:bg-[#335cff]/10">
               {admin?.role} · {admin?.email}
             </Badge>
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/10"
+              className="h-9 rounded-md border-white/10 bg-[#0d121b] text-white hover:bg-white/10"
               onClick={() => void logout()}
               disabled={busy === "logout"}
             >
@@ -534,10 +534,19 @@ export function BlogCmsWorkspace() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-5">
+          <h2 className="text-2xl font-semibold tracking-tight">Publishing desk</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Create, review, and ship SEO content without leaving the admin console.
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 pb-6 sm:px-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:px-8">
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
-            <Button type="button" className="h-11 w-full rounded-xl" onClick={createNew}>
+          <div className="rounded-lg border border-white/10 bg-[#0f151f] p-3 shadow-sm">
+            <Button type="button" className="h-10 w-full rounded-md" onClick={createNew}>
               <Plus className="size-4" />
               Create blog
             </Button>
@@ -548,7 +557,7 @@ export function BlogCmsWorkspace() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search blogs"
-                  className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-9 text-slate-950 dark:border-white/10 dark:bg-black/20 dark:text-white"
+                  className="h-10 rounded-md border-white/10 bg-black/25 pl-9 text-white"
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -561,7 +570,7 @@ export function BlogCmsWorkspace() {
                       "h-9 rounded-lg text-xs font-semibold capitalize ring-1 transition",
                       statusFilter === status
                         ? "bg-[#335cff] text-white ring-[#335cff]"
-                        : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-white/[0.08]",
+                        : "bg-black/20 text-slate-400 ring-white/10 hover:bg-white/[0.06] hover:text-white",
                     )}
                   >
                     {status}
@@ -571,11 +580,11 @@ export function BlogCmsWorkspace() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10">
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-[#0f151f] shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
               <div>
-                <p className="text-sm font-semibold">All CMS blogs</p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-sm font-semibold text-white">All CMS blogs</p>
+                <p className="mt-0.5 text-xs text-slate-500">
                   Showing {filteredPosts.length} of {posts.length}
                 </p>
               </div>
@@ -584,7 +593,7 @@ export function BlogCmsWorkspace() {
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  className="text-slate-400 hover:bg-white/10 hover:text-white"
                   onClick={() => {
                     setQuery("");
                     setStatusFilter("all");
@@ -600,17 +609,17 @@ export function BlogCmsWorkspace() {
                   key={post.slug}
                   type="button"
                   className={cn(
-                    "w-full rounded-2xl border p-3 text-left transition",
+                    "w-full rounded-lg border p-3 text-left transition",
                     selectedSlug === post.slug
                       ? "border-[#335cff]/45 bg-[#335cff]/10 shadow-sm"
-                      : "border-slate-200 bg-slate-50 hover:border-[#335cff]/30 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]",
+                      : "border-white/10 bg-black/20 hover:border-[#335cff]/30 hover:bg-white/[0.05]",
                   )}
                   onClick={() => loadPost(post)}
                 >
                   <div className="flex gap-3">
                     <div
                       className={cn(
-                        "size-14 shrink-0 overflow-hidden rounded-xl bg-[linear-gradient(135deg,rgb(51_92_255/0.18),rgb(16_185_129/0.10))] ring-1 ring-slate-200 dark:ring-white/10",
+                        "size-12 shrink-0 overflow-hidden rounded-md bg-[#172234] ring-1 ring-white/10",
                         post.featuredImage && "bg-cover bg-center"
                       )}
                       style={
@@ -626,8 +635,8 @@ export function BlogCmsWorkspace() {
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
                             post.status === "published"
-                              ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-200"
-                              : "bg-amber-500/14 text-amber-700 dark:text-amber-200",
+                              ? "bg-emerald-500/12 text-emerald-200"
+                              : "bg-amber-500/14 text-amber-200",
                           )}
                         >
                           {post.status}
@@ -638,10 +647,10 @@ export function BlogCmsWorkspace() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-slate-950 dark:text-white">
+                      <p className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-white">
                         {post.title}
                       </p>
-                      <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                      <p className="mt-1 line-clamp-1 text-xs text-slate-500">
                         {post.slug}
                       </p>
                     </div>
@@ -653,7 +662,7 @@ export function BlogCmsWorkspace() {
                       variant="ghost"
                       title="Edit blog"
                       aria-label={`Edit ${post.title}`}
-                      className="text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                      className="text-slate-400 hover:bg-white/10 hover:text-white"
                       onClick={(event) => {
                         event.stopPropagation();
                         loadPost(post);
@@ -668,7 +677,7 @@ export function BlogCmsWorkspace() {
                       title={admin?.role === "super_admin" ? "Delete blog" : "Only super admins can delete"}
                       aria-label={`Delete ${post.title}`}
                       disabled={Boolean(busy) || admin?.role !== "super_admin"}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-400 dark:text-red-200 dark:hover:bg-red-400/10 dark:hover:text-red-100 dark:disabled:text-slate-600"
+                      className="text-red-200 hover:bg-red-400/10 hover:text-red-100 disabled:text-slate-600"
                       onClick={(event) => {
                         event.stopPropagation();
                         void deleteSelected(post.slug);
@@ -688,11 +697,11 @@ export function BlogCmsWorkspace() {
           </div>
         </aside>
 
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.045] sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-white/10">
+        <section className="space-y-4 rounded-lg border border-white/10 bg-[#0f151f] p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div>
-              <h2 className="text-lg font-semibold">Editor</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Drafts stay private. Published blogs sync to `/blog`.</p>
+              <h2 className="text-base font-semibold text-white">Editor</h2>
+              <p className="text-xs text-slate-500">Drafts stay private. Published blogs sync to `/blog`.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
