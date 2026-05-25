@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
         reason: "server_unavailable",
         message:
           "Usage tracking is not configured. Add SUPABASE_SERVICE_ROLE_KEY so monthly label limits can be enforced securely.",
+        setupHint:
+          "Add SUPABASE_SERVICE_ROLE_KEY to your local and production environment variables, then restart or redeploy the app.",
       },
       { status: 503 }
     );
@@ -123,6 +125,8 @@ export async function POST(req: NextRequest) {
         reason: "server_unavailable",
         message:
           "Usage could not be saved, so Tulmin stopped this run to protect your monthly label limit. Apply the latest billing migration and try again.",
+        setupHint:
+          "Run supabase/migrations/010_atomic_usage_reservations.sql against your Supabase project, then restart or redeploy the app.",
         entitlement: before,
         trackingError: reservation.error.message,
       },

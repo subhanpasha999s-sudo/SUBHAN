@@ -34,11 +34,14 @@ export type UsageReservationResult =
       partial?: boolean;
       limitReached?: boolean;
       message?: string;
+      setupHint?: string;
     }
   | {
       ok: false;
       reason: "limit_reached" | "signin_required" | "abuse_review" | "server_unavailable";
       message: string;
+      setupHint?: string;
+      trackingError?: string;
       entitlement?: SubscriptionEntitlement;
     };
 
@@ -140,7 +143,14 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
             browser: getBillingBrowserSignals(),
           }),
         });
-        const data = (await res.json()) as UsageReservationResult;
+        const data = (await res.json().catch(() => null)) as UsageReservationResult | null;
+        if (!data) {
+          return {
+            ok: false,
+            reason: "server_unavailable",
+            message: "Tulmin could not read the billing response. Please refresh and try again.",
+          };
+        }
         if (data.ok) {
           setEntitlement({ ...data.entitlement, loaded: true });
           if (data.limitReached && data.message) {

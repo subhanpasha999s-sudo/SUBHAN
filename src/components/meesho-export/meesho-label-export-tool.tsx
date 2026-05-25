@@ -2839,8 +2839,13 @@ export function MeeshoLabelExportTool() {
           pendingLoginFilesRef.current = files;
           setLoginRequiredOpen(true);
         } else if (reservation.reason === "server_unavailable") {
-          notify.error("Usage check unavailable", {
-            description: "Tulmin could not verify this run right now. Please try again in a moment.",
+          const setupRequired =
+            /SUPABASE_SERVICE_ROLE_KEY|billing migration|010_atomic_usage_reservations/i.test(
+              `${reservation.message} ${reservation.setupHint ?? ""} ${reservation.trackingError ?? ""}`
+            );
+          notify.error(setupRequired ? "Billing setup required" : "Usage check unavailable", {
+            description: reservation.setupHint || reservation.message,
+            duration: setupRequired ? 12000 : 7000,
           });
         } else {
           notify.info("Upgrade to continue", {
