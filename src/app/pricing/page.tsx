@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { X } from "lucide-react";
 
-import { PricingCards } from "@/components/billing/pricing-cards";
+import { PricingPageClient } from "./pricing-page-client";
 
 export const metadata: Metadata = {
   title: "Tulmin AI Pricing | Free, Starter, Pro, and Business Plans",
@@ -21,7 +21,7 @@ export default function PricingPage() {
       >
         <X className="size-5" aria-hidden />
       </Link>
-      <PricingCards currentPlan="free" />
+      <PricingPageClient />
     </main>
   );
 }
