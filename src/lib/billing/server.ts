@@ -56,6 +56,14 @@ type RateLimitRow = {
   retry_after_seconds?: number | null;
 };
 
+type CreditGrantRow = {
+  label_count?: number | null;
+  used_label_count?: number | null;
+  expires_at?: string | null;
+  status?: string | null;
+  grant_kind?: string | null;
+};
+
 const BILLABLE_USAGE_ACTIONS = ["import", "export", "filter", "crop", "processed"] as const;
 
 const fallbackRateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -250,13 +258,26 @@ export async function getServerEntitlement(
 
   const credits = await sb
     .from("tulmin_label_credit_grants")
-    .select("label_count,used_label_count,expires_at")
+    .select("label_count,used_label_count,expires_at,status,grant_kind")
     .eq("user_id", userId)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+  const creditRowsResult = credits.error
+    ? await sb
+      .from("tulmin_label_credit_grants")
+      .select("label_count,used_label_count,expires_at")
+      .eq("user_id", userId)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    : credits;
+  const activeCredits = (creditRowsResult.error || !creditRowsResult.data ? [] : (creditRowsResult.data as CreditGrantRow[])).filter(
+    (row) => !row.status || row.status === "active"
+  );
+  const hasUnlimitedBonus = activeCredits.some((row) =>
+    row.grant_kind === "unlimited_lifetime" || row.grant_kind === "unlimited_monthly"
+  );
   const bonusLabelsAvailable =
-    credits.error || !credits.data
+    hasUnlimitedBonus
       ? 0
-      : credits.data.reduce(
+      : activeCredits.reduce(
           (sum, row) =>
             sum +
             Math.max(0, (Number(row.label_count) || 0) - (Number(row.used_label_count) || 0)),
@@ -301,7 +322,9 @@ export async function getServerEntitlement(
   const baseLabelsLimit =
     dynamicPlan?.label_limit !== undefined ? dynamicPlan.label_limit : planConfig.labelLimit;
   const labelsLimit =
-    baseLabelsLimit == null ? null : Math.max(0, Number(baseLabelsLimit) || 0) + bonusLabelsAvailable;
+    hasUnlimitedBonus || baseLabelsLimit == null
+      ? null
+      : Math.max(0, Number(baseLabelsLimit) || 0) + bonusLabelsAvailable;
   const dailyLabelsLimit =
     dynamicPlan?.daily_limit !== undefined ? dynamicPlan.daily_limit : (planConfig.dailyLabelLimit ?? null);
   return {

@@ -32,14 +32,35 @@ type PlanRow = {
   razorpay_yearly_plan_id: string | null;
 };
 
+type BonusGrantKind = "labels" | "unlimited_monthly" | "unlimited_lifetime";
+type BonusGrantStatus = "active" | "suspended";
+
+type BonusGrantRow = {
+  id: number;
+  user_id: string;
+  user_email?: string | null;
+  label_count: number | null;
+  used_label_count: number | null;
+  reason: string | null;
+  expires_at: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+  status?: string | null;
+  grant_kind?: string | null;
+  renewed_at?: string | null;
+};
+
 type PutBody = {
-  action?: "save_billing" | "grant_credits";
+  action?: "save_billing" | "grant_credits" | "update_bonus" | "delete_bonus";
   grant?: {
+    bonusId?: number;
     userId?: string;
     userEmail?: string;
     labelCount?: number;
     reason?: string;
     expiresAt?: string;
+    status?: BonusGrantStatus;
+    grantKind?: BonusGrantKind;
   };
   settings?: {
     mode?: "test" | "live";
@@ -50,6 +71,54 @@ type PutBody = {
   };
   plans?: AdminBillingPlanSetting[];
 };
+
+const UNLIMITED_GRANT_LABEL_COUNT = 2147483647;
+
+function normalizeGrantKind(value?: string): BonusGrantKind {
+  if (value === "unlimited_monthly" || value === "unlimited_lifetime") return value;
+  return "labels";
+}
+
+function normalizeGrantStatus(value?: string): BonusGrantStatus {
+  return value === "suspended" ? "suspended" : "active";
+}
+
+function endOfCurrentMonthIso() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1) - 1).toISOString();
+}
+
+function normalizeExpiresAt(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T23:59:59.999Z`;
+  return trimmed;
+}
+
+function metadataEmail(row: BonusGrantRow) {
+  const email = row.metadata?.userEmail;
+  return typeof email === "string" ? email : null;
+}
+
+function mapBonusGrant(row: BonusGrantRow, emailByUserId: Map<string, string>) {
+  const grantKind = normalizeGrantKind(row.grant_kind ?? undefined);
+  const labelCount = Math.max(0, Number(row.label_count) || 0);
+  const usedLabelCount = Math.max(0, Number(row.used_label_count) || 0);
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userEmail: row.user_email || metadataEmail(row) || emailByUserId.get(row.user_id) || "Unknown user",
+    labelCount,
+    usedLabelCount,
+    remainingLabels: grantKind === "labels" ? Math.max(0, labelCount - usedLabelCount) : null,
+    reason: row.reason || "admin_bonus",
+    status: normalizeGrantStatus(row.status ?? undefined),
+    grantKind,
+    expiresAt: row.expires_at,
+    renewedAt: row.renewed_at ?? null,
+    createdAt: row.created_at,
+  };
+}
 
 function mapSettings(row?: BillingSettingsRow | null) {
   return {
@@ -99,6 +168,54 @@ async function resolveUserIdForGrant(
   return { userId: "", userEmail: email };
 }
 
+async function emailMapForUsers(
+  sb: NonNullable<ReturnType<typeof getSupabaseServiceRole>>,
+  userIds: string[]
+) {
+  const needed = new Set(userIds.filter(Boolean));
+  const emailByUserId = new Map<string, string>();
+  if (needed.size === 0) return emailByUserId;
+
+  for (let page = 1; page <= 20 && needed.size > 0; page += 1) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    for (const user of data.users) {
+      if (needed.has(user.id) && user.email) {
+        emailByUserId.set(user.id, user.email.toLowerCase());
+        needed.delete(user.id);
+      }
+    }
+    if (data.users.length < 1000) break;
+  }
+
+  return emailByUserId;
+}
+
+async function loadBonusGrants(sb: NonNullable<ReturnType<typeof getSupabaseServiceRole>>) {
+  const grantsResult = await sb
+    .from("tulmin_label_credit_grants")
+    .select("id,user_id,user_email,label_count,used_label_count,reason,expires_at,metadata,created_at,status,grant_kind,renewed_at")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  const rowsResult = grantsResult.error
+    ? await sb
+      .from("tulmin_label_credit_grants")
+      .select("id,user_id,label_count,used_label_count,reason,expires_at,metadata,created_at")
+      .order("created_at", { ascending: false })
+      .limit(100)
+    : grantsResult;
+
+  if (rowsResult.error || !rowsResult.data) return [];
+
+  const rows = rowsResult.data as BonusGrantRow[];
+  const emailByUserId = await emailMapForUsers(
+    sb,
+    rows.filter((row) => !row.user_email && !metadataEmail(row)).map((row) => row.user_id)
+  );
+  return rows.map((row) => mapBonusGrant(row, emailByUserId));
+}
+
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (admin instanceof NextResponse) return admin;
@@ -106,9 +223,10 @@ export async function GET(req: NextRequest) {
   const sb = getSupabaseServiceRole();
   if (!sb) return NextResponse.json({ error: "Service role is not configured." }, { status: 503 });
 
-  const [settingsResult, plansResult] = await Promise.all([
+  const [settingsResult, plansResult, bonusGrants] = await Promise.all([
     sb.from("tulmin_billing_settings").select("*").eq("id", true).maybeSingle(),
     sb.from("tulmin_plan_settings").select("*").order("monthly_price", { ascending: true }),
+    loadBonusGrants(sb),
   ]);
 
   if (settingsResult.error || plansResult.error) {
@@ -128,6 +246,7 @@ export async function GET(req: NextRequest) {
       plansResult.data && plansResult.data.length > 0
         ? (plansResult.data as PlanRow[]).map(mapPlan)
         : defaultBillingPlans(),
+    bonusGrants,
   });
 }
 
@@ -144,19 +263,56 @@ export async function PUT(req: NextRequest) {
 
   if (body.action === "grant_credits") {
     const { userId, userEmail } = await resolveUserIdForGrant(sb, body.grant);
-    const labelCount = Math.max(0, Math.floor(Number(body.grant?.labelCount) || 0));
-    if (!userId || labelCount <= 0) {
+    const grantKind = normalizeGrantKind(body.grant?.grantKind);
+    const labelCount =
+      grantKind === "labels"
+        ? Math.max(0, Math.floor(Number(body.grant?.labelCount) || 0))
+        : UNLIMITED_GRANT_LABEL_COUNT;
+    if (!userId || (grantKind === "labels" && labelCount <= 0)) {
       return NextResponse.json({ error: "User email and positive label count are required." }, { status: 400 });
     }
     const savedGrant = await sb.from("tulmin_label_credit_grants").insert({
       user_id: userId,
+      user_email: userEmail,
       label_count: labelCount,
       reason: body.grant?.reason?.trim() || "admin_bonus",
-      expires_at: body.grant?.expiresAt?.trim() || null,
+      expires_at:
+        grantKind === "unlimited_lifetime"
+          ? null
+          : normalizeExpiresAt(body.grant?.expiresAt) ?? (grantKind === "unlimited_monthly" ? endOfCurrentMonthIso() : null),
+      status: "active",
+      grant_kind: grantKind,
       created_by: admin.id,
       metadata: { adminEmail: admin.email, userEmail, identityMode: "email_primary_uuid_storage" },
     });
     if (savedGrant.error) return NextResponse.json({ error: savedGrant.error.message }, { status: 500 });
+    return GET(req);
+  }
+
+  if (body.action === "update_bonus") {
+    const bonusId = Math.max(0, Math.floor(Number(body.grant?.bonusId) || 0));
+    if (!bonusId) return NextResponse.json({ error: "Bonus grant is required." }, { status: 400 });
+
+    const update: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (body.grant?.status) update.status = normalizeGrantStatus(body.grant.status);
+    if (body.grant?.reason !== undefined) update.reason = body.grant.reason.trim() || "admin_bonus";
+    if (body.grant?.expiresAt !== undefined) {
+      update.expires_at = normalizeExpiresAt(body.grant.expiresAt);
+      update.renewed_at = new Date().toISOString();
+    }
+
+    const savedGrant = await sb.from("tulmin_label_credit_grants").update(update).eq("id", bonusId);
+    if (savedGrant.error) return NextResponse.json({ error: savedGrant.error.message }, { status: 500 });
+    return GET(req);
+  }
+
+  if (body.action === "delete_bonus") {
+    const bonusId = Math.max(0, Math.floor(Number(body.grant?.bonusId) || 0));
+    if (!bonusId) return NextResponse.json({ error: "Bonus grant is required." }, { status: 400 });
+    const deletedGrant = await sb.from("tulmin_label_credit_grants").delete().eq("id", bonusId);
+    if (deletedGrant.error) return NextResponse.json({ error: deletedGrant.error.message }, { status: 500 });
     return GET(req);
   }
 

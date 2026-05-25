@@ -3,7 +3,21 @@
 import * as React from "react";
 
 import Link from "next/link";
-import { BarChart3, CreditCard, Gift, KeyRound, Loader2, LockKeyhole, Mail, Save } from "lucide-react";
+import {
+  BarChart3,
+  CreditCard,
+  Gift,
+  Infinity,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  Pause,
+  Play,
+  RotateCw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { toast as notify } from "sonner";
 
 import { AdminNav } from "@/components/admin/admin-nav";
@@ -13,10 +27,47 @@ import type { AdminBillingPlanSetting, AdminBillingSettings } from "@/lib/admin/
 type BillingPayload = {
   settings: AdminBillingSettings;
   plans: AdminBillingPlanSetting[];
+  bonusGrants: BonusGrant[];
 };
 
-function money(value: number) {
-  return `₹${value.toLocaleString("en-IN")}`;
+type BonusGrantKind = "labels" | "unlimited_monthly" | "unlimited_lifetime";
+type BonusGrantStatus = "active" | "suspended";
+
+type BonusGrant = {
+  id: number;
+  userId: string;
+  userEmail: string;
+  labelCount: number;
+  usedLabelCount: number;
+  remainingLabels: number | null;
+  reason: string;
+  status: BonusGrantStatus;
+  grantKind: BonusGrantKind;
+  expiresAt: string | null;
+  renewedAt: string | null;
+  createdAt: string;
+};
+
+function endOfCurrentMonthInputValue() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+}
+
+function dateInputPlusDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "No expiry";
+  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function bonusKindLabel(kind: BonusGrantKind) {
+  if (kind === "unlimited_lifetime") return "Unlimited lifetime";
+  if (kind === "unlimited_monthly") return "Unlimited monthly";
+  return "Label credits";
 }
 
 function Field({
@@ -52,6 +103,8 @@ export function AdminBillingDashboard() {
     userEmail: "",
     labelCount: 500,
     reason: "support_bonus",
+    grantKind: "labels" as BonusGrantKind,
+    expiresAt: "",
   });
 
   const load = React.useCallback(async () => {
@@ -103,7 +156,7 @@ export function AdminBillingDashboard() {
   }
 
   async function grantCredits() {
-    if (!grantForm.userEmail.trim() || grantForm.labelCount <= 0) {
+    if (!grantForm.userEmail.trim() || (grantForm.grantKind === "labels" && grantForm.labelCount <= 0)) {
       notify.error("Add a user email and label count.");
       return;
     }
@@ -120,10 +173,54 @@ export function AdminBillingDashboard() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not add credits.");
       setData(json as BillingPayload);
-      setGrantForm({ userId: "", userEmail: "", labelCount: 500, reason: "support_bonus" });
-      notify.success("Bonus labels added");
+      setGrantForm({ userId: "", userEmail: "", labelCount: 500, reason: "support_bonus", grantKind: "labels", expiresAt: "" });
+      notify.success(grantForm.grantKind === "labels" ? "Bonus labels added" : "Unlimited labels added");
     } catch (err) {
       notify.error(err instanceof Error ? err.message : "Could not add credits.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateBonus(bonusId: number, patch: Partial<Pick<BonusGrant, "status" | "expiresAt" | "reason">>) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/billing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_bonus",
+          grant: { bonusId, ...patch },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not update bonus.");
+      setData(json as BillingPayload);
+      notify.success("Bonus updated");
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Could not update bonus.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteBonus(bonusId: number) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/billing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete_bonus",
+          grant: { bonusId },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not delete bonus.");
+      setData(json as BillingPayload);
+      notify.success("Bonus deleted");
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Could not delete bonus.");
     } finally {
       setSaving(false);
     }
@@ -387,7 +484,7 @@ export function AdminBillingDashboard() {
                   <p className="text-sm text-slate-500">Give a seller extra label credits by email without changing their plan.</p>
                 </div>
               </div>
-              <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_14rem_auto] lg:items-end">
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_13rem_10rem_12rem_auto] lg:items-end">
                 <Field label="User email">
                   <input
                     className={inputClass()}
@@ -397,30 +494,147 @@ export function AdminBillingDashboard() {
                     placeholder="seller@example.com"
                   />
                 </Field>
-                <Field label="Labels">
-                  <input
+                <Field label="Bonus type">
+                  <select
                     className={inputClass()}
-                    type="number"
-                    value={grantForm.labelCount}
-                    onChange={(e) => setGrantForm((p) => ({ ...p, labelCount: Number(e.target.value) }))}
-                  />
+                    value={grantForm.grantKind}
+                    onChange={(e) =>
+                      setGrantForm((p) => ({
+                        ...p,
+                        grantKind: e.target.value as BonusGrantKind,
+                        expiresAt: e.target.value === "unlimited_monthly" ? endOfCurrentMonthInputValue() : "",
+                      }))
+                    }
+                  >
+                    <option value="labels">Label credits</option>
+                    <option value="unlimited_monthly">Unlimited monthly</option>
+                    <option value="unlimited_lifetime">Unlimited lifetime</option>
+                  </select>
                 </Field>
-                <Field label="Reason">
-                  <input
-                    className={inputClass()}
-                    value={grantForm.reason}
-                    onChange={(e) => setGrantForm((p) => ({ ...p, reason: e.target.value }))}
-                    placeholder="support_bonus"
-                  />
-                </Field>
+                {grantForm.grantKind === "labels" ? (
+                  <Field label="Labels">
+                    <input
+                      className={inputClass()}
+                      type="number"
+                      value={grantForm.labelCount}
+                      onChange={(e) => setGrantForm((p) => ({ ...p, labelCount: Number(e.target.value) }))}
+                    />
+                  </Field>
+                ) : (
+                  <div className="grid h-10 place-items-center rounded-md border border-emerald-400/20 bg-emerald-400/10 px-3 text-sm font-bold text-emerald-200">
+                    <Infinity className="size-4" aria-hidden />
+                  </div>
+                )}
+                {grantForm.grantKind === "unlimited_monthly" ? (
+                  <Field label="Expires">
+                    <input
+                      className={inputClass()}
+                      type="date"
+                      value={grantForm.expiresAt}
+                      onChange={(e) => setGrantForm((p) => ({ ...p, expiresAt: e.target.value }))}
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Reason">
+                    <input
+                      className={inputClass()}
+                      value={grantForm.reason}
+                      onChange={(e) => setGrantForm((p) => ({ ...p, reason: e.target.value }))}
+                      placeholder="support_bonus"
+                    />
+                  </Field>
+                )}
                 <Button className="h-10 rounded-md" disabled={saving} onClick={() => void grantCredits()}>
                   <Mail className="size-4" aria-hidden />
-                  Add credits
+                  Add bonus
                 </Button>
               </div>
               <p className="mt-3 text-xs leading-5 text-slate-500">
                 Email is the admin-facing identifier. Supabase UUIDs stay behind the scenes for database relations.
               </p>
+              <div className="mt-5 border-t border-white/10 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">Active bonuses</h3>
+                    <p className="text-xs text-slate-500">Suspend, renew, or remove user-specific bonuses.</p>
+                  </div>
+                  <span className="rounded-md border border-white/10 bg-black/20 px-2.5 py-1 text-xs font-bold text-slate-400">
+                    {data.bonusGrants.filter((bonus) => bonus.status === "active").length} active
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {data.bonusGrants.length === 0 ? (
+                    <div className="rounded-md border border-white/10 bg-black/20 p-3 text-sm text-slate-500">
+                      No bonus grants yet.
+                    </div>
+                  ) : (
+                    data.bonusGrants.map((bonus) => (
+                      <div
+                        key={bonus.id}
+                        className="grid gap-3 rounded-md border border-white/10 bg-black/20 p-3 lg:grid-cols-[1fr_14rem_12rem_auto] lg:items-center"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">{bonus.userEmail}</p>
+                          <p className="mt-1 text-xs text-slate-500">{bonus.reason}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{bonusKindLabel(bonus.grantKind)}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {bonus.remainingLabels == null
+                              ? "Unlimited labels"
+                              : `${bonus.remainingLabels.toLocaleString("en-IN")} labels left`}
+                          </p>
+                        </div>
+                        <div>
+                          <span
+                            className={
+                              bonus.status === "active"
+                                ? "rounded-md bg-emerald-400/10 px-2 py-1 text-xs font-bold text-emerald-200"
+                                : "rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-slate-400"
+                            }
+                          >
+                            {bonus.status}
+                          </span>
+                          <p className="mt-2 text-xs text-slate-500">{formatDate(bonus.expiresAt)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                          <Button
+                            className="h-9 rounded-md px-3"
+                            variant="secondary"
+                            disabled={saving}
+                            onClick={() =>
+                              void updateBonus(bonus.id, {
+                                status: bonus.status === "active" ? "suspended" : "active",
+                              })
+                            }
+                          >
+                            {bonus.status === "active" ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+                            {bonus.status === "active" ? "Suspend" : "Resume"}
+                          </Button>
+                          <Button
+                            className="h-9 rounded-md px-3"
+                            variant="secondary"
+                            disabled={saving || bonus.grantKind === "unlimited_lifetime"}
+                            onClick={() => void updateBonus(bonus.id, { expiresAt: dateInputPlusDays(30), status: "active" })}
+                          >
+                            <RotateCw className="size-4" aria-hidden />
+                            Renew
+                          </Button>
+                          <Button
+                            className="h-9 rounded-md px-3"
+                            variant="secondary"
+                            disabled={saving}
+                            onClick={() => void deleteBonus(bonus.id)}
+                          >
+                            <Trash2 className="size-4" aria-hidden />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </section>
 
             <section className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
