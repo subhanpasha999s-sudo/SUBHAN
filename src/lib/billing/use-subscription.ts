@@ -11,6 +11,8 @@ export type SubscriptionEntitlement = {
   status: "active" | "trialing" | "free" | "past_due";
   labelsUsed: number;
   labelsLimit: number | null;
+  baseLabelsLimit?: number | null;
+  bonusLabelsAvailable?: number;
   labelsRemaining: number | null;
   dailyLabelsUsed: number;
   dailyLabelsLimit: number | null;
@@ -18,6 +20,8 @@ export type SubscriptionEntitlement = {
   monthKey: string;
   dayKey: string;
   abuseReview: boolean;
+  riskScore?: number;
+  blockedUntil?: string | null;
   loaded: boolean;
 };
 
@@ -104,7 +108,7 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
   const reserveLabels = React.useCallback(
     async (
       labelCount: number,
-      action: "import" | "export" = "import",
+      action: "filter" | "crop" | "export" | "import" = "filter",
       options?: { allowPartial?: boolean }
     ): Promise<UsageReservationResult> => {
       if (!userId) {

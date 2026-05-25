@@ -25,6 +25,7 @@ import {
   formatPlanPrice,
   planCycleCaption,
   type BillingCycle,
+  type TulminPlan,
   type TulminPlanId,
 } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ import { cn } from "@/lib/utils";
 type PricingCardsProps = {
   currentPlan?: TulminPlanId;
   reason?: string;
-  onChoosePlan?: (plan: TulminPlanId) => void;
+  onChoosePlan?: (plan: TulminPlanId, cycle: BillingCycle) => void;
   compact?: boolean;
 };
 
@@ -83,6 +84,22 @@ export function PricingCards({
   compact = false,
 }: PricingCardsProps) {
   const [cycle, setCycle] = React.useState<BillingCycle>("monthly");
+  const [plans, setPlans] = React.useState<readonly TulminPlan[]>(TULMIN_PLANS);
+
+  React.useEffect(() => {
+    let alive = true;
+    fetch("/api/billing/plans", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { plans?: TulminPlan[] }) => {
+        if (alive && Array.isArray(json.plans) && json.plans.length > 0) setPlans(json.plans);
+      })
+      .catch(() => {
+        // Static defaults keep pricing visible if backend settings are not ready.
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <section className="relative min-h-[calc(100vh-2rem)] overflow-hidden bg-black px-4 py-10 text-white sm:px-6 sm:py-14">
@@ -132,7 +149,7 @@ export function PricingCards({
         </div>
 
         <div className={cn("mt-8 grid gap-5", compact ? "xl:grid-cols-4" : "lg:grid-cols-2 xl:grid-cols-4")}>
-          {TULMIN_PLANS.map((plan) => {
+          {plans.map((plan) => {
             const active = plan.id === currentPlan;
             const highlighted = plan.id === "pro";
             const paid = plan.id !== "free";
@@ -189,7 +206,7 @@ export function PricingCards({
                       : "bg-white text-black hover:bg-white/90"
                   )}
                   disabled={active}
-                  onClick={() => onChoosePlan?.(plan.id)}
+                  onClick={() => onChoosePlan?.(plan.id, cycle)}
                 >
                   {active ? "Your current plan" : plan.cta}
                   {!active ? <ArrowRight className="size-4" aria-hidden /> : null}

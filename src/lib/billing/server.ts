@@ -14,6 +14,8 @@ export type ServerEntitlement = {
   status: "active" | "trialing" | "free" | "past_due";
   labelsUsed: number;
   labelsLimit: number | null;
+  baseLabelsLimit?: number | null;
+  bonusLabelsAvailable?: number;
   labelsRemaining: number | null;
   dailyLabelsUsed: number;
   dailyLabelsLimit: number | null;
@@ -21,6 +23,8 @@ export type ServerEntitlement = {
   monthKey: string;
   dayKey: string;
   abuseReview: boolean;
+  riskScore?: number;
+  blockedUntil?: string | null;
   loaded: boolean;
 };
 
@@ -34,6 +38,37 @@ export function currentDayKey(date = new Date()) {
 
 function sha(input: string) {
   return createHash("sha256").update(input).digest("hex");
+}
+
+type DynamicPlanSetting = {
+  enabled?: boolean | null;
+  label_limit?: number | null;
+  daily_limit?: number | null;
+};
+
+const BILLABLE_USAGE_ACTIONS = ["import", "export", "filter", "crop", "processed"] as const;
+
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+
+export function checkBillingRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): { ok: true } | { ok: false; retryAfterSeconds: number } {
+  const now = Date.now();
+  const current = rateLimitBuckets.get(key);
+  if (!current || current.resetAt <= now) {
+    rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return { ok: true };
+  }
+  if (current.count >= limit) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  current.count += 1;
+  return { ok: true };
 }
 
 function bearerToken(req: NextRequest) {
@@ -125,25 +160,62 @@ export async function getServerEntitlement(
     }
   }
 
+  let dynamicPlan: DynamicPlanSetting | null = null;
+  const dynamicPlanResult = await sb
+    .from("tulmin_plan_settings")
+    .select("enabled,label_limit,daily_limit")
+    .eq("plan", plan)
+    .maybeSingle();
+  if (!dynamicPlanResult.error && dynamicPlanResult.data) {
+    dynamicPlan = dynamicPlanResult.data as DynamicPlanSetting;
+  }
+
   const usage = await sb
     .from("tulmin_usage_events")
-    .select("label_count,created_at")
+    .select("label_count,created_at,action")
     .eq("user_id", userId)
     .eq("month_key", monthKey);
 
   const labelsUsed =
     usage.error || !usage.data
       ? 0
-      : usage.data.reduce((sum, row) => sum + (Number(row.label_count) || 0), 0);
+      : usage.data.reduce((sum, row) => {
+          const action = typeof row.action === "string" ? row.action : "import";
+          if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
+            return sum;
+          }
+          return sum + (Number(row.label_count) || 0);
+        }, 0);
   const dailyLabelsUsed =
     usage.error || !usage.data
       ? 0
       : usage.data.reduce((sum, row) => {
           const createdAt = typeof row.created_at === "string" ? row.created_at : "";
+          const action = typeof row.action === "string" ? row.action : "import";
+          if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
+            return sum;
+          }
           return createdAt.startsWith(dayKey) ? sum + (Number(row.label_count) || 0) : sum;
         }, 0);
 
+  const credits = await sb
+    .from("tulmin_label_credit_grants")
+    .select("label_count,used_label_count,expires_at")
+    .eq("user_id", userId)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+  const bonusLabelsAvailable =
+    credits.error || !credits.data
+      ? 0
+      : credits.data.reduce(
+          (sum, row) =>
+            sum +
+            Math.max(0, (Number(row.label_count) || 0) - (Number(row.used_label_count) || 0)),
+          0
+        );
+
   let abuseReview = false;
+  let riskScore = 0;
+  let blockedUntil: string | null = null;
   if (deviceHash && plan === "free") {
     const deviceUsers = await sb
       .from("tulmin_device_trials")
@@ -152,18 +224,43 @@ export async function getServerEntitlement(
       .limit(6);
     if (!deviceUsers.error && deviceUsers.data) {
       const users = new Set(deviceUsers.data.map((row) => String(row.user_id)));
-      if (users.size >= 4 && !users.has(userId)) abuseReview = true;
+      if (users.size >= 4 && !users.has(userId)) {
+        abuseReview = true;
+        riskScore = Math.max(riskScore, 70);
+      } else if (users.size >= 3) {
+        riskScore = Math.max(riskScore, 45);
+      }
+    }
+
+    const block = await sb
+      .from("tulmin_abuse_events")
+      .select("risk_score,blocked_until")
+      .eq("device_hash", deviceHash)
+      .gt("blocked_until", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (!block.error && block.data?.length) {
+      const row = block.data[0] as { risk_score?: number | null; blocked_until?: string | null };
+      riskScore = Math.max(riskScore, Number(row.risk_score) || 0);
+      blockedUntil = row.blocked_until ?? null;
+      abuseReview = true;
     }
   }
 
   const planConfig = TULMIN_PLAN_BY_ID[plan];
-  const labelsLimit = planConfig.labelLimit;
-  const dailyLabelsLimit = planConfig.dailyLabelLimit ?? null;
+  const baseLabelsLimit =
+    dynamicPlan?.label_limit !== undefined ? dynamicPlan.label_limit : planConfig.labelLimit;
+  const labelsLimit =
+    baseLabelsLimit == null ? null : Math.max(0, Number(baseLabelsLimit) || 0) + bonusLabelsAvailable;
+  const dailyLabelsLimit =
+    dynamicPlan?.daily_limit !== undefined ? dynamicPlan.daily_limit : (planConfig.dailyLabelLimit ?? null);
   return {
     plan,
     status,
     labelsUsed,
     labelsLimit,
+    baseLabelsLimit,
+    bonusLabelsAvailable,
     labelsRemaining:
       labelsLimit == null ? null : Math.max(0, labelsLimit - labelsUsed),
     dailyLabelsUsed,
@@ -173,6 +270,8 @@ export async function getServerEntitlement(
     monthKey,
     dayKey,
     abuseReview,
+    riskScore,
+    blockedUntil,
     loaded: true,
   };
 }
@@ -194,4 +293,29 @@ export async function touchDeviceTrial(
     },
     { onConflict: "device_hash,user_id" }
   );
+}
+
+export async function recordAbuseEvent(
+  sb: SupabaseClient,
+  input: {
+    userId?: string | null;
+    deviceHash?: string | null;
+    ipHash?: string | null;
+    uaHash?: string | null;
+    riskScore: number;
+    reason: string;
+    blockedUntil?: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  await sb.from("tulmin_abuse_events").insert({
+    user_id: input.userId ?? null,
+    device_hash: input.deviceHash ?? null,
+    ip_hash: input.ipHash ?? null,
+    ua_hash: input.uaHash ?? null,
+    risk_score: input.riskScore,
+    reason: input.reason,
+    blocked_until: input.blockedUntil ?? null,
+    metadata: input.metadata ?? {},
+  }).then(() => undefined, () => undefined);
 }

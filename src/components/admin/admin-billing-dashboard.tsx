@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import Link from "next/link";
-import { ArrowLeft, BarChart3, CreditCard, KeyRound, Loader2, Save } from "lucide-react";
+import { ArrowLeft, BarChart3, CreditCard, Gift, KeyRound, Loader2, Save } from "lucide-react";
 import { toast as notify } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,11 @@ export function AdminBillingDashboard() {
   const [secretForm, setSecretForm] = React.useState({
     razorpayKeySecret: "",
     razorpayWebhookSecret: "",
+  });
+  const [grantForm, setGrantForm] = React.useState({
+    userId: "",
+    labelCount: 500,
+    reason: "support_bonus",
   });
 
   const load = React.useCallback(async () => {
@@ -86,6 +91,33 @@ export function AdminBillingDashboard() {
       notify.success("Billing settings saved");
     } catch (err) {
       notify.error(err instanceof Error ? err.message : "Could not save billing.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function grantCredits() {
+    if (!grantForm.userId.trim() || grantForm.labelCount <= 0) {
+      notify.error("Add a user ID and label count.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/billing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "grant_credits",
+          grant: grantForm,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not add credits.");
+      setData(json as BillingPayload);
+      setGrantForm({ userId: "", labelCount: 500, reason: "support_bonus" });
+      notify.success("Bonus labels added");
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Could not add credits.");
     } finally {
       setSaving(false);
     }
@@ -242,7 +274,13 @@ export function AdminBillingDashboard() {
                             {plan.labelLimit == null ? "Unlimited labels" : `${plan.labelLimit.toLocaleString("en-IN")} labels/month`}
                           </p>
                         </div>
-                        <p className="text-lg font-semibold">{money(plan.monthlyPrice)}</p>
+                        <button
+                          type="button"
+                          className={plan.enabled ? "rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200" : "rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/45"}
+                          onClick={() => updatePlan(plan.plan, { enabled: !plan.enabled })}
+                        >
+                          {plan.enabled ? "Enabled" : "Disabled"}
+                        </button>
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <input
@@ -261,6 +299,14 @@ export function AdminBillingDashboard() {
                         <input
                           className={inputClass()}
                           type="number"
+                          value={plan.yearlyMonthlyEquivalent}
+                          onChange={(e) => updatePlan(plan.plan, { yearlyMonthlyEquivalent: Number(e.target.value) })}
+                          aria-label={`${plan.plan} yearly monthly equivalent`}
+                          placeholder="Yearly monthly equivalent"
+                        />
+                        <input
+                          className={inputClass()}
+                          type="number"
                           value={plan.yearlyTotal}
                           onChange={(e) => updatePlan(plan.plan, { yearlyTotal: Number(e.target.value) })}
                           aria-label={`${plan.plan} yearly total`}
@@ -271,10 +317,73 @@ export function AdminBillingDashboard() {
                           onChange={(e) => updatePlan(plan.plan, { razorpayYearlyPlanId: e.target.value })}
                           placeholder="Razorpay yearly plan ID"
                         />
+                        <input
+                          className={inputClass()}
+                          type="number"
+                          value={plan.labelLimit ?? ""}
+                          onChange={(e) =>
+                            updatePlan(plan.plan, {
+                              labelLimit: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          placeholder="Monthly label limit, blank = unlimited"
+                        />
+                        <input
+                          className={inputClass()}
+                          type="number"
+                          value={plan.dailyLimit ?? ""}
+                          onChange={(e) =>
+                            updatePlan(plan.plan, {
+                              dailyLimit: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          placeholder="Daily label limit, blank = none"
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-5">
+              <div className="flex items-center gap-3">
+                <span className="grid size-11 place-items-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
+                  <Gift className="size-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold">Add bonus usage</h2>
+                  <p className="text-sm text-white/45">Give a seller extra label credits without changing their plan.</p>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_14rem_auto] lg:items-end">
+                <Field label="User ID">
+                  <input
+                    className={inputClass()}
+                    value={grantForm.userId}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, userId: e.target.value }))}
+                    placeholder="auth user UUID"
+                  />
+                </Field>
+                <Field label="Labels">
+                  <input
+                    className={inputClass()}
+                    type="number"
+                    value={grantForm.labelCount}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, labelCount: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label="Reason">
+                  <input
+                    className={inputClass()}
+                    value={grantForm.reason}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, reason: e.target.value }))}
+                    placeholder="support_bonus"
+                  />
+                </Field>
+                <Button className="h-11 rounded-2xl" disabled={saving} onClick={() => void grantCredits()}>
+                  Add credits
+                </Button>
               </div>
             </section>
 

@@ -33,6 +33,13 @@ type PlanRow = {
 };
 
 type PutBody = {
+  action?: "save_billing" | "grant_credits";
+  grant?: {
+    userId?: string;
+    labelCount?: number;
+    reason?: string;
+    expiresAt?: string;
+  };
   settings?: {
     mode?: "test" | "live";
     checkoutEnabled?: boolean;
@@ -112,6 +119,24 @@ export async function PUT(req: NextRequest) {
   const sb = getSupabaseServiceRole();
   if (!sb) return NextResponse.json({ error: "Service role is not configured." }, { status: 503 });
   const body = (await req.json().catch(() => ({}))) as PutBody;
+
+  if (body.action === "grant_credits") {
+    const userId = body.grant?.userId?.trim();
+    const labelCount = Math.max(0, Math.floor(Number(body.grant?.labelCount) || 0));
+    if (!userId || labelCount <= 0) {
+      return NextResponse.json({ error: "User ID and positive label count are required." }, { status: 400 });
+    }
+    const savedGrant = await sb.from("tulmin_label_credit_grants").insert({
+      user_id: userId,
+      label_count: labelCount,
+      reason: body.grant?.reason?.trim() || "admin_bonus",
+      expires_at: body.grant?.expiresAt?.trim() || null,
+      created_by: admin.id,
+      metadata: { adminEmail: admin.email },
+    });
+    if (savedGrant.error) return NextResponse.json({ error: savedGrant.error.message }, { status: 500 });
+    return GET(req);
+  }
 
   if (body.settings) {
     const existing = await sb.from("tulmin_billing_settings").select("*").eq("id", true).maybeSingle();
