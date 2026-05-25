@@ -10,6 +10,7 @@ import {
   FileDown,
   FileText,
   Filter,
+  Loader2,
   PackageCheck,
   Scissors,
   Sparkles,
@@ -33,7 +34,10 @@ import { cn } from "@/lib/utils";
 type PricingCardsProps = {
   currentPlan?: TulminPlanId;
   reason?: string;
-  onChoosePlan?: (plan: TulminPlanId, cycle: BillingCycle) => void;
+  onChoosePlan?: (plan: TulminPlanId, cycle: BillingCycle) => void | Promise<void>;
+  busyPlan?: TulminPlanId | null;
+  busyCycle?: BillingCycle | null;
+  disabled?: boolean;
   compact?: boolean;
 };
 
@@ -81,6 +85,9 @@ export function PricingCards({
   currentPlan = "free",
   reason,
   onChoosePlan,
+  busyPlan,
+  busyCycle,
+  disabled = false,
   compact = false,
 }: PricingCardsProps) {
   const [cycle, setCycle] = React.useState<BillingCycle>("monthly");
@@ -154,6 +161,7 @@ export function PricingCards({
             const highlighted = plan.id === "pro";
             const paid = plan.id !== "free";
             const copy = PLAN_COPY[plan.id];
+            const busy = paid && busyPlan === plan.id && busyCycle === cycle;
 
             return (
               <article
@@ -205,11 +213,12 @@ export function PricingCards({
                       ? "bg-[#635bff] text-white shadow-[0_16px_36px_-22px_rgb(99_91_255/0.95)] hover:bg-[#716aff]"
                       : "bg-white text-black hover:bg-white/90"
                   )}
-                  disabled={active}
+                  disabled={active || disabled || busy}
                   onClick={() => onChoosePlan?.(plan.id, cycle)}
                 >
-                  {active ? "Your current plan" : plan.cta}
-                  {!active ? <ArrowRight className="size-4" aria-hidden /> : null}
+                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                  {busy ? "Opening checkout..." : active ? "Your current plan" : plan.cta}
+                  {!active && !busy ? <ArrowRight className="size-4" aria-hidden /> : null}
                 </Button>
 
                 <ul className="mt-7 space-y-3.5">

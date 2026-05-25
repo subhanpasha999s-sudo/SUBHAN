@@ -5,6 +5,7 @@ import * as React from "react";
 import { toast as notify } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
   Archive,
@@ -2094,6 +2095,11 @@ export function MeeshoLabelExportTool() {
   );
   const [loginRequiredOpen, setLoginRequiredOpen] = React.useState(false);
   const [checkoutBusy, setCheckoutBusy] = React.useState(false);
+  const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
+  const [checkoutTarget, setCheckoutTarget] = React.useState<{
+    plan: TulminPlanId;
+    cycle: BillingCycle;
+  } | null>(null);
   const pendingLoginFilesRef = React.useRef<File[] | null>(null);
 
   const [mapSnapshot, setMapSnapshot] = React.useState<{
@@ -3062,7 +3068,9 @@ export function MeeshoLabelExportTool() {
       | { type: "plan"; plan: TulminPlanId; cycle: BillingCycle }
       | { type: "topup"; labelCredits: number }
   ) {
+    setCheckoutError(null);
     if (!userId) {
+      setCheckoutError("Sign in before starting checkout.");
       openOptionalSignIn();
       return;
     }
@@ -3070,11 +3078,13 @@ export function MeeshoLabelExportTool() {
     const { data } = sb ? await sb.auth.getSession() : { data: { session: null } };
     const token = data.session?.access_token;
     if (!token) {
+      setCheckoutError("Your login session is missing. Sign in again before checkout.");
       openOptionalSignIn();
       return;
     }
 
     setCheckoutBusy(true);
+    setCheckoutTarget(input.type === "plan" ? { plan: input.plan, cycle: input.cycle } : null);
     try {
       const checkout = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -3092,7 +3102,7 @@ export function MeeshoLabelExportTool() {
           },
         }),
       });
-      const order = (await checkout.json()) as {
+      const order = (await checkout.json().catch(() => ({}))) as {
         ok?: boolean;
         keyId?: string;
         orderId?: string;
@@ -3143,6 +3153,11 @@ export function MeeshoLabelExportTool() {
               description: "Your workspace is ready to continue.",
             });
           } catch (err) {
+            setCheckoutError(
+              err instanceof Error
+                ? `Payment verification failed: ${err.message}`
+                : "Payment verification failed. Please contact support if money was debited."
+            );
             notify.error("Payment verification failed", {
               description: err instanceof Error ? err.message : "Please contact support if money was debited.",
             });
@@ -3160,21 +3175,26 @@ export function MeeshoLabelExportTool() {
         },
       });
       razorpay.on?.("payment.failed", (response) => {
+        const message =
+          response.error?.description ||
+          response.error?.reason ||
+          "Razorpay could not complete this payment.";
+        setCheckoutError(message);
         setCheckoutBusy(false);
         notify.error("Payment failed", {
-          description:
-            response.error?.description ||
-            response.error?.reason ||
-            "Razorpay could not complete this payment.",
+          description: message,
         });
       });
       razorpay.open();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Please try again.";
+      setCheckoutError(message);
       notify.error("Checkout could not start", {
-        description: err instanceof Error ? err.message : "Please try again.",
+        description: message,
       });
     } finally {
       setCheckoutBusy(false);
+      setCheckoutTarget(null);
     }
   }
 
@@ -4960,7 +4980,13 @@ export function MeeshoLabelExportTool() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+      <Dialog
+        open={upgradeOpen}
+        onOpenChange={(open) => {
+          setUpgradeOpen(open);
+          if (!open) setCheckoutError(null);
+        }}
+      >
         <DialogContent className="max-h-[88dvh] overflow-y-auto border-primary/20 bg-background/98 p-4 shadow-[0_24px_90px_-38px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-5xl sm:p-5">
           {upgradeReason ? (
             <div className="mb-4 rounded-[1.35rem] border border-amber-400/20 bg-amber-400/10 p-4">
@@ -5024,10 +5050,28 @@ export function MeeshoLabelExportTool() {
               </div>
             </div>
           ) : null}
+          {checkoutError ? (
+            <div
+              role="alert"
+              className="mb-4 flex gap-3 rounded-[1.1rem] border border-rose-400/25 bg-rose-500/10 p-4 text-sm leading-6 text-rose-50"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-300" aria-hidden />
+              <div>
+                <p className="font-semibold text-rose-100">Checkout did not start</p>
+                <p className="mt-1 text-rose-50/85">{checkoutError}</p>
+                <p className="mt-1 text-xs text-rose-50/62">
+                  If you just changed Razorpay keys or plan IDs in .env, restart the dev server and try again.
+                </p>
+              </div>
+            </div>
+          ) : null}
           <PricingCards
             currentPlan={entitlement.plan}
             reason={upgradeReason}
             compact
+            busyPlan={checkoutTarget?.plan ?? null}
+            busyCycle={checkoutTarget?.cycle ?? null}
+            disabled={checkoutBusy}
             onChoosePlan={(planId, cycle) => {
               trackEvent("billing_plan_selected", {
                 plan: planId,

@@ -114,20 +114,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const subscription = await createRazorpaySubscription({
-      keyId: config.keyId,
-      keySecret: config.keySecret,
-      planId: razorpayPlanId,
-      totalCount: subscriptionTotalCount(cycle),
-      customerNotify: true,
-      notes: {
-        userId: auth.user.id,
-        type: body.type,
-        plan,
-        cycle,
-      },
-    });
-    subscriptionId = subscription.id;
+    try {
+      const subscription = await createRazorpaySubscription({
+        keyId: config.keyId,
+        keySecret: config.keySecret,
+        planId: razorpayPlanId,
+        totalCount: subscriptionTotalCount(cycle),
+        customerNotify: true,
+        notes: {
+          userId: auth.user.id,
+          type: body.type,
+          plan,
+          cycle,
+        },
+      });
+      subscriptionId = subscription.id;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not create Razorpay subscription.";
+      return NextResponse.json(
+        { error: message },
+        { status: /auth|authentication|unauthorized/i.test(message) ? 401 : 500 }
+      );
+    }
   } else if (body.type === "topup") {
     const requested = Math.max(0, Math.floor(Number(body.labelCredits) || 0));
     const closest = ALLOWED_TOPUPS.find((value) => value === requested);
@@ -148,19 +156,27 @@ export async function POST(req: NextRequest) {
 
   const receipt = `tulmin_${auth.user.id.slice(0, 8)}_${Date.now()}`;
   if (body.type === "topup") {
-    order = await createRazorpayOrder({
-      keyId: config.keyId,
-      keySecret: config.keySecret,
-      amountPaise: amountRupees * 100,
-      receipt,
-      notes: {
-        userId: auth.user.id,
-        type: body.type,
-        plan: plan ?? "",
-        cycle,
-        labelCredits: String(labelCredits),
-      },
-    });
+    try {
+      order = await createRazorpayOrder({
+        keyId: config.keyId,
+        keySecret: config.keySecret,
+        amountPaise: amountRupees * 100,
+        receipt,
+        notes: {
+          userId: auth.user.id,
+          type: body.type,
+          plan: plan ?? "",
+          cycle,
+          labelCredits: String(labelCredits),
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not create Razorpay order.";
+      return NextResponse.json(
+        { error: message },
+        { status: /auth|authentication|unauthorized/i.test(message) ? 401 : 500 }
+      );
+    }
   }
 
   const payment = await service
