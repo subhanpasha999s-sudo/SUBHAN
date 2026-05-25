@@ -2725,7 +2725,6 @@ export function MeeshoLabelExportTool() {
     () => buildSkuExportBuckets(selectedLabelRows),
     [selectedLabelRows]
   );
-  const selectedDownloadIsZip = selectedSkuExportBuckets.length > 1;
 
   /** Download actions stay visible after import; selection just changes the scope labels. */
   const showDownloadMenu = filteredLabels.length > 0;
@@ -4809,29 +4808,36 @@ export function MeeshoLabelExportTool() {
                       className="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                     >
                       {selectedTotal > 0 ? (
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                          onClick={() =>
-                            void (selectedDownloadIsZip
-                              ? downloadSelectedSkuFilesZip()
-                              : downloadFilteredPdf())
-                          }
-                        >
-                          {selectedDownloadIsZip ? "Selected ZIP" : "Selected PDF"}
-                        </DropdownMenuItem>
-                      ) : null}
-                      <DropdownMenuItem
-                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                        onClick={() => void downloadVisiblePdf()}
-                      >
-                        Visible PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                        onClick={() => void requestDownloadAllSkuFiles()}
-                      >
-                        Visible ZIP
-                      </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                            onClick={() => void downloadFilteredPdf()}
+                          >
+                            Selected PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                            onClick={() => void downloadSelectedSkuFilesZip()}
+                          >
+                            Selected ZIP
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                            onClick={() => void downloadVisiblePdf()}
+                          >
+                            Visible PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
+                            onClick={() => void requestDownloadAllSkuFiles()}
+                          >
+                            Visible ZIP
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : null}
@@ -4929,29 +4935,36 @@ export function MeeshoLabelExportTool() {
                         className="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                       >
                         {selectedTotal > 0 ? (
-                          <DropdownMenuItem
-                            className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                            onClick={() =>
-                              void (selectedDownloadIsZip
-                                ? downloadSelectedSkuFilesZip()
-                                : downloadFilteredPdf())
-                            }
-                          >
-                            {selectedDownloadIsZip ? "Selected ZIP" : "Selected PDF"}
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                          onClick={() => void downloadVisiblePdf()}
-                        >
-                          Visible PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                          onClick={() => void requestDownloadAllSkuFiles()}
-                        >
-                          Visible ZIP
-                        </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                              onClick={() => void downloadFilteredPdf()}
+                            >
+                              Selected PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                              onClick={() => void downloadSelectedSkuFilesZip()}
+                            >
+                              Selected ZIP
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
+                            <DropdownMenuItem
+                              className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                              onClick={() => void downloadVisiblePdf()}
+                            >
+                              Visible PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
+                              onClick={() => void requestDownloadAllSkuFiles()}
+                            >
+                              Visible ZIP
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : null}
