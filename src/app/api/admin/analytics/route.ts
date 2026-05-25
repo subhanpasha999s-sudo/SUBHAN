@@ -8,7 +8,10 @@ type SubscriptionRow = {
   user_id: string;
   plan: TulminPlanId;
   status: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
   created_at: string | null;
+  updated_at: string | null;
 };
 
 type UsageRow = {
@@ -19,12 +22,68 @@ type UsageRow = {
   created_at: string | null;
 };
 
+type PaymentRow = {
+  user_id: string | null;
+  plan: TulminPlanId | null;
+  amount: number | null;
+  status: string | null;
+  billing_cycle: string | null;
+  label_credits: number | null;
+  failure_reason: string | null;
+  invoice_url: string | null;
+  created_at: string | null;
+};
+
+function startOfDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 function monthKey(date = new Date()) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function previousMonthKey(date = new Date()) {
+  return monthKey(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1)));
+}
+
 function planPrice(plan: TulminPlanId) {
   return TULMIN_PLAN_BY_ID[plan]?.monthlyPrice ?? 0;
+}
+
+function isPaidPlan(plan: string | null | undefined) {
+  return Boolean(plan && plan !== "free");
+}
+
+function isActiveStatus(status: string | null | undefined) {
+  return status === "active" || status === "trialing";
+}
+
+function paymentIsPaid(status: string | null | undefined) {
+  return status === "paid" || status === "captured" || status === "fulfilled";
+}
+
+function daysBetween(a: Date, b: Date) {
+  return Math.ceil((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+async function loadUserEmails(userIds: Set<string>) {
+  const sb = getSupabaseServiceRole();
+  const emails = new Map<string, string>();
+  const createdAt = new Map<string, string>();
+  if (!sb || userIds.size === 0) return { emails, createdAt };
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    for (const user of data.users) {
+      if (!userIds.has(user.id)) continue;
+      if (user.email) emails.set(user.id, user.email.toLowerCase());
+      if (user.created_at) createdAt.set(user.id, user.created_at);
+    }
+    if (data.users.length < 1000 || emails.size >= userIds.size) break;
+  }
+
+  return { emails, createdAt };
 }
 
 export async function GET(req: NextRequest) {
@@ -36,21 +95,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admin analytics database is not configured." }, { status: 503 });
   }
 
-  const currentMonth = monthKey();
-  const [{ data: subscriptions }, { data: usageEvents }] = await Promise.all([
+  const now = new Date();
+  const today = startOfDay(now);
+  const currentMonth = monthKey(now);
+  const previousMonth = previousMonthKey(now);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
+  const renewalWindowEnd = new Date(now.getTime() + 14 * 86_400_000);
+
+  const [{ data: subscriptions }, { data: usageEvents }, { data: paymentEvents }] = await Promise.all([
     sb
       .from("tulmin_user_subscriptions")
-      .select("user_id, plan, status, created_at")
+      .select("user_id, plan, status, current_period_start, current_period_end, created_at, updated_at")
       .limit(20000),
     sb
       .from("tulmin_usage_events")
       .select("user_id, action, label_count, month_key, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30000),
+    sb
+      .from("tulmin_payment_events")
+      .select("user_id, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
       .order("created_at", { ascending: false })
       .limit(20000),
   ]);
 
   const subs = (subscriptions ?? []) as SubscriptionRow[];
   const usage = (usageEvents ?? []) as UsageRow[];
+  const payments = (paymentEvents ?? []) as PaymentRow[];
+
+  const userIds = new Set(
+    [
+      ...subs.map((row) => row.user_id),
+      ...usage.map((row) => row.user_id),
+      ...payments.map((row) => row.user_id ?? ""),
+    ].filter(Boolean)
+  );
+  const { emails, createdAt } = await loadUserEmails(userIds);
+  const displayUser = (userId: string | null | undefined) =>
+    userId ? emails.get(userId) ?? userId : "unknown";
+
   const planCounts: Record<TulminPlanId, number> = {
     free: 0,
     starter: 0,
@@ -58,76 +141,190 @@ export async function GET(req: NextRequest) {
     business: 0,
   };
 
+  const activeSubscribers = subs.filter((sub) => isPaidPlan(sub.plan) && isActiveStatus(sub.status));
+  const trialUsers = subs.filter((sub) => sub.status === "trialing").length;
+  const canceledOrPastDue = subs.filter((sub) => sub.status === "canceled" || sub.status === "past_due").length;
   for (const sub of subs) {
     if (sub.plan in planCounts) planCounts[sub.plan] += 1;
   }
 
-  const totalLabelsProcessed = usage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0);
-  const currentMonthUsage = usage.filter((row) => row.month_key === currentMonth);
-  const uniqueUsers = new Set([...subs.map((s) => s.user_id), ...usage.map((u) => u.user_id)].filter(Boolean));
-  const paidUsers = subs.filter((sub) => sub.plan !== "free" && sub.status !== "canceled").length;
-  const mrr =
-    planCounts.starter * planPrice("starter") +
-    planCounts.pro * planPrice("pro") +
-    planCounts.business * planPrice("business");
+  const mrr = activeSubscribers.reduce((sum, sub) => sum + planPrice(sub.plan), 0);
+  const paidRevenue = payments.filter((payment) => paymentIsPaid(payment.status));
+  const totalRevenue = paidRevenue.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
+  const revenueThisMonth = paidRevenue
+    .filter((payment) => payment.created_at?.slice(0, 7) === currentMonth)
+    .reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
+  const revenuePreviousMonth = paidRevenue
+    .filter((payment) => payment.created_at?.slice(0, 7) === previousMonth)
+    .reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
+  const revenueGrowth =
+    revenuePreviousMonth > 0
+      ? Math.round(((revenueThisMonth - revenuePreviousMonth) / revenuePreviousMonth) * 1000) / 10
+      : revenueThisMonth > 0
+        ? 100
+        : 0;
 
+  const totalUsers = userIds.size;
+  const paidUsers = new Set(activeSubscribers.map((sub) => sub.user_id)).size;
+  const freeUsers = Math.max(0, totalUsers - paidUsers);
+  const conversionRate = totalUsers ? Math.round((paidUsers / totalUsers) * 1000) / 10 : 0;
+  const churnRate =
+    paidUsers + canceledOrPastDue > 0
+      ? Math.round((canceledOrPastDue / (paidUsers + canceledOrPastDue)) * 1000) / 10
+      : 0;
+  const retentionRate = Math.max(0, Math.round((100 - churnRate) * 10) / 10);
+  const arpu = activeSubscribers.length ? Math.round(mrr / activeSubscribers.length) : 0;
+  const ltv = paidUsers ? Math.round(totalRevenue / paidUsers) : 0;
+
+  const authCreatedDates = [...createdAt.values()];
+  const newUsersToday = authCreatedDates.filter((date) => new Date(date) >= today).length;
+  const newUsersMonth = authCreatedDates.filter((date) => date.slice(0, 7) === currentMonth).length;
+  const activeUsers = new Set(
+    usage
+      .filter((row) => row.created_at && new Date(row.created_at) >= thirtyDaysAgo)
+      .map((row) => row.user_id)
+  ).size;
+
+  const currentMonthUsage = usage.filter((row) => row.month_key === currentMonth);
+  const totalLabelsProcessed = usage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0);
   const labelsByUser = new Map<string, number>();
+  const featureUsage = new Map<string, number>();
   for (const row of usage) {
     labelsByUser.set(row.user_id, (labelsByUser.get(row.user_id) ?? 0) + Math.max(0, Number(row.label_count) || 0));
+    const action = row.action || "usage";
+    featureUsage.set(action, (featureUsage.get(action) ?? 0) + 1);
   }
 
-  const topUsers = [...labelsByUser.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([userId, labels]) => ({ userId, labels }));
-
-  const daily = new Map<string, number>();
-  for (const row of usage.slice().reverse()) {
-    const key = row.created_at ? row.created_at.slice(0, 10) : "unknown";
-    daily.set(key, (daily.get(key) ?? 0) + Math.max(0, Number(row.label_count) || 0));
+  const dailyLabels = new Map<string, number>();
+  const dailyRevenue = new Map<string, number>();
+  const dailyUsers = new Map<string, number>();
+  for (let i = 13; i >= 0; i -= 1) {
+    const date = new Date(now.getTime() - i * 86_400_000).toISOString().slice(0, 10);
+    dailyLabels.set(date, 0);
+    dailyRevenue.set(date, 0);
+    dailyUsers.set(date, 0);
   }
+  for (const row of usage) {
+    const key = row.created_at?.slice(0, 10);
+    if (key && dailyLabels.has(key)) {
+      dailyLabels.set(key, (dailyLabels.get(key) ?? 0) + Math.max(0, Number(row.label_count) || 0));
+    }
+  }
+  for (const payment of paidRevenue) {
+    const key = payment.created_at?.slice(0, 10);
+    if (key && dailyRevenue.has(key)) {
+      dailyRevenue.set(key, (dailyRevenue.get(key) ?? 0) + Math.max(0, Number(payment.amount) || 0));
+    }
+  }
+  for (const date of authCreatedDates) {
+    const key = date.slice(0, 10);
+    if (dailyUsers.has(key)) dailyUsers.set(key, (dailyUsers.get(key) ?? 0) + 1);
+  }
+
+  const planWiseRevenue: Record<string, number> = {};
+  for (const plan of ["starter", "pro", "business"] as const) {
+    planWiseRevenue[plan] = activeSubscribers.filter((sub) => sub.plan === plan).length * planPrice(plan);
+  }
+
+  const renewals = activeSubscribers
+    .filter((sub) => {
+      if (!sub.current_period_end) return false;
+      const date = new Date(sub.current_period_end);
+      return date >= now && date <= renewalWindowEnd;
+    })
+    .map((sub) => ({
+      user: displayUser(sub.user_id),
+      plan: sub.plan,
+      renewalDate: sub.current_period_end,
+      daysLeft: sub.current_period_end ? daysBetween(now, new Date(sub.current_period_end)) : null,
+    }))
+    .slice(0, 8);
+
+  const failedPayments = payments.filter((payment) => payment.status === "failed");
+  const refundsOrCancellations = [
+    ...payments.filter((payment) => payment.status === "refunded"),
+    ...subs.filter((sub) => sub.status === "canceled").map((sub) => ({
+      user_id: sub.user_id,
+      plan: sub.plan,
+      amount: 0,
+      status: "canceled",
+      billing_cycle: null,
+      label_credits: null,
+      failure_reason: null,
+      invoice_url: null,
+      created_at: sub.updated_at ?? sub.created_at,
+    })),
+  ];
 
   return NextResponse.json({
     admin,
-    generatedAt: new Date().toISOString(),
-    users: {
-      liveActive: 0,
-      total: uniqueUsers.size,
-      returning: Math.max(0, uniqueUsers.size - subs.filter((s) => s.created_at?.startsWith(currentMonth)).length),
-      paid: paidUsers,
-      free: planCounts.free,
-      permanent: planCounts.business,
-      newSignups: subs.filter((s) => s.created_at?.slice(0, 7) === currentMonth).length,
+    generatedAt: now.toISOString(),
+    identity: {
+      primary: "email",
+      fallback: "auth_user_id",
+      note: "Admin views resolve Supabase auth UUIDs to email for day-to-day billing and analytics. UUIDs remain stored for referential safety.",
     },
-    usage: {
-      totalPdfsUploaded: usage.filter((row) => row.action === "import").length,
-      totalLabelsUploaded: totalLabelsProcessed,
-      totalLabelsProcessed,
-      averageLabelsPerUser: uniqueUsers.size ? Math.round(totalLabelsProcessed / uniqueUsers.size) : 0,
-      currentMonthLabels: currentMonthUsage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0),
-      topUsers,
-    },
-    revenue: {
-      revenue: mrr,
+    metrics: {
+      totalRevenue,
       mrr,
       arr: mrr * 12,
-      monthlyGrowth: 0,
-      conversionRate: uniqueUsers.size ? Math.round((1000 * paidUsers) / uniqueUsers.size) / 10 : 0,
-      planWiseRevenue: {
-        starter: planCounts.starter * planPrice("starter"),
-        pro: planCounts.pro * planPrice("pro"),
-        business: planCounts.business * planPrice("business"),
-      },
+      activeSubscribers: activeSubscribers.length,
+      freeUsers,
+      paidUsers,
+      totalUsers,
+      trialUsers,
+      churnRate,
+      conversionRate,
+      retentionRate,
+      revenueGrowth,
+      arpu,
+      ltv,
+      failedPayments: failedPayments.length,
+      renewalsDue: renewals.length,
+      newUsersToday,
+      newUsersMonth,
+      activeUsers,
+      labelsProcessed: totalLabelsProcessed,
+      labelsThisMonth: currentMonthUsage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0),
     },
-    traffic: {
-      totalVisits: 0,
-      uniqueVisitors: 0,
-      sessionDuration: "Connect analytics",
-      mostVisitedPages: ["/", "/export-labels", "/mapping", "/pricing"],
+    revenue: {
+      planWiseRevenue,
+      daily: [...dailyRevenue.entries()].map(([date, value]) => ({ date, value })),
     },
-    plans: planCounts,
-    chart: [...daily.entries()].slice(-14).map(([date, labels]) => ({ date, labels })),
+    users: {
+      growth: [...dailyUsers.entries()].map(([date, value]) => ({ date, value })),
+      planMix: planCounts,
+    },
+    usage: {
+      dailyLabels: [...dailyLabels.entries()].map(([date, labels]) => ({ date, labels })),
+      topCustomers: [...labelsByUser.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([userId, labels]) => ({ user: displayUser(userId), userId, labels })),
+      mostUsedFeatures: [...featureUsage.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([feature, count]) => ({ feature, count })),
+    },
+    billing: {
+      failedPayments: failedPayments.slice(0, 8).map((payment) => ({
+        user: displayUser(payment.user_id),
+        plan: payment.plan,
+        amount: payment.amount ?? 0,
+        reason: payment.failure_reason ?? "payment_failed",
+        createdAt: payment.created_at,
+      })),
+      renewals,
+      refundsOrCancellations: refundsOrCancellations.slice(0, 8).map((event) => ({
+        user: displayUser(event.user_id),
+        plan: event.plan,
+        status: event.status,
+        amount: event.amount ?? 0,
+        createdAt: event.created_at,
+      })),
+    },
     recentActivity: usage.slice(0, 10).map((row) => ({
+      user: displayUser(row.user_id),
       userId: row.user_id,
       action: row.action ?? "usage",
       labels: row.label_count ?? 0,

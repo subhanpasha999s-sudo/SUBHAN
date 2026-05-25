@@ -5,50 +5,67 @@ import * as React from "react";
 import Link from "next/link";
 import {
   Activity,
-  BarChart3,
-  CreditCard,
-  Eye,
+  AlertTriangle,
+  CalendarClock,
   IndianRupee,
   LockKeyhole,
-  MousePointerClick,
   RefreshCw,
-  Target,
+  Repeat2,
+  TrendingDown,
   TrendingUp,
-  UploadCloud,
   Users,
 } from "lucide-react";
 
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Button } from "@/components/ui/button";
 
+type TrendPoint = { date: string; value?: number; labels?: number };
+
 type AnalyticsPayload = {
   generatedAt: string;
-  users: Record<string, number>;
-  usage: {
-    totalPdfsUploaded: number;
-    totalLabelsUploaded: number;
-    totalLabelsProcessed: number;
-    averageLabelsPerUser: number;
-    currentMonthLabels: number;
-    topUsers: { userId: string; labels: number }[];
-  };
-  revenue: {
-    revenue: number;
+  identity: { primary: string; fallback: string; note: string };
+  metrics: {
+    totalRevenue: number;
     mrr: number;
     arr: number;
-    monthlyGrowth: number;
+    activeSubscribers: number;
+    freeUsers: number;
+    paidUsers: number;
+    totalUsers: number;
+    trialUsers: number;
+    churnRate: number;
     conversionRate: number;
+    retentionRate: number;
+    revenueGrowth: number;
+    arpu: number;
+    ltv: number;
+    failedPayments: number;
+    renewalsDue: number;
+    newUsersToday: number;
+    newUsersMonth: number;
+    activeUsers: number;
+    labelsProcessed: number;
+    labelsThisMonth: number;
+  };
+  revenue: {
     planWiseRevenue: Record<string, number>;
+    daily: TrendPoint[];
   };
-  traffic: {
-    totalVisits: number;
-    uniqueVisitors: number;
-    sessionDuration: string;
-    mostVisitedPages: string[];
+  users: {
+    growth: TrendPoint[];
+    planMix: Record<string, number>;
   };
-  plans: Record<string, number>;
-  chart: { date: string; labels: number }[];
-  recentActivity: { userId: string; action: string; labels: number; createdAt: string | null }[];
+  usage: {
+    dailyLabels: TrendPoint[];
+    topCustomers: { user: string; userId: string; labels: number }[];
+    mostUsedFeatures: { feature: string; count: number }[];
+  };
+  billing: {
+    failedPayments: { user: string; plan: string | null; amount: number; reason: string; createdAt: string | null }[];
+    renewals: { user: string; plan: string; renewalDate: string | null; daysLeft: number | null }[];
+    refundsOrCancellations: { user: string; plan: string | null; status: string | null; amount: number; createdAt: string | null }[];
+  };
+  recentActivity: { user: string; userId: string; action: string; labels: number; createdAt: string | null }[];
 };
 
 function num(value: number) {
@@ -56,46 +73,50 @@ function num(value: number) {
 }
 
 function money(value: number) {
-  return `₹${value.toLocaleString("en-IN")}`;
+  return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
 
 function pct(value: number) {
   return `${Number.isFinite(value) ? value : 0}%`;
 }
 
-function MetricCard({
-  icon: Icon,
+function dateLabel(value: string | null) {
+  return value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "No date";
+}
+
+function Metric({
   label,
   value,
   helper,
+  icon: Icon,
   tone = "blue",
 }: {
-  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   label: string;
   value: string;
   helper: string;
-  tone?: "blue" | "green" | "amber" | "violet";
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  tone?: "blue" | "green" | "amber" | "rose";
 }) {
   const tones = {
-    blue: "border-[#6b7cff]/22 bg-[#6b7cff]/12 text-[#aab4ff]",
-    green: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-    amber: "border-amber-300/20 bg-amber-300/10 text-amber-100",
-    violet: "border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-100",
+    blue: "border-[#6f82ff]/25 bg-[#6f82ff]/12 text-[#b9c3ff]",
+    green: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
+    amber: "border-amber-300/25 bg-amber-300/10 text-amber-100",
+    rose: "border-rose-300/25 bg-rose-300/10 text-rose-100",
   };
 
   return (
-    <div className="rounded-lg border border-white/10 bg-[#0f151f] p-4 shadow-[0_18px_60px_-52px_rgb(0_0_0/0.9)]">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+    <section className="rounded-lg border border-white/10 bg-[#0e141f] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{value}</p>
         </div>
-        <span className={`grid size-9 place-items-center rounded-md border ${tones[tone]}`}>
+        <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${tones[tone]}`}>
           <Icon className="size-5" aria-hidden />
         </span>
       </div>
       <p className="mt-3 text-sm leading-5 text-slate-400">{helper}</p>
-    </div>
+    </section>
   );
 }
 
@@ -109,23 +130,62 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-[#0f151f] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-white">{title}</h2>
-          {eyebrow ? <p className="mt-1 text-xs font-semibold text-slate-500">{eyebrow}</p> : null}
-        </div>
+    <section className="rounded-lg border border-white/10 bg-[#0e141f] p-4">
+      <div>
+        <h2 className="text-base font-semibold text-white">{title}</h2>
+        {eyebrow ? <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{eyebrow}</p> : null}
       </div>
       {children}
     </section>
   );
 }
 
+function MiniBars({ data, valueKey, tone = "bg-[#6f82ff]" }: { data: TrendPoint[]; valueKey: "value" | "labels"; tone?: string }) {
+  const max = Math.max(1, ...data.map((point) => Number(point[valueKey]) || 0));
+  return (
+    <div className="mt-5 flex h-44 items-end gap-2">
+      {data.length === 0 ? (
+        <p className="m-auto text-sm text-slate-500">No data yet.</p>
+      ) : (
+        data.map((point) => {
+          const value = Number(point[valueKey]) || 0;
+          return (
+            <div key={point.date} className="flex flex-1 flex-col items-center gap-2">
+              <div className={`w-full rounded-t ${tone}`} style={{ height: `${Math.max(4, (value / max) * 100)}%` }} />
+              <span className="text-[10px] text-slate-600">{point.date.slice(5)}</span>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function Row({
+  left,
+  right,
+  sub,
+}: {
+  left: string;
+  right: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/20 px-3 py-2.5 last:border-b-0">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-slate-300">{left}</p>
+        {sub ? <p className="truncate text-xs text-slate-500">{sub}</p> : null}
+      </div>
+      <p className="shrink-0 text-sm font-bold text-white">{right}</p>
+    </div>
+  );
+}
+
 function Skeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="h-32 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="h-32 animate-pulse rounded-lg border border-white/10 bg-white/[0.06]" />
       ))}
     </div>
   );
@@ -153,17 +213,12 @@ export function AdminAnalyticsDashboard() {
 
   React.useEffect(() => {
     void load();
-    const id = window.setInterval(() => void load(), 30000);
+    const id = window.setInterval(() => void load(), 60_000);
     return () => window.clearInterval(id);
   }, [load]);
 
-  const maxChart = Math.max(1, ...(data?.chart.map((d) => d.labels) ?? [1]));
-  const totalPlanUsers = Math.max(1, data ? Object.values(data.plans).reduce((sum, value) => sum + value, 0) : 1);
-  const maxPlanRevenue = Math.max(1, data ? Math.max(...Object.values(data.revenue.planWiseRevenue), 0) : 1);
-  const paidUsers = Number(data?.users.paid ?? 0);
-  const totalUsers = Number(data?.users.total ?? 0);
-  const freeUsers = Number(data?.users.free ?? 0);
-  const revenuePerPaidUser = paidUsers > 0 && data ? Math.round(data.revenue.mrr / paidUsers) : 0;
+  const maxPlanRevenue = Math.max(1, ...(data ? Object.values(data.revenue.planWiseRevenue) : [1]));
+  const totalPlanUsers = Math.max(1, ...(data ? [Object.values(data.users.planMix).reduce((sum, count) => sum + count, 0)] : [1]));
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
@@ -171,7 +226,7 @@ export function AdminAnalyticsDashboard() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8fa8ff]">Tulmin Admin</p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">Analytics</h1>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">SaaS health</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <AdminNav />
@@ -186,13 +241,13 @@ export function AdminAnalyticsDashboard() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Business dashboard</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Revenue, acquisition, plan mix, product usage, and customer activity in one operational view.
+            <h2 className="text-2xl font-semibold tracking-tight">Business overview</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
+              Revenue, subscriptions, usage, billing risk, and customer growth in one simple operating view.
             </p>
           </div>
-          <div className="rounded-md border border-white/10 bg-[#0f151f] px-3 py-2 text-xs font-semibold text-slate-400">
-            Auto-refreshes every 30s
+          <div className="rounded-md border border-white/10 bg-[#0e141f] px-3 py-2 text-xs font-semibold text-slate-400">
+            Refreshes every 60s
           </div>
         </div>
 
@@ -206,14 +261,11 @@ export function AdminAnalyticsDashboard() {
                 <div>
                   <h3 className="text-sm font-semibold text-red-50">{error}</h3>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-red-100/62">
-                    Sign in with an allowlisted admin account to unlock revenue, usage, and customer analytics.
+                    Sign in with an allowlisted admin account to unlock SaaS analytics.
                   </p>
                 </div>
               </div>
-              <Link
-                href="/admin/login"
-                className="inline-flex h-9 items-center justify-center rounded-md bg-[#335cff] px-3 text-sm font-semibold text-white transition-colors hover:bg-[#284ae4]"
-              >
+              <Link href="/admin/login" className="inline-flex h-9 items-center justify-center rounded-md bg-[#335cff] px-3 text-sm font-semibold text-white">
                 Admin login
               </Link>
             </div>
@@ -225,216 +277,202 @@ export function AdminAnalyticsDashboard() {
             <Skeleton />
           ) : data ? (
             <div className="space-y-5">
-              <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-lg border border-white/10 bg-[#101827] p-5 shadow-[0_24px_80px_-64px_rgb(51_92_255/0.9)]">
+              <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+                <div className="rounded-lg border border-[#6f82ff]/25 bg-[#101827] p-5 shadow-[0_24px_80px_-64px_rgb(51_92_255/0.9)]">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8fa8ff]">
-                        Revenue snapshot
-                      </p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8fa8ff]">Revenue command center</p>
                       <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3">
                         <div>
-                          <p className="text-sm font-semibold text-slate-400">Monthly recurring revenue</p>
-                          <p className="mt-1 text-4xl font-semibold tracking-tight">{money(data.revenue.mrr)}</p>
+                          <p className="text-sm font-semibold text-slate-400">MRR</p>
+                          <p className="mt-1 text-4xl font-semibold tracking-tight">{money(data.metrics.mrr)}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-400">Annual run rate</p>
-                          <p className="mt-1 text-2xl font-semibold tracking-tight">{money(data.revenue.arr)}</p>
+                          <p className="text-sm font-semibold text-slate-400">ARR</p>
+                          <p className="mt-1 text-2xl font-semibold tracking-tight">{money(data.metrics.arr)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-400">Total revenue</p>
+                          <p className="mt-1 text-2xl font-semibold tracking-tight">{money(data.metrics.totalRevenue)}</p>
                         </div>
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-md border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-100">
                       <TrendingUp className="size-4" aria-hidden />
-                      {pct(data.revenue.monthlyGrowth)} growth
+                      {pct(data.metrics.revenueGrowth)} growth
                     </span>
                   </div>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-6 grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                      <p className="text-xs font-semibold text-slate-500">ARPU</p>
+                      <p className="mt-2 text-xl font-semibold">{money(data.metrics.arpu)}</p>
+                    </div>
+                    <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                      <p className="text-xs font-semibold text-slate-500">LTV</p>
+                      <p className="mt-2 text-xl font-semibold">{money(data.metrics.ltv)}</p>
+                    </div>
                     <div className="rounded-md border border-white/10 bg-black/20 p-3">
                       <p className="text-xs font-semibold text-slate-500">Conversion</p>
-                      <p className="mt-2 text-xl font-semibold">{pct(data.revenue.conversionRate)}</p>
+                      <p className="mt-2 text-xl font-semibold">{pct(data.metrics.conversionRate)}</p>
                     </div>
                     <div className="rounded-md border border-white/10 bg-black/20 p-3">
-                      <p className="text-xs font-semibold text-slate-500">Paid users</p>
-                      <p className="mt-2 text-xl font-semibold">{num(paidUsers)}</p>
-                    </div>
-                    <div className="rounded-md border border-white/10 bg-black/20 p-3">
-                      <p className="text-xs font-semibold text-slate-500">MRR / paid user</p>
-                      <p className="mt-2 text-xl font-semibold">{money(revenuePerPaidUser)}</p>
+                      <p className="text-xs font-semibold text-slate-500">Churn</p>
+                      <p className="mt-2 text-xl font-semibold">{pct(data.metrics.churnRate)}</p>
                     </div>
                   </div>
                 </div>
 
-                <Panel title="Customer funnel" eyebrow="account mix">
-                  <div className="mt-4 space-y-4">
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-md bg-black/20 p-3">
-                        <p className="text-xs text-slate-500">Total</p>
-                        <p className="mt-1 text-xl font-semibold">{num(totalUsers)}</p>
-                      </div>
-                      <div className="rounded-md bg-black/20 p-3">
-                        <p className="text-xs text-slate-500">Paid</p>
-                        <p className="mt-1 text-xl font-semibold">{num(paidUsers)}</p>
-                      </div>
-                      <div className="rounded-md bg-black/20 p-3">
-                        <p className="text-xs text-slate-500">Free</p>
-                        <p className="mt-1 text-xl font-semibold">{num(freeUsers)}</p>
-                      </div>
+                <Panel title="Customer mix" eyebrow="email-first admin view">
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-md bg-black/20 p-3">
+                      <p className="text-xs text-slate-500">Active subscribers</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.activeSubscribers)}</p>
                     </div>
-                    <div>
-                      <div className="flex justify-between text-xs font-semibold text-slate-500">
-                        <span>Paid conversion</span>
-                        <span>{pct(data.revenue.conversionRate)}</span>
-                      </div>
-                      <div className="mt-2 h-2 rounded-full bg-black/30">
-                        <div
-                          className="h-full rounded-full bg-[#6f82ff]"
-                          style={{ width: `${Math.max(3, Math.min(100, data.revenue.conversionRate))}%` }}
-                        />
-                      </div>
+                    <div className="rounded-md bg-black/20 p-3">
+                      <p className="text-xs text-slate-500">Trial users</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.trialUsers)}</p>
+                    </div>
+                    <div className="rounded-md bg-black/20 p-3">
+                      <p className="text-xs text-slate-500">Paid users</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.paidUsers)}</p>
+                    </div>
+                    <div className="rounded-md bg-black/20 p-3">
+                      <p className="text-xs text-slate-500">Free users</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.freeUsers)}</p>
                     </div>
                   </div>
+                  <p className="mt-4 rounded-md border border-white/10 bg-black/20 p-3 text-xs leading-5 text-slate-500">
+                    {data.identity.note}
+                  </p>
                 </Panel>
               </section>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard icon={Users} label="Total users" value={num(totalUsers)} helper={`${num(paidUsers)} paid · ${num(freeUsers)} free`} tone="blue" />
-                <MetricCard icon={IndianRupee} label="MRR" value={money(data.revenue.mrr)} helper={`${money(data.revenue.arr)} ARR`} tone="green" />
-                <MetricCard icon={Activity} label="Labels processed" value={num(data.usage.totalLabelsProcessed)} helper={`${num(data.usage.currentMonthLabels)} labels this month`} tone="violet" />
-                <MetricCard icon={UploadCloud} label="PDF uploads" value={num(data.usage.totalPdfsUploaded)} helper={`${num(data.usage.averageLabelsPerUser)} avg labels/user`} tone="amber" />
-              </div>
+              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Metric icon={Users} label="Active users" value={num(data.metrics.activeUsers)} helper={`${num(data.metrics.newUsersMonth)} new this month`} />
+                <Metric icon={IndianRupee} label="Plan MRR" value={money(data.metrics.mrr)} helper={`${num(data.metrics.activeSubscribers)} paying subscriptions`} tone="green" />
+                <Metric icon={Activity} label="Usage" value={num(data.metrics.labelsThisMonth)} helper={`${num(data.metrics.labelsProcessed)} labels lifetime`} />
+                <Metric icon={AlertTriangle} label="Billing risk" value={num(data.metrics.failedPayments)} helper={`${num(data.metrics.renewalsDue)} renewals in 14 days`} tone={data.metrics.failedPayments ? "rose" : "amber"} />
+              </section>
 
-              <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                <Panel title="Usage trend" eyebrow="labels processed · last 14 days">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="mt-1 text-xs text-slate-500">
-                      Current month: {num(data.usage.currentMonthLabels)} labels
-                    </span>
-                  </div>
-                  <div className="mt-5 flex h-60 items-end gap-2">
-                    {data.chart.length === 0 ? (
-                      <p className="m-auto text-sm text-slate-500">No usage events yet.</p>
-                    ) : (
-                      data.chart.map((item) => (
-                        <div key={item.date} className="flex flex-1 flex-col items-center gap-2">
-                          <div
-                            className="w-full rounded-t bg-[#6f82ff]"
-                            style={{ height: `${Math.max(6, (item.labels / maxChart) * 100)}%` }}
-                          />
-                          <span className="text-[10px] text-slate-500">{item.date.slice(5)}</span>
+              <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+                <Panel title="Revenue trend" eyebrow="last 14 days">
+                  <MiniBars data={data.revenue.daily} valueKey="value" tone="bg-emerald-300" />
+                </Panel>
+                <Panel title="Usage trend" eyebrow="labels processed">
+                  <MiniBars data={data.usage.dailyLabels} valueKey="labels" />
+                </Panel>
+              </section>
+
+              <section className="grid gap-4 xl:grid-cols-3">
+                <Panel title="Plan revenue" eyebrow="MRR by plan">
+                  <div className="mt-4 space-y-3">
+                    {Object.entries(data.revenue.planWiseRevenue).map(([plan, revenue]) => (
+                      <div key={plan}>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold capitalize text-slate-300">{plan}</span>
+                          <span className="text-sm font-semibold tabular-nums">{money(revenue)}</span>
                         </div>
-                      ))
-                    )}
+                        <div className="mt-2 h-2 rounded-full bg-black/30">
+                          <div className="h-full rounded-full bg-emerald-300" style={{ width: `${Math.max(3, Math.min(100, (revenue / maxPlanRevenue) * 100))}%` }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </Panel>
 
-                <Panel title="Plan mix" eyebrow="users by subscription">
+                <Panel title="Plan mix" eyebrow="users by plan">
                   <div className="mt-4 space-y-3">
-                    {Object.entries(data.plans).map(([plan, count]) => (
+                    {Object.entries(data.users.planMix).map(([plan, count]) => (
                       <div key={plan}>
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm font-semibold capitalize text-slate-300">{plan}</span>
                           <span className="text-sm font-semibold tabular-nums">{num(count)}</span>
                         </div>
                         <div className="mt-2 h-2 rounded-full bg-black/30">
-                          <div
-                            className="h-full rounded-full bg-[#6f82ff]"
-                            style={{ width: `${Math.max(3, Math.min(100, (count / totalPlanUsers) * 100))}%` }}
-                          />
+                          <div className="h-full rounded-full bg-[#6f82ff]" style={{ width: `${Math.max(3, Math.min(100, (count / totalPlanUsers) * 100))}%` }} />
                         </div>
                       </div>
                     ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Most used features" eyebrow="usage events">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.usage.mostUsedFeatures.length ? (
+                      data.usage.mostUsedFeatures.map((item) => <Row key={item.feature} left={item.feature} right={num(item.count)} />)
+                    ) : (
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No feature usage yet.</p>
+                    )}
+                  </div>
+                </Panel>
+              </section>
+
+              <section className="grid gap-4 xl:grid-cols-3">
+                <Panel title="Renewals" eyebrow="next 14 days">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.billing.renewals.length ? (
+                      data.billing.renewals.map((item) => (
+                        <Row key={`${item.user}-${item.renewalDate}`} left={item.user} right={item.daysLeft == null ? "Soon" : `${item.daysLeft}d`} sub={`${item.plan} · ${dateLabel(item.renewalDate)}`} />
+                      ))
+                    ) : (
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No upcoming renewals.</p>
+                    )}
+                  </div>
+                </Panel>
+
+                <Panel title="Failed payments" eyebrow="needs attention">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.billing.failedPayments.length ? (
+                      data.billing.failedPayments.map((item, index) => (
+                        <Row key={`${item.user}-${index}`} left={item.user} right={money(item.amount)} sub={`${item.reason} · ${dateLabel(item.createdAt)}`} />
+                      ))
+                    ) : (
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No failed payments.</p>
+                    )}
+                  </div>
+                </Panel>
+
+                <Panel title="Refunds & cancellations" eyebrow="retention signals">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.billing.refundsOrCancellations.length ? (
+                      data.billing.refundsOrCancellations.map((item, index) => (
+                        <Row key={`${item.user}-${index}`} left={item.user} right={item.status ?? "event"} sub={`${item.plan ?? "plan"} · ${dateLabel(item.createdAt)}`} />
+                      ))
+                    ) : (
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No refunds or cancellations.</p>
+                    )}
                   </div>
                 </Panel>
               </section>
 
               <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                <Panel title="Plan revenue" eyebrow="MRR contribution">
-                  <div className="mt-4 space-y-3">
-                    {Object.entries(data.revenue.planWiseRevenue).length === 0 ? (
-                      <p className="rounded-md bg-black/20 p-3 text-sm text-slate-500">No plan revenue yet.</p>
+                <Panel title="Top customers" eyebrow="by labels processed">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.usage.topCustomers.length ? (
+                      data.usage.topCustomers.map((user) => <Row key={user.userId} left={user.user} right={`${num(user.labels)} labels`} />)
                     ) : (
-                      Object.entries(data.revenue.planWiseRevenue).map(([plan, revenue]) => (
-                        <div key={plan}>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-semibold capitalize text-slate-300">{plan}</span>
-                            <span className="text-sm font-semibold tabular-nums">{money(revenue)}</span>
-                          </div>
-                          <div className="mt-2 h-2 rounded-full bg-black/30">
-                            <div
-                              className="h-full rounded-full bg-emerald-300"
-                              style={{ width: `${Math.max(3, Math.min(100, (revenue / maxPlanRevenue) * 100))}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No customers yet.</p>
                     )}
                   </div>
                 </Panel>
 
-                <Panel title="Traffic & acquisition" eyebrow="site engagement">
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-md bg-black/20 p-3">
-                      <Eye className="size-4 text-[#aab4ff]" aria-hidden />
-                      <p className="mt-2 text-xs text-slate-500">Visits</p>
-                      <p className="mt-1 text-xl font-semibold">{num(data.traffic.totalVisits)}</p>
-                    </div>
-                    <div className="rounded-md bg-black/20 p-3">
-                      <MousePointerClick className="size-4 text-emerald-200" aria-hidden />
-                      <p className="mt-2 text-xs text-slate-500">Unique visitors</p>
-                      <p className="mt-1 text-xl font-semibold">{num(data.traffic.uniqueVisitors)}</p>
-                    </div>
-                    <div className="rounded-md bg-black/20 p-3">
-                      <Target className="size-4 text-amber-100" aria-hidden />
-                      <p className="mt-2 text-xs text-slate-500">Session</p>
-                      <p className="mt-1 text-xl font-semibold">{data.traffic.sessionDuration}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Top pages</p>
-                    <div className="mt-2 space-y-2">
-                      {data.traffic.mostVisitedPages.length === 0 ? (
-                        <p className="rounded-md bg-black/20 p-3 text-sm text-slate-500">No traffic pages connected yet.</p>
-                      ) : (
-                        data.traffic.mostVisitedPages.map((page) => (
-                          <div key={page} className="truncate rounded-md bg-black/20 px-3 py-2 text-sm text-slate-300">
-                            {page}
-                          </div>
-                        ))
-                      )}
-                    </div>
+                <Panel title="Recent activity" eyebrow="latest usage">
+                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
+                    {data.recentActivity.length ? (
+                      data.recentActivity.map((item, index) => (
+                        <Row key={`${item.userId}-${index}`} left={item.user} right={`${num(item.labels)} labels`} sub={`${item.action} · ${dateLabel(item.createdAt)}`} />
+                      ))
+                    ) : (
+                      <p className="bg-black/20 p-3 text-sm text-slate-500">No recent activity.</p>
+                    )}
                   </div>
                 </Panel>
               </section>
 
-              <section className="grid gap-4 lg:grid-cols-2">
-                <Panel title="Top customers" eyebrow="highest label usage">
-                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
-                    {data.usage.topUsers.map((user) => (
-                      <div key={user.userId} className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/20 px-3 py-2.5 last:border-b-0">
-                        <span className="truncate text-sm text-slate-400">{user.userId}</span>
-                        <span className="text-sm font-bold">{num(user.labels)} labels</span>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-                <Panel title="Recent activity" eyebrow="latest usage events">
-                  <div className="mt-4 overflow-hidden rounded-md border border-white/10">
-                    {data.recentActivity.map((item, index) => (
-                      <div key={`${item.userId}-${index}`} className="grid grid-cols-[1fr_auto] gap-3 border-b border-white/10 bg-black/20 px-3 py-2.5 last:border-b-0">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-300">{item.action}</p>
-                          <p className="truncate text-xs text-slate-500">{item.userId}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold">{num(item.labels)} labels</p>
-                          <p className="text-xs text-slate-500">
-                            {item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-IN") : "No date"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
+              <section className="grid gap-4 md:grid-cols-3">
+                <Metric icon={Repeat2} label="Retention" value={pct(data.metrics.retentionRate)} helper="Active vs churned paid accounts" tone="green" />
+                <Metric icon={CalendarClock} label="New today" value={num(data.metrics.newUsersToday)} helper={`${num(data.metrics.newUsersMonth)} new users this month`} />
+                <Metric icon={TrendingDown} label="Churn rate" value={pct(data.metrics.churnRate)} helper="Canceled or past-due accounts" tone={data.metrics.churnRate ? "rose" : "green"} />
               </section>
             </div>
           ) : null}

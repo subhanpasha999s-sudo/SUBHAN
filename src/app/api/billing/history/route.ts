@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const fp = requestFingerprint(req, browser);
   const entitlement = await getServerEntitlement(service, auth.user.id, fp.deviceHash);
 
-  const [payments, credits] = await Promise.all([
+  const [payments, credits, subscription] = await Promise.all([
     service
       .from("tulmin_payment_events")
       .select(
@@ -30,10 +30,16 @@ export async function GET(req: NextRequest) {
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
       .limit(50),
+    service
+      .from("tulmin_user_subscriptions")
+      .select("plan,status,current_period_start,current_period_end,provider_subscription_id")
+      .eq("user_id", auth.user.id)
+      .maybeSingle(),
   ]);
 
   return NextResponse.json({
     entitlement,
+    subscription: subscription.error ? null : subscription.data ?? null,
     payments: payments.error ? [] : payments.data ?? [],
     credits: credits.error ? [] : credits.data ?? [],
   });

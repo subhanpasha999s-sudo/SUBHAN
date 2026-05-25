@@ -2,10 +2,13 @@
 
 import * as React from "react";
 
+import Link from "next/link";
 import {
   BadgeCheck,
   Building2,
   Cloud,
+  CreditCard,
+  FileDown,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -22,13 +25,34 @@ import {
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import type { SubscriptionEntitlement } from "@/lib/billing/use-subscription";
 import { cn } from "@/lib/utils";
 import { toast as notify } from "sonner";
+
+type BillingHistory = {
+  entitlement: SubscriptionEntitlement;
+  subscription: {
+    plan?: string | null;
+    status?: string | null;
+    current_period_end?: string | null;
+  } | null;
+  payments: {
+    id: number;
+    plan: string | null;
+    amount: number;
+    currency: string;
+    status: string;
+    billing_cycle: string | null;
+    invoice_url: string | null;
+    failure_reason: string | null;
+    created_at: string | null;
+  }[];
+};
 
 function initials(name: string, email?: string | null) {
   const source = name.trim() || email?.trim() || "Tulmin";
@@ -46,6 +70,10 @@ function formatDate(value: string | undefined) {
     day: "numeric",
     year: "numeric",
   }).format(d);
+}
+
+function money(value: number) {
+  return `₹${value.toLocaleString("en-IN")}`;
 }
 
 function AccountMetric({
@@ -105,6 +133,8 @@ export function AccountPageClient() {
     next: "",
     confirm: "",
   });
+  const [billing, setBilling] = React.useState<BillingHistory | null>(null);
+  const [billingBusy, setBillingBusy] = React.useState(false);
 
   React.useEffect(() => {
     const md = user?.user_metadata ?? {};
@@ -113,6 +143,36 @@ export function AccountPageClient() {
       company: typeof md.company === "string" ? md.company : "",
     });
   }, [user]);
+
+  React.useEffect(() => {
+    let alive = true;
+    async function loadBilling() {
+      if (!user?.id) {
+        setBilling(null);
+        return;
+      }
+      const sb = getSupabaseBrowser();
+      if (!sb) return;
+      setBillingBusy(true);
+      try {
+        const { data } = await sb.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const res = await fetch("/api/billing/history", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => null)) as BillingHistory | null;
+        if (alive && res.ok && json) setBilling(json);
+      } finally {
+        if (alive) setBillingBusy(false);
+      }
+    }
+    void loadBilling();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   async function signOut() {
     const sb = getSupabaseBrowser();
@@ -303,6 +363,97 @@ export function AccountPageClient() {
                   <AccountMetric icon={BadgeCheck} label="Member since" value={formatDate(user.created_at)} />
                 </div>
               </div>
+            </WorkspaceSurfaceCard>
+
+            <WorkspaceSurfaceCard
+              padding="p-5 sm:p-6"
+              className="border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+            >
+              <div className="flex flex-col gap-4 border-b border-border/55 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                    Billing
+                  </h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Plan, usage, renewal, payments, and invoices in one place.
+                  </p>
+                </div>
+                <Link href="/pricing" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                  Change plan
+                </Link>
+              </div>
+
+              {billingBusy && !billing ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="h-24 animate-pulse rounded-2xl border border-border/55 bg-muted/35" />
+                  ))}
+                </div>
+              ) : billing ? (
+                <>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <AccountMetric
+                      icon={CreditCard}
+                      label="Current plan"
+                      value={`${billing.entitlement.plan} · ${billing.subscription?.status ?? billing.entitlement.status}`}
+                      tone={billing.entitlement.plan === "free" ? "warning" : "success"}
+                    />
+                    <AccountMetric
+                      icon={Cloud}
+                      label="Usage remaining"
+                      value={
+                        billing.entitlement.labelsRemaining == null
+                          ? "Unlimited"
+                          : billing.entitlement.labelsRemaining.toLocaleString("en-IN")
+                      }
+                      tone="success"
+                    />
+                    <AccountMetric
+                      icon={BadgeCheck}
+                      label="Renewal date"
+                      value={billing.subscription?.current_period_end ? formatDate(billing.subscription.current_period_end) : "Not scheduled"}
+                    />
+                  </div>
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/55">
+                    {billing.payments.length > 0 ? (
+                      billing.payments.slice(0, 5).map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="grid gap-3 border-b border-border/55 bg-background/45 p-4 last:border-b-0 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {payment.plan ?? "Usage"} · {payment.status}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {payment.created_at ? formatDate(payment.created_at) : "No date"}
+                              {payment.failure_reason ? ` · ${payment.failure_reason}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-foreground">{money(payment.amount)}</p>
+                          {payment.invoice_url ? (
+                            <a
+                              href={payment.invoice_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
+                            >
+                                <FileDown className="size-3.5" aria-hidden />
+                                Invoice
+                            </a>
+                          ) : (
+                            <span className="text-xs font-semibold text-muted-foreground">No invoice</span>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="bg-background/45 p-4 text-sm text-muted-foreground">
+                        No payment history yet.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : null}
             </WorkspaceSurfaceCard>
 
             <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">

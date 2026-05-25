@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import Link from "next/link";
-import { BarChart3, CreditCard, Gift, KeyRound, Loader2, LockKeyhole, Save } from "lucide-react";
+import { BarChart3, CreditCard, Gift, KeyRound, Loader2, LockKeyhole, Mail, Save } from "lucide-react";
 import { toast as notify } from "sonner";
 
 import { AdminNav } from "@/components/admin/admin-nav";
@@ -49,6 +49,7 @@ export function AdminBillingDashboard() {
   });
   const [grantForm, setGrantForm] = React.useState({
     userId: "",
+    userEmail: "",
     labelCount: 500,
     reason: "support_bonus",
   });
@@ -102,8 +103,8 @@ export function AdminBillingDashboard() {
   }
 
   async function grantCredits() {
-    if (!grantForm.userId.trim() || grantForm.labelCount <= 0) {
-      notify.error("Add a user ID and label count.");
+    if (!grantForm.userEmail.trim() || grantForm.labelCount <= 0) {
+      notify.error("Add a user email and label count.");
       return;
     }
     setSaving(true);
@@ -119,7 +120,7 @@ export function AdminBillingDashboard() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not add credits.");
       setData(json as BillingPayload);
-      setGrantForm({ userId: "", labelCount: 500, reason: "support_bonus" });
+      setGrantForm({ userId: "", userEmail: "", labelCount: 500, reason: "support_bonus" });
       notify.success("Bonus labels added");
     } catch (err) {
       notify.error(err instanceof Error ? err.message : "Could not add credits.");
@@ -383,16 +384,17 @@ export function AdminBillingDashboard() {
                 </span>
                 <div>
                   <h2 className="text-base font-semibold">Add bonus usage</h2>
-                  <p className="text-sm text-slate-500">Give a seller extra label credits without changing their plan.</p>
+                  <p className="text-sm text-slate-500">Give a seller extra label credits by email without changing their plan.</p>
                 </div>
               </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_14rem_auto] lg:items-end">
-                <Field label="User ID">
+                <Field label="User email">
                   <input
                     className={inputClass()}
-                    value={grantForm.userId}
-                    onChange={(e) => setGrantForm((p) => ({ ...p, userId: e.target.value }))}
-                    placeholder="auth user UUID"
+                    type="email"
+                    value={grantForm.userEmail}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, userEmail: e.target.value }))}
+                    placeholder="seller@example.com"
                   />
                 </Field>
                 <Field label="Labels">
@@ -412,9 +414,13 @@ export function AdminBillingDashboard() {
                   />
                 </Field>
                 <Button className="h-10 rounded-md" disabled={saving} onClick={() => void grantCredits()}>
+                  <Mail className="size-4" aria-hidden />
                   Add credits
                 </Button>
               </div>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Email is the admin-facing identifier. Supabase UUIDs stay behind the scenes for database relations.
+              </p>
             </section>
 
             <section className="rounded-lg border border-white/10 bg-[#0f151f] p-4">

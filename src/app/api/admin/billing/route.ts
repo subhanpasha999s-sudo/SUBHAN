@@ -36,6 +36,7 @@ type PutBody = {
   action?: "save_billing" | "grant_credits";
   grant?: {
     userId?: string;
+    userEmail?: string;
     labelCount?: number;
     reason?: string;
     expiresAt?: string;
@@ -75,6 +76,27 @@ function mapPlan(row: PlanRow): AdminBillingPlanSetting {
     razorpayMonthlyPlanId: row.razorpay_monthly_plan_id ?? "",
     razorpayYearlyPlanId: row.razorpay_yearly_plan_id ?? "",
   };
+}
+
+async function resolveUserIdForGrant(
+  sb: NonNullable<ReturnType<typeof getSupabaseServiceRole>>,
+  grant?: PutBody["grant"]
+) {
+  const directUserId = grant?.userId?.trim();
+  if (directUserId) return { userId: directUserId, userEmail: grant?.userEmail?.trim().toLowerCase() || null };
+
+  const email = grant?.userEmail?.trim().toLowerCase();
+  if (!email) return { userId: "", userEmail: null };
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    const user = data.users.find((item) => item.email?.toLowerCase() === email);
+    if (user) return { userId: user.id, userEmail: email };
+    if (data.users.length < 1000) break;
+  }
+
+  return { userId: "", userEmail: email };
 }
 
 export async function GET(req: NextRequest) {
@@ -121,10 +143,10 @@ export async function PUT(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as PutBody;
 
   if (body.action === "grant_credits") {
-    const userId = body.grant?.userId?.trim();
+    const { userId, userEmail } = await resolveUserIdForGrant(sb, body.grant);
     const labelCount = Math.max(0, Math.floor(Number(body.grant?.labelCount) || 0));
     if (!userId || labelCount <= 0) {
-      return NextResponse.json({ error: "User ID and positive label count are required." }, { status: 400 });
+      return NextResponse.json({ error: "User email and positive label count are required." }, { status: 400 });
     }
     const savedGrant = await sb.from("tulmin_label_credit_grants").insert({
       user_id: userId,
@@ -132,7 +154,7 @@ export async function PUT(req: NextRequest) {
       reason: body.grant?.reason?.trim() || "admin_bonus",
       expires_at: body.grant?.expiresAt?.trim() || null,
       created_by: admin.id,
-      metadata: { adminEmail: admin.email },
+      metadata: { adminEmail: admin.email, userEmail, identityMode: "email_primary_uuid_storage" },
     });
     if (savedGrant.error) return NextResponse.json({ error: savedGrant.error.message }, { status: 500 });
     return GET(req);
