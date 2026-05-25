@@ -62,6 +62,7 @@ type CreditGrantRow = {
   expires_at?: string | null;
   status?: string | null;
   grant_kind?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 const BILLABLE_USAGE_ACTIONS = ["import", "export", "filter", "crop", "processed"] as const;
@@ -258,7 +259,7 @@ export async function getServerEntitlement(
 
   const credits = await sb
     .from("tulmin_label_credit_grants")
-    .select("label_count,used_label_count,expires_at,status,grant_kind")
+    .select("label_count,used_label_count,expires_at,metadata")
     .eq("user_id", userId)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
   const creditRowsResult = credits.error
@@ -268,12 +269,15 @@ export async function getServerEntitlement(
       .eq("user_id", userId)
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     : credits;
-  const activeCredits = (creditRowsResult.error || !creditRowsResult.data ? [] : (creditRowsResult.data as CreditGrantRow[])).filter(
-    (row) => !row.status || row.status === "active"
-  );
-  const hasUnlimitedBonus = activeCredits.some((row) =>
-    row.grant_kind === "unlimited_lifetime" || row.grant_kind === "unlimited_monthly"
-  );
+  const activeCredits = (creditRowsResult.error || !creditRowsResult.data ? [] : (creditRowsResult.data as CreditGrantRow[])).filter((row) => {
+    const metadataStatus = typeof row.metadata?.bonusStatus === "string" ? row.metadata.bonusStatus : undefined;
+    return !row.status && !metadataStatus ? true : (row.status ?? metadataStatus) === "active";
+  });
+  const hasUnlimitedBonus = activeCredits.some((row) => {
+    const metadataKind = typeof row.metadata?.grantKind === "string" ? row.metadata.grantKind : undefined;
+    const grantKind = row.grant_kind ?? metadataKind;
+    return grantKind === "unlimited_lifetime" || grantKind === "unlimited_monthly";
+  });
   const bonusLabelsAvailable =
     hasUnlimitedBonus
       ? 0

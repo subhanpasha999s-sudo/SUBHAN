@@ -100,8 +100,13 @@ function metadataEmail(row: BonusGrantRow) {
   return typeof email === "string" ? email : null;
 }
 
+function metadataString(row: BonusGrantRow, key: string) {
+  const value = row.metadata?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function mapBonusGrant(row: BonusGrantRow, emailByUserId: Map<string, string>) {
-  const grantKind = normalizeGrantKind(row.grant_kind ?? undefined);
+  const grantKind = normalizeGrantKind(row.grant_kind ?? metadataString(row, "grantKind"));
   const labelCount = Math.max(0, Number(row.label_count) || 0);
   const usedLabelCount = Math.max(0, Number(row.used_label_count) || 0);
   return {
@@ -112,10 +117,10 @@ function mapBonusGrant(row: BonusGrantRow, emailByUserId: Map<string, string>) {
     usedLabelCount,
     remainingLabels: grantKind === "labels" ? Math.max(0, labelCount - usedLabelCount) : null,
     reason: row.reason || "admin_bonus",
-    status: normalizeGrantStatus(row.status ?? undefined),
+    status: normalizeGrantStatus(row.status ?? metadataString(row, "bonusStatus")),
     grantKind,
     expiresAt: row.expires_at,
-    renewedAt: row.renewed_at ?? null,
+    renewedAt: row.renewed_at ?? metadataString(row, "renewedAt") ?? null,
     createdAt: row.created_at,
   };
 }
@@ -273,17 +278,20 @@ export async function PUT(req: NextRequest) {
     }
     const savedGrant = await sb.from("tulmin_label_credit_grants").insert({
       user_id: userId,
-      user_email: userEmail,
       label_count: labelCount,
       reason: body.grant?.reason?.trim() || "admin_bonus",
       expires_at:
         grantKind === "unlimited_lifetime"
           ? null
           : normalizeExpiresAt(body.grant?.expiresAt) ?? (grantKind === "unlimited_monthly" ? endOfCurrentMonthIso() : null),
-      status: "active",
-      grant_kind: grantKind,
       created_by: admin.id,
-      metadata: { adminEmail: admin.email, userEmail, identityMode: "email_primary_uuid_storage" },
+      metadata: {
+        adminEmail: admin.email,
+        userEmail,
+        identityMode: "email_primary_uuid_storage",
+        grantKind,
+        bonusStatus: "active",
+      },
     });
     if (savedGrant.error) return NextResponse.json({ error: savedGrant.error.message }, { status: 500 });
     return GET(req);
@@ -293,14 +301,33 @@ export async function PUT(req: NextRequest) {
     const bonusId = Math.max(0, Math.floor(Number(body.grant?.bonusId) || 0));
     if (!bonusId) return NextResponse.json({ error: "Bonus grant is required." }, { status: 400 });
 
+    const existingGrant = await sb
+      .from("tulmin_label_credit_grants")
+      .select("metadata")
+      .eq("id", bonusId)
+      .maybeSingle();
+    if (existingGrant.error) return NextResponse.json({ error: existingGrant.error.message }, { status: 500 });
+
+    const existingMetadata =
+      existingGrant.data && typeof existingGrant.data.metadata === "object" && existingGrant.data.metadata
+        ? (existingGrant.data.metadata as Record<string, unknown>)
+        : {};
     const update: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
+      metadata: { ...existingMetadata },
     };
-    if (body.grant?.status) update.status = normalizeGrantStatus(body.grant.status);
+    if (body.grant?.status) {
+      update.metadata = {
+        ...(update.metadata as Record<string, unknown>),
+        bonusStatus: normalizeGrantStatus(body.grant.status),
+      };
+    }
     if (body.grant?.reason !== undefined) update.reason = body.grant.reason.trim() || "admin_bonus";
     if (body.grant?.expiresAt !== undefined) {
       update.expires_at = normalizeExpiresAt(body.grant.expiresAt);
-      update.renewed_at = new Date().toISOString();
+      update.metadata = {
+        ...(update.metadata as Record<string, unknown>),
+        renewedAt: new Date().toISOString(),
+      };
     }
 
     const savedGrant = await sb.from("tulmin_label_credit_grants").update(update).eq("id", bonusId);
