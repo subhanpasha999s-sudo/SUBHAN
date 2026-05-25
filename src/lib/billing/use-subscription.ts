@@ -60,6 +60,37 @@ const DEFAULT_FREE_ENTITLEMENT: SubscriptionEntitlement = {
   loaded: false,
 };
 
+const ENTITLEMENT_CACHE_PREFIX = "tulmin.billing.entitlement.";
+
+function entitlementCacheKey(userId: string) {
+  return `${ENTITLEMENT_CACHE_PREFIX}${userId}`;
+}
+
+function readCachedEntitlement(userId: string): SubscriptionEntitlement | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(entitlementCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SubscriptionEntitlement;
+    if (!parsed || typeof parsed !== "object") return null;
+    return { ...parsed, loaded: true };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedEntitlement(userId: string, entitlement: SubscriptionEntitlement) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      entitlementCacheKey(userId),
+      JSON.stringify({ ...entitlement, loaded: true })
+    );
+  } catch {
+    // Storage can be blocked in private mode; the server remains the source of truth.
+  }
+}
+
 async function authHeader(): Promise<Record<string, string> | null> {
   const sb = getSupabaseBrowser();
   if (!sb) return null;
@@ -74,6 +105,15 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
   const [loading, setLoading] = React.useState(false);
   const [upgradeOpen, setUpgradeOpen] = React.useState(false);
   const [upgradeReason, setUpgradeReason] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (!userId) {
+      setEntitlement(DEFAULT_FREE_ENTITLEMENT);
+      return;
+    }
+    const cached = readCachedEntitlement(userId);
+    if (cached) setEntitlement(cached);
+  }, [userId]);
 
   const refresh = React.useCallback(async () => {
     if (!userId) {
@@ -91,17 +131,23 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
       });
       const data = (await res.json()) as { entitlement?: SubscriptionEntitlement };
       if (res.ok && data.entitlement) {
-        setEntitlement({ ...data.entitlement, loaded: true });
-        return { ...data.entitlement, loaded: true };
+        const next = { ...data.entitlement, loaded: true };
+        writeCachedEntitlement(userId, next);
+        setEntitlement(next);
+        return next;
       }
     } catch {
       // Keep the UI usable; reserve calls still enforce server-side when available.
     } finally {
       setLoading(false);
     }
-    setEntitlement((prev) => ({ ...prev, loaded: true }));
-    return entitlement;
-  }, [entitlement, userId]);
+    let fallback = DEFAULT_FREE_ENTITLEMENT;
+    setEntitlement((prev) => {
+      fallback = { ...prev, loaded: true };
+      return fallback;
+    });
+    return fallback;
+  }, [userId]);
 
   React.useEffect(() => {
     void refresh();
@@ -152,7 +198,9 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
           };
         }
         if (data.ok) {
-          setEntitlement({ ...data.entitlement, loaded: true });
+          const next = { ...data.entitlement, loaded: true };
+          writeCachedEntitlement(userId, next);
+          setEntitlement(next);
           if (data.limitReached && data.message) {
             setUpgradeReason(data.message);
             setUpgradeOpen(true);
@@ -161,7 +209,11 @@ export function useSubscriptionEntitlement(userId: string | undefined) {
             setUpgradeOpen(false);
           }
         } else {
-          if (data.entitlement) setEntitlement({ ...data.entitlement, loaded: true });
+          if (data.entitlement) {
+            const next = { ...data.entitlement, loaded: true };
+            writeCachedEntitlement(userId, next);
+            setEntitlement(next);
+          }
           if (data.reason === "limit_reached" || data.reason === "abuse_review") {
             setUpgradeReason(data.message);
             setUpgradeOpen(true);

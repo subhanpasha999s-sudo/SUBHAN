@@ -2568,6 +2568,7 @@ export function MeeshoLabelExportTool() {
     entitlement.plan === "pro" || entitlement.plan === "business";
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
   const recommendedPlan = nextPlanRecommendation(entitlement.plan);
+  const usageLoading = Boolean(userId && !entitlement.loaded);
   const usagePct =
     entitlement.labelsLimit != null && entitlement.labelsLimit > 0
       ? Math.min(100, Math.round((100 * entitlement.labelsUsed) / entitlement.labelsLimit))
@@ -3828,7 +3829,9 @@ export function MeeshoLabelExportTool() {
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
                   {userId
-                    ? entitlement.labelsLimit == null
+                    ? usageLoading
+                      ? "Checking monthly usage..."
+                      : entitlement.labelsLimit == null
                       ? "Unlimited normal seller use"
                       : `${entitlement.labelsUsed.toLocaleString()} / ${entitlement.labelsLimit.toLocaleString()} labels used this month${
                           entitlement.dailyLabelsLimit != null
@@ -3855,11 +3858,13 @@ export function MeeshoLabelExportTool() {
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary transition-[width] duration-500"
-                      style={{ width: `${usagePct}%` }}
+                      style={{ width: `${usageLoading ? 0 : usagePct}%` }}
                     />
                   </div>
                   <p className="text-right text-[10px] font-semibold text-muted-foreground">
-                    {entitlement.labelsUsed.toLocaleString()} / {entitlement.labelsLimit.toLocaleString()}
+                    {usageLoading
+                      ? "Checking..."
+                      : `${entitlement.labelsUsed.toLocaleString()} / ${entitlement.labelsLimit.toLocaleString()}`}
                   </p>
                 </div>
               ) : null}
