@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
         message:
           "Usage could not be saved, so Tulmin stopped this run to protect your monthly label limit. Apply the latest billing migration and try again.",
         setupHint:
-          "Run supabase/migrations/010_atomic_usage_reservations.sql against your Supabase project, then restart or redeploy the app.",
+          "Run the full supabase/migrations/010_atomic_usage_reservations.sql file against your Supabase project, then restart or redeploy the app.",
         entitlement: before,
         trackingError: reservation.error.message,
       },

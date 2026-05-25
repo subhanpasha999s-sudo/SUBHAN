@@ -2043,6 +2043,8 @@ export function MeeshoLabelExportTool() {
     });
   const [sourceName, setSourceName] = React.useState("");
   const [parsing, setParsing] = React.useState(false);
+  const [importPhase, setImportPhase] =
+    React.useState<"idle" | "reading" | "finalizing">("idle");
   const [pdfExportState, setPdfExportState] = React.useState<PdfExportState | null>(null);
   const [parseProgress, setParseProgress] = React.useState<[number, number] | null>(
     null
@@ -2741,6 +2743,7 @@ export function MeeshoLabelExportTool() {
       signed_in: Boolean(userId),
     });
     setParsing(true);
+    setImportPhase("reading");
     setParseProgress([0, 0]);
 
     const nextRows: MeeshoLabelRecord[] = [];
@@ -2802,10 +2805,13 @@ export function MeeshoLabelExportTool() {
       if (i % 3 === 2) await yieldToUiFrame();
     }
 
-    setParsing(false);
+    setImportPhase("finalizing");
     setParseProgress(null);
+    await yieldToUiFrame();
 
     if (nextRows.length === 0 && rows.length === 0) {
+      setParsing(false);
+      setImportPhase("idle");
       const importOnlyFailures =
         nextAmazonInvoices.length > 0
           ? [
@@ -2834,6 +2840,7 @@ export function MeeshoLabelExportTool() {
       const reservation = await reserveLabels(nextRows.length, "filter", { allowPartial: true });
       if (!reservation.ok) {
         setParsing(false);
+        setImportPhase("idle");
         setParseProgress(null);
         if (reservation.reason === "signin_required") {
           pendingLoginFilesRef.current = files;
@@ -2880,6 +2887,10 @@ export function MeeshoLabelExportTool() {
     setRows(mergedRows);
     setAmazonInvoices(mergedInvoices);
     setPdfSources(mergedSources);
+    setParsing(false);
+    setImportPhase("idle");
+    setParseProgress(null);
+    await yieldToUiFrame();
     const shouldPrepareCropNow =
       nextSources.length > 0 &&
       nextSources.length <= AUTO_CROP_PREP_MAX_IMPORT_FILES &&
@@ -3897,10 +3908,12 @@ export function MeeshoLabelExportTool() {
                   </div>
                   <div className="min-w-0">
                     <h1 className="text-[18px] font-semibold tracking-tight text-foreground">
-                      Reading PDFs
+                      {importPhase === "finalizing" ? "Finalizing import" : "Reading PDFs"}
                     </h1>
                     <p className="mt-0.5 text-[12px] font-medium text-muted-foreground">
-                      Detecting SKU, qty, courier, and payment.
+                      {importPhase === "finalizing"
+                        ? "Saving labels to your workspace now."
+                        : "Detecting SKU, qty, courier, and payment."}
                     </p>
                   </div>
                 </div>

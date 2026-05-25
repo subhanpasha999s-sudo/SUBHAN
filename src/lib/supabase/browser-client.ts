@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { normalizeSupabaseUrl } from "@/lib/supabase/url";
+
 let cached: SupabaseClient | null | undefined;
 
 /** Call after rotating env vars in dev Tools without restarting Electron/Cursor watchers */
@@ -18,6 +20,6 @@ export function getSupabaseBrowser(): SupabaseClient | null {
     cached = null;
     return null;
   }
-  cached = createClient(url, key);
+  cached = createClient(normalizeSupabaseUrl(url), key);
   return cached;
 }

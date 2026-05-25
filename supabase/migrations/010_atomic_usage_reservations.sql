@@ -1,3 +1,48 @@
+create table if not exists public.tulmin_usage_events (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  action text not null default 'filter',
+  label_count integer not null check (label_count >= 0),
+  month_key text not null,
+  billing_period_key text,
+  device_hash text,
+  ip_hash text,
+  ua_hash text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table public.tulmin_usage_events
+  drop constraint if exists tulmin_usage_events_action_check;
+
+alter table public.tulmin_usage_events
+  add constraint tulmin_usage_events_action_check
+  check (action in ('import', 'export', 'filter', 'crop', 'processed'));
+
+alter table public.tulmin_usage_events
+  add column if not exists billing_period_key text;
+
+alter table public.tulmin_usage_events
+  add column if not exists metadata jsonb not null default '{}'::jsonb;
+
+create index if not exists tulmin_usage_events_user_month_idx
+  on public.tulmin_usage_events (user_id, month_key, created_at desc);
+
+create index if not exists tulmin_usage_events_action_month_idx
+  on public.tulmin_usage_events (user_id, action, month_key, created_at desc);
+
+create index if not exists tulmin_usage_events_device_idx
+  on public.tulmin_usage_events (device_hash, month_key)
+  where device_hash is not null;
+
+alter table public.tulmin_usage_events enable row level security;
+
+drop policy if exists "Users can read own Tulmin usage" on public.tulmin_usage_events;
+create policy "Users can read own Tulmin usage"
+  on public.tulmin_usage_events
+  for select
+  using (auth.uid() = user_id);
+
 create or replace function public.tulmin_reserve_usage_labels(
   p_user_id uuid,
   p_action text,

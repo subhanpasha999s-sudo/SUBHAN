@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { normalizeSupabaseUrl } from "@/lib/supabase/url";
+
 let cached: SupabaseClient | null | undefined;
 let cachedServiceRole: SupabaseClient | null | undefined;
 
@@ -17,7 +19,7 @@ export function getSupabaseRouteHandler(): SupabaseClient | null {
     cached = null;
     return null;
   }
-  cached = createClient(url, key);
+  cached = createClient(normalizeSupabaseUrl(url), key);
   return cached;
 }
 
@@ -29,6 +31,6 @@ export function getSupabaseServiceRole(): SupabaseClient | null {
     cachedServiceRole = null;
     return null;
   }
-  cachedServiceRole = createClient(url, key);
+  cachedServiceRole = createClient(normalizeSupabaseUrl(url), key);
   return cachedServiceRole;
 }
