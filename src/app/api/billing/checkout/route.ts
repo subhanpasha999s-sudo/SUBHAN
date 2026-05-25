@@ -37,7 +37,13 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const body = (await req.json().catch(() => ({}))) as Partial<CheckoutBody>;
   const fp = requestFingerprint(req, body.browser);
-  const rateLimit = checkBillingRateLimit(`checkout:${auth.user.id}:${fp.deviceHash}`, 12, 60_000);
+  const service = getSupabaseServiceRole() ?? auth.sb;
+  const rateLimit = await checkBillingRateLimit(
+    service,
+    `checkout:${auth.user.id}:${fp.deviceHash}`,
+    12,
+    60_000
+  );
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many checkout attempts. Please wait a moment." },
@@ -45,7 +51,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const service = getSupabaseServiceRole() ?? auth.sb;
   const config = await getRazorpayBillingConfig(service);
   if (!config?.checkoutEnabled || !config.keyId || !config.keySecret) {
     return NextResponse.json(

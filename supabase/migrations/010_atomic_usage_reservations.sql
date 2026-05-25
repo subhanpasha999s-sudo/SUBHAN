@@ -43,6 +43,118 @@ create policy "Users can read own Tulmin usage"
   for select
   using (auth.uid() = user_id);
 
+create or replace function public.tulmin_usage_totals(
+  p_user_id uuid,
+  p_month_key text,
+  p_day_key text
+)
+returns table (
+  labels_used integer,
+  daily_labels_used integer
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    coalesce(sum(label_count), 0)::integer as labels_used,
+    coalesce(
+      sum(label_count) filter (
+        where created_at >= (p_day_key::date)::timestamptz
+          and created_at < ((p_day_key::date + 1)::timestamptz)
+      ),
+      0
+    )::integer as daily_labels_used
+  from public.tulmin_usage_events
+  where user_id = p_user_id
+    and month_key = p_month_key
+    and action in ('import', 'export', 'filter', 'crop', 'processed');
+$$;
+
+revoke all on function public.tulmin_usage_totals(uuid, text, text) from public;
+
+grant execute on function public.tulmin_usage_totals(uuid, text, text) to service_role;
+
+create table if not exists public.tulmin_rate_limits (
+  key text primary key,
+  count integer not null default 0 check (count >= 0),
+  reset_at timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists tulmin_rate_limits_reset_idx
+  on public.tulmin_rate_limits (reset_at);
+
+alter table public.tulmin_rate_limits enable row level security;
+
+create or replace function public.tulmin_check_rate_limit(
+  p_key text,
+  p_limit integer,
+  p_window_seconds integer
+)
+returns table (
+  ok boolean,
+  retry_after_seconds integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  now_at timestamptz := clock_timestamp();
+  bucket public.tulmin_rate_limits%rowtype;
+  next_reset timestamptz;
+begin
+  p_key := left(coalesce(p_key, ''), 512);
+  p_limit := greatest(1, coalesce(p_limit, 1));
+  p_window_seconds := greatest(1, coalesce(p_window_seconds, 60));
+  next_reset := now_at + make_interval(secs => p_window_seconds);
+
+  perform pg_advisory_xact_lock(hashtextextended('rate-limit:' || p_key, 0));
+
+  select *
+    into bucket
+    from public.tulmin_rate_limits
+    where key = p_key
+    for update;
+
+  if not found or bucket.reset_at <= now_at then
+    insert into public.tulmin_rate_limits (key, count, reset_at, updated_at)
+    values (p_key, 1, next_reset, now_at)
+    on conflict (key) do update
+      set count = 1,
+          reset_at = excluded.reset_at,
+          updated_at = excluded.updated_at;
+
+    ok := true;
+    retry_after_seconds := 0;
+    return next;
+    return;
+  end if;
+
+  if bucket.count >= p_limit then
+    ok := false;
+    retry_after_seconds := greatest(1, ceil(extract(epoch from bucket.reset_at - now_at))::integer);
+    return next;
+    return;
+  end if;
+
+  update public.tulmin_rate_limits
+    set count = bucket.count + 1,
+        updated_at = now_at
+    where key = p_key;
+
+  ok := true;
+  retry_after_seconds := 0;
+  return next;
+end;
+$$;
+
+revoke all on function public.tulmin_check_rate_limit(text, integer, integer) from public;
+
+grant execute on function public.tulmin_check_rate_limit(text, integer, integer) to service_role;
+
 create or replace function public.tulmin_reserve_usage_labels(
   p_user_id uuid,
   p_action text,

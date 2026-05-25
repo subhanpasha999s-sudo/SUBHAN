@@ -46,19 +46,29 @@ type DynamicPlanSetting = {
   daily_limit?: number | null;
 };
 
+type UsageTotalsRow = {
+  labels_used?: number | null;
+  daily_labels_used?: number | null;
+};
+
+type RateLimitRow = {
+  ok?: boolean | null;
+  retry_after_seconds?: number | null;
+};
+
 const BILLABLE_USAGE_ACTIONS = ["import", "export", "filter", "crop", "processed"] as const;
 
-const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+const fallbackRateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
-export function checkBillingRateLimit(
+function checkFallbackBillingRateLimit(
   key: string,
   limit: number,
   windowMs: number
 ): { ok: true } | { ok: false; retryAfterSeconds: number } {
   const now = Date.now();
-  const current = rateLimitBuckets.get(key);
+  const current = fallbackRateLimitBuckets.get(key);
   if (!current || current.resetAt <= now) {
-    rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    fallbackRateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
     return { ok: true };
   }
   if (current.count >= limit) {
@@ -68,6 +78,33 @@ export function checkBillingRateLimit(
     };
   }
   current.count += 1;
+  return { ok: true };
+}
+
+export async function checkBillingRateLimit(
+  sb: SupabaseClient | null | undefined,
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<{ ok: true } | { ok: false; retryAfterSeconds: number }> {
+  if (!sb) return checkFallbackBillingRateLimit(key, limit, windowMs);
+
+  const result = await sb.rpc("tulmin_check_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: Math.max(1, Math.ceil(windowMs / 1000)),
+  });
+
+  if (result.error) return checkFallbackBillingRateLimit(key, limit, windowMs);
+
+  const row = (Array.isArray(result.data) ? result.data[0] : result.data) as RateLimitRow | null;
+  if (row?.ok === false) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Number(row.retry_after_seconds) || 1),
+    };
+  }
+
   return { ok: true };
 }
 
@@ -170,33 +207,46 @@ export async function getServerEntitlement(
     dynamicPlan = dynamicPlanResult.data as DynamicPlanSetting;
   }
 
-  const usage = await sb
-    .from("tulmin_usage_events")
-    .select("label_count,created_at,action")
-    .eq("user_id", userId)
-    .eq("month_key", monthKey);
+  const usageTotals = await sb.rpc("tulmin_usage_totals", {
+    p_user_id: userId,
+    p_month_key: monthKey,
+    p_day_key: dayKey,
+  });
+  const usageTotalsRow = (
+    Array.isArray(usageTotals.data) ? usageTotals.data[0] : usageTotals.data
+  ) as UsageTotalsRow | null;
+  let labelsUsed = Math.max(0, Number(usageTotalsRow?.labels_used) || 0);
+  let dailyLabelsUsed = Math.max(0, Number(usageTotalsRow?.daily_labels_used) || 0);
 
-  const labelsUsed =
-    usage.error || !usage.data
-      ? 0
-      : usage.data.reduce((sum, row) => {
-          const action = typeof row.action === "string" ? row.action : "import";
-          if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
-            return sum;
-          }
-          return sum + (Number(row.label_count) || 0);
-        }, 0);
-  const dailyLabelsUsed =
-    usage.error || !usage.data
-      ? 0
-      : usage.data.reduce((sum, row) => {
-          const createdAt = typeof row.created_at === "string" ? row.created_at : "";
-          const action = typeof row.action === "string" ? row.action : "import";
-          if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
-            return sum;
-          }
-          return createdAt.startsWith(dayKey) ? sum + (Number(row.label_count) || 0) : sum;
-        }, 0);
+  if (usageTotals.error) {
+    const usage = await sb
+      .from("tulmin_usage_events")
+      .select("label_count,created_at,action")
+      .eq("user_id", userId)
+      .eq("month_key", monthKey);
+
+    labelsUsed =
+      usage.error || !usage.data
+        ? 0
+        : usage.data.reduce((sum, row) => {
+            const action = typeof row.action === "string" ? row.action : "import";
+            if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
+              return sum;
+            }
+            return sum + (Number(row.label_count) || 0);
+          }, 0);
+    dailyLabelsUsed =
+      usage.error || !usage.data
+        ? 0
+        : usage.data.reduce((sum, row) => {
+            const createdAt = typeof row.created_at === "string" ? row.created_at : "";
+            const action = typeof row.action === "string" ? row.action : "import";
+            if (!BILLABLE_USAGE_ACTIONS.includes(action as (typeof BILLABLE_USAGE_ACTIONS)[number])) {
+              return sum;
+            }
+            return createdAt.startsWith(dayKey) ? sum + (Number(row.label_count) || 0) : sum;
+          }, 0);
+  }
 
   const credits = await sb
     .from("tulmin_label_credit_grants")

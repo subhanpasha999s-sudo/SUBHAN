@@ -56,7 +56,12 @@ export async function POST(req: NextRequest) {
   const labelCount = Math.max(0, Math.min(200000, Math.floor(Number(body.labelCount) || 0)));
   const allowPartial = body.allowPartial === true;
   const fp = requestFingerprint(req, body.browser);
-  const rateLimit = checkBillingRateLimit(`usage:${auth.user.id}:${fp.deviceHash}`, 80, 60_000);
+  const rateLimit = await checkBillingRateLimit(
+    billingSb,
+    `usage:${auth.user.id}:${fp.deviceHash}`,
+    80,
+    60_000
+  );
   if (!rateLimit.ok) {
     await recordAbuseEvent(billingSb, {
       userId: auth.user.id,
