@@ -2,14 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   checkBillingRateLimit,
-  currentMonthKey,
   getServerEntitlement,
   recordAbuseEvent,
   requestFingerprint,
   requireBillingUser,
   touchDeviceTrial,
 } from "@/lib/billing/server";
-import type { ServerEntitlement } from "@/lib/billing/server";
+import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
 type UsageAction = "filter" | "crop" | "export" | "import";
 
@@ -20,36 +19,34 @@ type UsageBody = {
   browser?: Record<string, unknown>;
 };
 
+type UsageReservationRow = {
+  accepted_label_count?: number | null;
+  rejected_label_count?: number | null;
+  monthly_limit_hit?: boolean | null;
+  daily_limit_hit?: boolean | null;
+};
+
 const LIMIT_EXHAUSTED_MESSAGE =
   "Your monthly label limit is exhausted. Upgrade your plan or buy more usage to continue.";
 
 const DAILY_LIMIT_EXHAUSTED_MESSAGE =
   "You have used today's label allowance. Buy more labels or upgrade to continue processing now.";
 
-function projectEntitlementUsage(
-  entitlement: ServerEntitlement,
-  acceptedLabelCount: number
-): ServerEntitlement {
-  const nextLabelsUsed = entitlement.labelsUsed + acceptedLabelCount;
-  const nextDailyLabelsUsed = entitlement.dailyLabelsUsed + acceptedLabelCount;
-  return {
-    ...entitlement,
-    labelsUsed: nextLabelsUsed,
-    labelsRemaining:
-      entitlement.labelsLimit == null
-        ? null
-        : Math.max(0, entitlement.labelsLimit - nextLabelsUsed),
-    dailyLabelsUsed: nextDailyLabelsUsed,
-    dailyLabelsRemaining:
-      entitlement.dailyLabelsLimit == null
-        ? null
-        : Math.max(0, entitlement.dailyLabelsLimit - nextDailyLabelsUsed),
-  };
-}
-
 export async function POST(req: NextRequest) {
   const auth = await requireBillingUser(req);
   if (!auth.ok) return auth.response;
+  const billingSb = getSupabaseServiceRole();
+  if (!billingSb) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "server_unavailable",
+        message:
+          "Usage tracking is not configured. Add SUPABASE_SERVICE_ROLE_KEY so monthly label limits can be enforced securely.",
+      },
+      { status: 503 }
+    );
+  }
 
   const body = (await req.json().catch(() => ({}))) as UsageBody;
   const allowedAction = body.action === "crop" || body.action === "export" || body.action === "import";
@@ -59,7 +56,7 @@ export async function POST(req: NextRequest) {
   const fp = requestFingerprint(req, body.browser);
   const rateLimit = checkBillingRateLimit(`usage:${auth.user.id}:${fp.deviceHash}`, 80, 60_000);
   if (!rateLimit.ok) {
-    await recordAbuseEvent(auth.sb, {
+    await recordAbuseEvent(billingSb, {
       userId: auth.user.id,
       deviceHash: fp.deviceHash,
       ipHash: fp.ipHash,
@@ -78,7 +75,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const before = await getServerEntitlement(auth.sb, auth.user.id, fp.deviceHash);
+  const before = await getServerEntitlement(billingSb, auth.user.id, fp.deviceHash);
   if (before.abuseReview) {
     return NextResponse.json(
       {
@@ -103,27 +100,43 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const labelsRemaining =
-    before.labelsLimit == null ? null : Math.max(0, before.labelsLimit - before.labelsUsed);
-  const dailyLabelsRemaining =
-    before.dailyLabelsLimit == null
-      ? null
-      : Math.max(0, before.dailyLabelsLimit - before.dailyLabelsUsed);
-  const effectiveRemaining =
-    labelsRemaining == null && dailyLabelsRemaining == null
-      ? null
-      : Math.min(labelsRemaining ?? Number.POSITIVE_INFINITY, dailyLabelsRemaining ?? Number.POSITIVE_INFINITY);
-  const acceptedLabelCount =
-    effectiveRemaining == null
-      ? labelCount
-      : allowPartial
-        ? Math.min(labelCount, effectiveRemaining)
-        : labelCount > effectiveRemaining
-          ? 0
-          : labelCount;
-  const rejectedLabelCount = Math.max(0, labelCount - acceptedLabelCount);
-  const monthlyLimitHit = labelsRemaining != null && labelCount > labelsRemaining;
-  const dailyLimitHit = dailyLabelsRemaining != null && labelCount > dailyLabelsRemaining;
+  const reservation = await billingSb.rpc("tulmin_reserve_usage_labels", {
+    p_user_id: auth.user.id,
+    p_action: action,
+    p_requested_label_count: labelCount,
+    p_allow_partial: allowPartial,
+    p_month_key: before.monthKey,
+    p_day_key: before.dayKey,
+    p_monthly_limit: before.labelsLimit,
+    p_daily_limit: before.dailyLabelsLimit,
+    p_billing_period_key: before.monthKey,
+    p_device_hash: fp.deviceHash,
+    p_ip_hash: fp.ipHash,
+    p_ua_hash: fp.uaHash,
+    p_metadata: {},
+  });
+
+  if (reservation.error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "server_unavailable",
+        message:
+          "Usage could not be saved, so Tulmin stopped this run to protect your monthly label limit. Apply the latest billing migration and try again.",
+        entitlement: before,
+        trackingError: reservation.error.message,
+      },
+      { status: 503 }
+    );
+  }
+
+  const reservationRow = (
+    Array.isArray(reservation.data) ? reservation.data[0] : reservation.data
+  ) as UsageReservationRow | null;
+  const acceptedLabelCount = Math.max(0, Number(reservationRow?.accepted_label_count) || 0);
+  const rejectedLabelCount = Math.max(0, Number(reservationRow?.rejected_label_count) || 0);
+  const monthlyLimitHit = Boolean(reservationRow?.monthly_limit_hit);
+  const dailyLimitHit = Boolean(reservationRow?.daily_limit_hit);
 
   if ((monthlyLimitHit || dailyLimitHit) && acceptedLabelCount <= 0) {
     return NextResponse.json(
@@ -138,59 +151,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (acceptedLabelCount > 0) {
-    const insertPayload = {
-      user_id: auth.user.id,
-      action,
-      label_count: acceptedLabelCount,
-      month_key: currentMonthKey(),
-      billing_period_key: before.monthKey,
-      device_hash: fp.deviceHash,
-      ip_hash: fp.ipHash,
-      ua_hash: fp.uaHash,
-      metadata: {
-        requestedLabelCount: labelCount,
-        rejectedLabelCount,
-        allowPartial,
-      },
-    };
-    const insert = await auth.sb.from("tulmin_usage_events").insert(insertPayload);
-
-    if (insert.error) {
-      const legacyInsert = await auth.sb.from("tulmin_usage_events").insert({
-        user_id: auth.user.id,
-        action: action === "export" ? "export" : "import",
-        label_count: acceptedLabelCount,
-        month_key: currentMonthKey(),
-        device_hash: fp.deviceHash,
-        ip_hash: fp.ipHash,
-        ua_hash: fp.uaHash,
-      });
-
-      if (legacyInsert.error) {
-        if (before.plan === "free") {
-          await touchDeviceTrial(auth.sb, auth.user.id, fp, acceptedLabelCount);
-        }
-        const projectedEntitlement = projectEntitlementUsage(before, acceptedLabelCount);
-        return NextResponse.json({
-          ok: true,
-          entitlement: projectedEntitlement,
-          acceptedLabelCount,
-          rejectedLabelCount,
-          partial: rejectedLabelCount > 0,
-          limitReached: rejectedLabelCount > 0,
-          trackingUnavailable: true,
-          message:
-            "Usage was reserved for this run, but the billing migration must be applied so the count persists after refresh.",
-        });
-      }
-    }
-
     if (before.plan === "free") {
-      await touchDeviceTrial(auth.sb, auth.user.id, fp, acceptedLabelCount);
+      await touchDeviceTrial(billingSb, auth.user.id, fp, acceptedLabelCount);
     }
   }
 
-  const entitlement = await getServerEntitlement(auth.sb, auth.user.id, fp.deviceHash);
+  const entitlement = await getServerEntitlement(billingSb, auth.user.id, fp.deviceHash);
   return NextResponse.json({
     ok: true,
     entitlement,

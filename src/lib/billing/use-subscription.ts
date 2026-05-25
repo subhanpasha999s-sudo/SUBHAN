@@ -33,7 +33,6 @@ export type UsageReservationResult =
       rejectedLabelCount: number;
       partial?: boolean;
       limitReached?: boolean;
-      trackingUnavailable?: boolean;
       message?: string;
     }
   | {

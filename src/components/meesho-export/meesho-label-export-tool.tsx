@@ -2573,6 +2573,8 @@ export function MeeshoLabelExportTool() {
   const usageCloseToLimit = entitlement.labelsLimit != null && usagePct >= 90 && usagePct < 100;
   const usageLimitExhausted =
     entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
+  const canImportLabels = !parsing && (!userId || !usageLimitExhausted);
+  const importCtaLabel = userId && usageLimitExhausted ? "Limit reached" : "Choose PDFs";
 
   const filteredSkuExportBuckets = React.useMemo(
     () => buildSkuExportBuckets(filteredLabels),
@@ -2708,6 +2710,16 @@ export function MeeshoLabelExportTool() {
       setLoginRequiredOpen(true);
       return;
     }
+    if (usageLimitExhausted) {
+      const message = "Your monthly label limit is exhausted. Upgrade or buy more usage to continue.";
+      notify.info("Plan limit reached", { description: message });
+      promptUpgrade(message);
+      trackEvent("billing_usage_blocked", {
+        reason: "limit_reached",
+        label_count: 0,
+      });
+      return;
+    }
 
     const pdfFiles = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
     if (pdfFiles.length === 0) {
@@ -2841,14 +2853,6 @@ export function MeeshoLabelExportTool() {
         });
         return;
       }
-      if (reservation.trackingUnavailable) {
-        notify.info("Processing allowed", {
-          description:
-            reservation.message ||
-            "Usage tracking is still being prepared. Tulmin will continue this run normally.",
-          duration: 7000,
-        });
-      }
       if (reservation.partial) {
         const accepted = Math.max(0, reservation.acceptedLabelCount);
         usableNextRows = nextRows.slice(0, accepted);
@@ -2953,6 +2957,14 @@ export function MeeshoLabelExportTool() {
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
+    if (!canImportLabels) {
+      if (usageLimitExhausted) {
+        const message = "Your monthly label limit is exhausted. Upgrade or buy more usage to continue.";
+        notify.info("Plan limit reached", { description: message });
+        promptUpgrade(message);
+      }
+      return;
+    }
     const files = Array.from(e.dataTransfer.files ?? []);
     if (files.length > 0) void ingestPdfFiles(files);
   }
@@ -3854,7 +3866,8 @@ export function MeeshoLabelExportTool() {
             data-tour="import-pdf"
             className={cn(
               "relative grid gap-4 rounded-2xl border border-dashed border-border/70 bg-muted/14 p-4 transition-[border-color,box-shadow,background-color] hover:border-primary/45 hover:bg-muted/20 dark:bg-muted/10 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5",
-              parsing && "pointer-events-none opacity-80"
+              parsing && "pointer-events-none opacity-80",
+              userId && usageLimitExhausted && "opacity-75"
             )}
             onDragEnter={(e) => e.preventDefault()}
             onDragLeave={(e) => e.preventDefault()}
@@ -3868,7 +3881,7 @@ export function MeeshoLabelExportTool() {
               multiple
               className="sr-only"
               id="meesho-pdf-upload"
-              disabled={parsing}
+              disabled={!canImportLabels}
               onChange={onFileInput}
             />
             {parsing ? (
@@ -3933,16 +3946,23 @@ export function MeeshoLabelExportTool() {
                         Amazon
                       </span>
                     </div>
+                    {userId && usageLimitExhausted ? (
+                      <p className="mt-2 max-w-lg text-[12px] font-medium text-destructive">
+                        Monthly quota used. Upgrade your plan or buy more labels before importing another batch.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <label
                   htmlFor="meesho-pdf-upload"
                   className={cn(
                     buttonVariants({ size: "lg" }),
-                    "min-h-11 w-full cursor-pointer touch-manipulation justify-center rounded-xl font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]"
+                    "min-h-11 w-full cursor-pointer touch-manipulation justify-center rounded-xl font-semibold shadow-sm hover:brightness-[1.02] active:brightness-[0.98] sm:w-auto sm:min-w-[9.5rem]",
+                    !canImportLabels && "pointer-events-none cursor-not-allowed opacity-55"
                   )}
+                  aria-disabled={!canImportLabels}
                 >
-                  Choose PDFs
+                  {importCtaLabel}
                 </label>
               </>
             )}
