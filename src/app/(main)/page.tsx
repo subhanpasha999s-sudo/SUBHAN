@@ -246,8 +246,8 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc] text-slate-950 dark:bg-[#07101f] dark:text-white">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#f7f9fc]/86 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/82">
-        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Tulmin home">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="Tulmin home">
             <TulminBrand
               markClassName="size-10"
               titleClassName="text-[15px] text-slate-950 dark:text-white"
@@ -269,11 +269,20 @@ export default async function HomePage() {
               Pricing
             </Link>
           </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:hidden">
+            <Link
+              href="/pricing"
+              className="rounded-full px-2.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
+            >
+              Plans
+            </Link>
+          </div>
           <Link
             href="/export-labels"
-            className={cn(buttonVariants({ size: "lg" }), "h-10 rounded-full px-4 text-sm")}
+            className={cn(buttonVariants({ size: "lg" }), "h-10 shrink-0 rounded-full px-3 text-sm sm:px-4")}
           >
-            Run Labels Now
+            <span className="sm:hidden">Run</span>
+            <span className="hidden sm:inline">Run Labels Now</span>
             <ArrowRight className="size-4" strokeWidth={1.8} aria-hidden />
           </Link>
         </div>

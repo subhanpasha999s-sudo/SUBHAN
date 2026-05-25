@@ -2120,17 +2120,8 @@ export function MeeshoLabelExportTool() {
   const pendingLoginFilesRef = React.useRef<File[] | null>(null);
 
   React.useEffect(() => {
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
     warmRazorpayConnection();
-    if (idleWindow.requestIdleCallback) {
-      const idleId = idleWindow.requestIdleCallback(() => void loadRazorpayScript(), { timeout: 2500 });
-      return () => idleWindow.cancelIdleCallback?.(idleId);
-    }
-    const timer = window.setTimeout(() => void loadRazorpayScript(), 800);
-    return () => window.clearTimeout(timer);
+    void loadRazorpayScript();
   }, []);
 
   const [mapSnapshot, setMapSnapshot] = React.useState<{
