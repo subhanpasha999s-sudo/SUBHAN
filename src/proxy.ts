@@ -41,7 +41,7 @@ export function proxy(request: NextRequest) {
       !isInternalAssetPath(pathname) &&
       !isPublicContentPath(pathname)
     ) {
-      return NextResponse.redirect(new URL("/admin/analytics", request.url));
+      return NextResponse.redirect(new URL("/admin/login", request.url));
     }
   }
 

@@ -240,7 +240,7 @@ export default async function HomePage() {
   const host = (await headers()).get("host")?.split(":")[0].toLowerCase();
 
   if (host === "admin.tulmin.com") {
-    redirect("/admin/analytics");
+    redirect("/admin/login");
   }
 
   return (

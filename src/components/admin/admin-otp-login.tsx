@@ -96,7 +96,7 @@ export function AdminOtpLogin() {
         return;
       }
 
-      router.replace("/admin/blogs");
+      router.replace("/admin/analytics");
     } finally {
       setBusy(false);
     }
