@@ -23,6 +23,16 @@ type RazorpayWebhook = {
   };
 };
 
+function metadataCheckoutExpiresAt(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || !("checkoutExpiresAt" in metadata)) return null;
+  const value = (metadata as { checkoutExpiresAt?: unknown }).checkoutExpiresAt;
+  return typeof value === "string" ? value : null;
+}
+
+function checkoutExpired(expiresAt: string | null) {
+  return Boolean(expiresAt && Date.now() > new Date(expiresAt).getTime());
+}
+
 export async function POST(req: NextRequest) {
   const service = getSupabaseServiceRole();
   if (!service) return NextResponse.json({ error: "Service role is not configured." }, { status: 503 });
@@ -46,6 +56,7 @@ export async function POST(req: NextRequest) {
   const notes = payment?.notes ?? {};
   const userId = notes.userId;
   const userEmail = notes.userEmail?.trim().toLowerCase() || null;
+  const noteCheckoutExpiresAt = notes.checkoutExpiresAt?.trim() || null;
 
   if ((!orderId && !subscriptionId) || !paymentId || !userId) {
     return NextResponse.json({ ok: true, ignored: true });
@@ -53,7 +64,7 @@ export async function POST(req: NextRequest) {
 
   let existingQuery = service
     .from("tulmin_payment_events")
-    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id,status")
+    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id,status,metadata")
     .eq("provider", "razorpay");
   existingQuery = subscriptionId
     ? existingQuery.eq("provider_subscription_id", subscriptionId)
@@ -97,8 +108,37 @@ export async function POST(req: NextRequest) {
         provider_order_id?: string | null;
         provider_subscription_id?: string | null;
         status?: string | null;
+        metadata?: unknown;
       }
     | null;
+
+  const storedCheckoutExpiresAt = metadataCheckoutExpiresAt(row?.metadata);
+  const effectiveCheckoutExpiresAt = storedCheckoutExpiresAt ?? noteCheckoutExpiresAt;
+  if (row?.status !== "paid" && checkoutExpired(effectiveCheckoutExpiresAt)) {
+    const failurePayload = {
+      user_id: row?.user_id ?? userId,
+      provider: "razorpay",
+      provider_event_id: providerEventId,
+      provider_order_id: orderId || null,
+      provider_subscription_id: subscriptionId || null,
+      provider_payment_id: paymentId,
+      amount: Math.round((Number(payment?.amount) || 0) / 100),
+      currency: payment?.currency ?? "INR",
+      status: "failed",
+      failure_reason: "checkout_expired",
+      raw_event: event,
+      updated_at: new Date().toISOString(),
+    };
+    if (row?.id) {
+      await service.from("tulmin_payment_events").update(failurePayload).eq("id", row.id).neq("status", "paid");
+    } else {
+      await service.from("tulmin_payment_events").insert({
+        ...failurePayload,
+        metadata: { checkoutExpiresAt: effectiveCheckoutExpiresAt, webhookCreated: true },
+      });
+    }
+    return NextResponse.json({ ok: true, expired: true });
+  }
 
   if (!row) {
     const inserted = await service

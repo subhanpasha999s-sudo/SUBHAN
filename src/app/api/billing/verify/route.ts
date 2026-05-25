@@ -16,6 +16,16 @@ type VerifyBody = {
   signature?: string;
 };
 
+function metadataCheckoutExpiresAt(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || !("checkoutExpiresAt" in metadata)) return null;
+  const value = (metadata as { checkoutExpiresAt?: unknown }).checkoutExpiresAt;
+  return typeof value === "string" ? value : null;
+}
+
+function checkoutExpired(expiresAt: string | null) {
+  return Boolean(expiresAt && Date.now() > new Date(expiresAt).getTime());
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireBillingUser(req);
   if (!auth.ok) return auth.response;
@@ -67,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   let paymentQuery = service
     .from("tulmin_payment_events")
-    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id")
+    .select("id,user_id,plan,billing_cycle,label_credits,provider_order_id,provider_subscription_id,status,metadata")
     .eq("provider", "razorpay")
     .eq("user_id", auth.user.id);
   paymentQuery = subscriptionId
@@ -87,7 +97,26 @@ export async function POST(req: NextRequest) {
     label_credits?: number | null;
     provider_order_id?: string | null;
     provider_subscription_id?: string | null;
+    status?: string | null;
+    metadata?: unknown;
   };
+
+  if (row.status !== "paid" && checkoutExpired(metadataCheckoutExpiresAt(row.metadata))) {
+    await service
+      .from("tulmin_payment_events")
+      .update({
+        status: "failed",
+        failure_reason: "checkout_expired",
+        provider_payment_id: paymentId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .neq("status", "paid");
+    return NextResponse.json(
+      { error: "Checkout expired. Please start a new payment within 5 minutes." },
+      { status: 410 }
+    );
+  }
 
   await fulfilBillingPayment(service, {
     userId: row.user_id,

@@ -28,6 +28,7 @@ type CheckoutBody =
 
 const TOPUP_PRICE_PER_1000_LABELS = 49;
 const ALLOWED_TOPUPS = [500, 1000, 2500, 5000, 10000];
+const CHECKOUT_EXPIRY_MS = 5 * 60 * 1000;
 
 function planAmount(plan: TulminPlanId, cycle: BillingCycle, row?: Record<string, unknown> | null) {
   const fallback = TULMIN_PLAN_BY_ID[plan];
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
   let description = "";
   let subscriptionId = "";
   let order: { id: string; amount: number; currency: string } | null = null;
+  const checkoutExpiresAt = new Date(Date.now() + CHECKOUT_EXPIRY_MS).toISOString();
 
   if (body.type === "plan") {
     plan = body.plan && body.plan in TULMIN_PLAN_BY_ID ? body.plan : null;
@@ -124,6 +126,7 @@ export async function POST(req: NextRequest) {
         notes: {
           userId: auth.user.id,
           userEmail: auth.user.email ?? "",
+          checkoutExpiresAt,
           type: body.type,
           plan,
           cycle,
@@ -166,6 +169,7 @@ export async function POST(req: NextRequest) {
         notes: {
           userId: auth.user.id,
           userEmail: auth.user.email ?? "",
+          checkoutExpiresAt,
           type: body.type,
           plan: plan ?? "",
           cycle,
@@ -193,7 +197,13 @@ export async function POST(req: NextRequest) {
     status: "created",
     billing_cycle: cycle,
     label_credits: labelCredits,
-    metadata: { description, receipt, mode: config.mode, checkoutKind: body.type === "plan" ? "subscription" : "order" },
+    metadata: {
+      description,
+      receipt,
+      mode: config.mode,
+      checkoutKind: body.type === "plan" ? "subscription" : "order",
+      checkoutExpiresAt,
+    },
   };
   let payment = await service
     .from("tulmin_payment_events")
@@ -221,5 +231,6 @@ export async function POST(req: NextRequest) {
     plan,
     cycle,
     labelCredits,
+    checkoutExpiresAt,
   });
 }
