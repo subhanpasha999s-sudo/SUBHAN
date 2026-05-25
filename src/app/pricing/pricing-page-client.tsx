@@ -58,16 +58,33 @@ function getRazorpayConstructor() {
   }).Razorpay;
 }
 
+function warmRazorpayConnection() {
+  if (typeof document === "undefined") return;
+  for (const rel of ["preconnect", "dns-prefetch"] as const) {
+    const selector = `link[rel="${rel}"][href="https://checkout.razorpay.com"]`;
+    if (document.head.querySelector(selector)) continue;
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.href = "https://checkout.razorpay.com";
+    if (rel === "preconnect") link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  }
+}
+
 function loadRazorpayScript() {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (getRazorpayConstructor()) return Promise.resolve(true);
   if (razorpayScriptPromise) return razorpayScriptPromise;
+  warmRazorpayConnection();
   razorpayScriptPromise = new Promise((resolve) => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onerror = () => {
+      razorpayScriptPromise = null;
+      resolve(false);
+    };
     document.body.appendChild(script);
   });
   return razorpayScriptPromise;
@@ -83,6 +100,20 @@ export function PricingPageClient() {
     plan: TulminPlanId;
     cycle: BillingCycle;
   } | null>(null);
+
+  React.useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    warmRazorpayConnection();
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(() => void loadRazorpayScript(), { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+    const timer = window.setTimeout(() => void loadRazorpayScript(), 800);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function startBillingCheckout(plan: TulminPlanId, cycle: BillingCycle) {
     setCheckoutError(null);
@@ -104,6 +135,7 @@ export function PricingPageClient() {
     setCheckoutBusy(true);
     setCheckoutTarget({ plan, cycle });
     try {
+      const scriptReadyPromise = loadRazorpayScript();
       const checkout = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
@@ -136,7 +168,7 @@ export function PricingPageClient() {
         throw new Error(order.error || "Could not start checkout.");
       }
 
-      const scriptReady = await loadRazorpayScript();
+      const scriptReady = await scriptReadyPromise;
       const Razorpay = getRazorpayConstructor();
       if (!scriptReady || !Razorpay) throw new Error("Could not load Razorpay checkout.");
 

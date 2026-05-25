@@ -429,16 +429,33 @@ declare global {
 
 let razorpayScriptPromise: Promise<boolean> | null = null;
 
+function warmRazorpayConnection() {
+  if (typeof document === "undefined") return;
+  for (const rel of ["preconnect", "dns-prefetch"] as const) {
+    const selector = `link[rel="${rel}"][href="https://checkout.razorpay.com"]`;
+    if (document.head.querySelector(selector)) continue;
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.href = "https://checkout.razorpay.com";
+    if (rel === "preconnect") link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  }
+}
+
 function loadRazorpayScript() {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (window.Razorpay) return Promise.resolve(true);
   if (razorpayScriptPromise) return razorpayScriptPromise;
+  warmRazorpayConnection();
   razorpayScriptPromise = new Promise((resolve) => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onerror = () => {
+      razorpayScriptPromise = null;
+      resolve(false);
+    };
     document.body.appendChild(script);
   });
   return razorpayScriptPromise;
@@ -2102,6 +2119,20 @@ export function MeeshoLabelExportTool() {
   } | null>(null);
   const pendingLoginFilesRef = React.useRef<File[] | null>(null);
 
+  React.useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    warmRazorpayConnection();
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(() => void loadRazorpayScript(), { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+    const timer = window.setTimeout(() => void loadRazorpayScript(), 800);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const [mapSnapshot, setMapSnapshot] = React.useState<{
     masters: MasterSkuRecord[];
     skuMap: SkuMapRecord[];
@@ -2690,6 +2721,11 @@ export function MeeshoLabelExportTool() {
     () => buildSkuExportBuckets(filteredLabels),
     [filteredLabels]
   );
+  const selectedSkuExportBuckets = React.useMemo(
+    () => buildSkuExportBuckets(selectedLabelRows),
+    [selectedLabelRows]
+  );
+  const selectedDownloadIsZip = selectedSkuExportBuckets.length > 1;
 
   /** Download actions stay visible after import; selection just changes the scope labels. */
   const showDownloadMenu = filteredLabels.length > 0;
@@ -3086,6 +3122,7 @@ export function MeeshoLabelExportTool() {
     setCheckoutBusy(true);
     setCheckoutTarget(input.type === "plan" ? { plan: input.plan, cycle: input.cycle } : null);
     try {
+      const scriptReadyPromise = loadRazorpayScript();
       const checkout = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
@@ -3115,7 +3152,7 @@ export function MeeshoLabelExportTool() {
       if (!checkout.ok || !order.ok || !order.keyId || (!order.orderId && !order.subscriptionId) || !order.amount) {
         throw new Error(order.error || "Could not start checkout.");
       }
-      const scriptReady = await loadRazorpayScript();
+      const scriptReady = await scriptReadyPromise;
       if (!scriptReady || !window.Razorpay) throw new Error("Could not load Razorpay checkout.");
 
       const razorpay = new window.Razorpay({
@@ -4769,35 +4806,31 @@ export function MeeshoLabelExportTool() {
                     <DropdownMenuContent
                       align="end"
                       sideOffset={10}
-                      className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.06] backdrop-blur-xl"
+                      className="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                     >
                       {selectedTotal > 0 ? (
                         <DropdownMenuItem
                           className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                          onClick={() => void downloadFilteredPdf()}
+                          onClick={() =>
+                            void (selectedDownloadIsZip
+                              ? downloadSelectedSkuFilesZip()
+                              : downloadFilteredPdf())
+                          }
                         >
-                          Merged PDF — selected rows only
-                        </DropdownMenuItem>
-                      ) : null}
-                      {selectedTotal > 0 ? (
-                        <DropdownMenuItem
-                          className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
-                          onClick={() => void downloadSelectedSkuFilesZip()}
-                        >
-                          ZIP — one PDF per SKU (selected rows only)
+                          {selectedDownloadIsZip ? "Selected ZIP" : "Selected PDF"}
                         </DropdownMenuItem>
                       ) : null}
                       <DropdownMenuItem
                         className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
                         onClick={() => void downloadVisiblePdf()}
                       >
-                        Merged PDF — all visible rows
+                        Visible PDF
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer rounded-xl px-3 py-3 text-sm font-medium leading-snug whitespace-normal"
                         onClick={() => void requestDownloadAllSkuFiles()}
                       >
-                        ZIP — one PDF per SKU (all visible rows)
+                        Visible ZIP
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -4893,35 +4926,31 @@ export function MeeshoLabelExportTool() {
                         side="top"
                         align="end"
                         sideOffset={10}
-                        className="w-[min(100vw-2rem,22rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06] backdrop-blur-xl"
+                        className="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border-border/70 bg-background p-2 shadow-[0_22px_70px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06] backdrop-blur-xl"
                       >
                         {selectedTotal > 0 ? (
                           <DropdownMenuItem
                             className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                            onClick={() => void downloadFilteredPdf()}
+                            onClick={() =>
+                              void (selectedDownloadIsZip
+                                ? downloadSelectedSkuFilesZip()
+                                : downloadFilteredPdf())
+                            }
                           >
-                            Merged PDF — selected rows only
-                          </DropdownMenuItem>
-                        ) : null}
-                        {selectedTotal > 0 ? (
-                          <DropdownMenuItem
-                            className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
-                            onClick={() => void downloadSelectedSkuFilesZip()}
-                          >
-                            ZIP — one PDF per SKU (selected rows only)
+                            {selectedDownloadIsZip ? "Selected ZIP" : "Selected PDF"}
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem
                           className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
                           onClick={() => void downloadVisiblePdf()}
                         >
-                          Merged PDF — all visible rows
+                          Visible PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="cursor-pointer rounded-xl px-3 py-3 text-[13px] font-medium leading-snug whitespace-normal"
                           onClick={() => void requestDownloadAllSkuFiles()}
                         >
-                          ZIP — all visible rows
+                          Visible ZIP
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
