@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { getSiteUrl } from "@/lib/seo/site-url";
 
-import AccountPage from "./account-dynamic";
+import { AccountPageClient } from "./account-page-client";
 
 export const metadata: Metadata = {
   title: "Account",
@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function AccountRoutePage() {
-  return <AccountPage />;
+  return <AccountPageClient />;
 }

@@ -64,6 +64,79 @@ type BillingHistory = {
   }[];
 };
 
+const BILLING_HISTORY_CACHE_PREFIX = "tulmin.billing.history.";
+const BILLING_HISTORY_TIMEOUT_MS = 3500;
+
+function billingHistoryCacheKey(userId: string) {
+  return `${BILLING_HISTORY_CACHE_PREFIX}${userId}`;
+}
+
+function currentMonthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function currentDayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fallbackBillingHistory(): BillingHistory {
+  const freePlan = TULMIN_PLAN_BY_ID.free;
+  return {
+    entitlement: {
+      plan: "free",
+      status: "free",
+      labelsUsed: 0,
+      labelsLimit: freePlan.labelLimit,
+      labelsRemaining: freePlan.labelLimit,
+      dailyLabelsUsed: 0,
+      dailyLabelsLimit: freePlan.dailyLabelLimit ?? null,
+      dailyLabelsRemaining: freePlan.dailyLabelLimit ?? null,
+      monthKey: currentMonthKey(),
+      dayKey: currentDayKey(),
+      abuseReview: false,
+      loaded: true,
+    },
+    subscription: null,
+    payments: [],
+  };
+}
+
+function readCachedBillingHistory(userId: string): BillingHistory | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(billingHistoryCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as BillingHistory;
+    if (!parsed?.entitlement) return null;
+    return {
+      ...parsed,
+      entitlement: { ...parsed.entitlement, loaded: true },
+      payments: Array.isArray(parsed.payments) ? parsed.payments : [],
+      subscription: parsed.subscription ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedBillingHistory(userId: string, billing: BillingHistory) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(billingHistoryCacheKey(userId), JSON.stringify(billing));
+  } catch {
+    // Storage is best-effort; the account page can always fall back to the free snapshot.
+  }
+}
+
+function withTimeout(ms: number) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), ms);
+  return {
+    signal: controller.signal,
+    clear: () => window.clearTimeout(timeout),
+  };
+}
+
 function initials(name: string, email?: string | null) {
   const source = name.trim() || email?.trim() || "Tulmin";
   const parts = source.split(/\s+/).filter(Boolean);
@@ -153,6 +226,7 @@ export function AccountPageClient() {
   });
   const [billing, setBilling] = React.useState<BillingHistory | null>(null);
   const [billingBusy, setBillingBusy] = React.useState(false);
+  const [billingError, setBillingError] = React.useState<string | null>(null);
   const activePlanId = normalizePlanId(billing?.entitlement.plan);
   const activePlan = TULMIN_PLAN_BY_ID[activePlanId];
   const nextPlan = nextPlanRecommendation(activePlanId);
@@ -173,11 +247,16 @@ export function AccountPageClient() {
     async function loadBilling() {
       if (!user?.id) {
         setBilling(null);
+        setBillingError(null);
         return;
       }
+      setBilling(readCachedBillingHistory(user.id) ?? fallbackBillingHistory());
+      setBillingError(null);
+
       const sb = getSupabaseBrowser();
       if (!sb) return;
       setBillingBusy(true);
+      const timeout = withTimeout(BILLING_HISTORY_TIMEOUT_MS);
       try {
         const { data } = await sb.auth.getSession();
         const token = data.session?.access_token;
@@ -185,10 +264,28 @@ export function AccountPageClient() {
         const res = await fetch("/api/billing/history", {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
+          signal: timeout.signal,
         });
         const json = (await res.json().catch(() => null)) as BillingHistory | null;
-        if (alive && res.ok && json) setBilling(json);
+        if (alive && res.ok && json) {
+          const next = {
+            ...json,
+            entitlement: { ...json.entitlement, loaded: true },
+            payments: Array.isArray(json.payments) ? json.payments : [],
+            subscription: json.subscription ?? null,
+          };
+          writeCachedBillingHistory(user.id, next);
+          setBilling(next);
+          setBillingError(null);
+        } else if (alive) {
+          setBillingError("Live billing could not be refreshed. Showing the latest local snapshot.");
+        }
+      } catch {
+        if (alive) {
+          setBillingError("Live billing is taking longer than expected. Showing the latest local snapshot.");
+        }
       } finally {
+        timeout.clear();
         if (alive) setBillingBusy(false);
       }
     }
@@ -337,7 +434,7 @@ export function AccountPageClient() {
             <div className="grid gap-5 xl:grid-cols-[minmax(18rem,0.42fr)_minmax(0,1fr)] xl:items-start">
             <WorkspaceSurfaceCard
               padding="p-0"
-              className="overflow-hidden border-border/30 bg-[linear-gradient(145deg,hsl(var(--card)),hsl(var(--muted)/0.34))] shadow-elevate-sm ring-1 ring-black/[0.03]"
+              className="overflow-hidden border-border/30 bg-[linear-gradient(145deg,var(--card),color-mix(in_srgb,var(--muted)_34%,transparent))] shadow-elevate-sm ring-1 ring-black/[0.03]"
             >
               <div className="relative overflow-hidden px-5 py-6 sm:px-8 sm:py-8">
                 <div className="pointer-events-none absolute right-[-8rem] top-[-9rem] h-72 w-72 rounded-full bg-primary/14 blur-3xl" />
@@ -422,19 +519,23 @@ export function AccountPageClient() {
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     Plan, usage, renewal, payments, and invoices in one place.
                   </p>
+                  {billingBusy ? (
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                      Refreshing live billing
+                    </p>
+                  ) : billingError ? (
+                    <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-300">
+                      {billingError}
+                    </p>
+                  ) : null}
                 </div>
                 <Link href="/pricing?returnTo=/account" className={cn(buttonVariants(), "w-full sm:w-auto")}>
                   Change plan
                 </Link>
               </div>
 
-              {billingBusy && !billing ? (
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="h-24 animate-pulse rounded-2xl border border-border/55 bg-muted/35" />
-                  ))}
-                </div>
-              ) : billing ? (
+              {billing ? (
                 <>
                   <div className="mt-5 overflow-hidden rounded-3xl border border-border/55 bg-background/45">
                     <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
