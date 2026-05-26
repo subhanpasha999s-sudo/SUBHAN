@@ -139,16 +139,17 @@ function mapSettings(row?: BillingSettingsRow | null) {
 }
 
 function mapPlan(row: PlanRow): AdminBillingPlanSetting {
+  const isFree = row.plan === "free";
   return {
     plan: row.plan,
     enabled: row.enabled,
-    monthlyPrice: row.monthly_price,
-    yearlyMonthlyEquivalent: row.yearly_monthly_equivalent,
-    yearlyTotal: row.yearly_total,
+    monthlyPrice: isFree ? 0 : row.monthly_price,
+    yearlyMonthlyEquivalent: isFree ? 0 : row.yearly_monthly_equivalent,
+    yearlyTotal: isFree ? 0 : row.yearly_total,
     labelLimit: row.label_limit,
     dailyLimit: row.daily_limit,
-    razorpayMonthlyPlanId: row.razorpay_monthly_plan_id ?? "",
-    razorpayYearlyPlanId: row.razorpay_yearly_plan_id ?? "",
+    razorpayMonthlyPlanId: isFree ? "" : row.razorpay_monthly_plan_id ?? "",
+    razorpayYearlyPlanId: isFree ? "" : row.razorpay_yearly_plan_id ?? "",
   };
 }
 
@@ -375,19 +376,24 @@ export async function PUT(req: NextRequest) {
   }
 
   if (Array.isArray(body.plans)) {
-    const rows = body.plans.map((plan) => ({
-      plan: plan.plan,
-      enabled: Boolean(plan.enabled),
-      monthly_price: Math.max(0, Math.floor(Number(plan.monthlyPrice) || 0)),
-      yearly_monthly_equivalent: Math.max(0, Math.floor(Number(plan.yearlyMonthlyEquivalent) || 0)),
-      yearly_total: Math.max(0, Math.floor(Number(plan.yearlyTotal) || 0)),
-      label_limit: plan.labelLimit == null ? null : Math.max(0, Math.floor(Number(plan.labelLimit) || 0)),
-      daily_limit: plan.dailyLimit == null ? null : Math.max(0, Math.floor(Number(plan.dailyLimit) || 0)),
-      razorpay_monthly_plan_id: plan.razorpayMonthlyPlanId?.trim() ?? "",
-      razorpay_yearly_plan_id: plan.razorpayYearlyPlanId?.trim() ?? "",
-      updated_by: admin.id,
-      updated_at: new Date().toISOString(),
-    }));
+    const rows = body.plans.map((plan) => {
+      const isFree = plan.plan === "free";
+      return {
+        plan: plan.plan,
+        enabled: isFree ? true : Boolean(plan.enabled),
+        monthly_price: isFree ? 0 : Math.max(0, Math.floor(Number(plan.monthlyPrice) || 0)),
+        yearly_monthly_equivalent: isFree
+          ? 0
+          : Math.max(0, Math.floor(Number(plan.yearlyMonthlyEquivalent) || 0)),
+        yearly_total: isFree ? 0 : Math.max(0, Math.floor(Number(plan.yearlyTotal) || 0)),
+        label_limit: plan.labelLimit == null ? null : Math.max(0, Math.floor(Number(plan.labelLimit) || 0)),
+        daily_limit: plan.dailyLimit == null ? null : Math.max(0, Math.floor(Number(plan.dailyLimit) || 0)),
+        razorpay_monthly_plan_id: isFree ? "" : plan.razorpayMonthlyPlanId?.trim() ?? "",
+        razorpay_yearly_plan_id: isFree ? "" : plan.razorpayYearlyPlanId?.trim() ?? "",
+        updated_by: admin.id,
+        updated_at: new Date().toISOString(),
+      };
+    });
     const savedPlans = await sb.from("tulmin_plan_settings").upsert(rows, { onConflict: "plan" });
     if (savedPlans.error) return NextResponse.json({ error: savedPlans.error.message }, { status: 500 });
   }

@@ -123,6 +123,7 @@ export function isPaidPlan(planId: TulminPlanId): boolean {
 }
 
 export function formatPlanPrice(plan: TulminPlan, cycle: BillingCycle): string {
+  if (plan.id === "free") return "₹0";
   const amount = cycle === "yearly" ? plan.yearlyMonthlyEquivalent : plan.monthlyPrice;
   return `₹${amount.toLocaleString("en-IN")}`;
 }

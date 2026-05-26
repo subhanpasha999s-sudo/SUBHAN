@@ -393,83 +393,96 @@ export function AdminBillingDashboard() {
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {data.plans.map((plan) => (
-                    <div key={plan.plan} className="rounded-lg border border-white/10 bg-black/20 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold capitalize">{plan.plan}</p>
-                          <p className="text-xs text-slate-500">
-                            {plan.labelLimit == null ? "Unlimited labels" : `${plan.labelLimit.toLocaleString("en-IN")} labels/month`}
-                          </p>
+                  {data.plans.map((plan) => {
+                    const isFreePlan = plan.plan === "free";
+                    return (
+                      <div key={plan.plan} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold capitalize">{plan.plan}</p>
+                            <p className="text-xs text-slate-500">
+                              {isFreePlan
+                                ? "Always ₹0. Label limit can still be changed."
+                                : plan.labelLimit == null
+                                  ? "Unlimited labels"
+                                  : `${plan.labelLimit.toLocaleString("en-IN")} labels/month`}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className={plan.enabled ? "rounded-md bg-emerald-400/10 px-2.5 py-1 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-70" : "rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-slate-500"}
+                            disabled={isFreePlan}
+                            onClick={() => updatePlan(plan.plan, { enabled: !plan.enabled })}
+                          >
+                            {plan.enabled ? "Enabled" : "Disabled"}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          className={plan.enabled ? "rounded-md bg-emerald-400/10 px-2.5 py-1 text-xs font-bold text-emerald-200" : "rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-slate-500"}
-                          onClick={() => updatePlan(plan.plan, { enabled: !plan.enabled })}
-                        >
-                          {plan.enabled ? "Enabled" : "Disabled"}
-                        </button>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <input
+                            className={inputClass()}
+                            type="number"
+                            value={isFreePlan ? 0 : plan.monthlyPrice}
+                            disabled={isFreePlan}
+                            onChange={(e) => updatePlan(plan.plan, { monthlyPrice: Number(e.target.value) })}
+                            aria-label={`${plan.plan} monthly price`}
+                          />
+                          <input
+                            className={inputClass()}
+                            value={isFreePlan ? "" : plan.razorpayMonthlyPlanId}
+                            disabled={isFreePlan}
+                            onChange={(e) => updatePlan(plan.plan, { razorpayMonthlyPlanId: e.target.value })}
+                            placeholder={isFreePlan ? "Free plan has no Razorpay plan ID" : "Razorpay monthly plan ID"}
+                          />
+                          <input
+                            className={inputClass()}
+                            type="number"
+                            value={isFreePlan ? 0 : plan.yearlyMonthlyEquivalent}
+                            disabled={isFreePlan}
+                            onChange={(e) => updatePlan(plan.plan, { yearlyMonthlyEquivalent: Number(e.target.value) })}
+                            aria-label={`${plan.plan} yearly monthly equivalent`}
+                            placeholder="Yearly monthly equivalent"
+                          />
+                          <input
+                            className={inputClass()}
+                            type="number"
+                            value={isFreePlan ? 0 : plan.yearlyTotal}
+                            disabled={isFreePlan}
+                            onChange={(e) => updatePlan(plan.plan, { yearlyTotal: Number(e.target.value) })}
+                            aria-label={`${plan.plan} yearly total`}
+                          />
+                          <input
+                            className={inputClass()}
+                            value={isFreePlan ? "" : plan.razorpayYearlyPlanId}
+                            disabled={isFreePlan}
+                            onChange={(e) => updatePlan(plan.plan, { razorpayYearlyPlanId: e.target.value })}
+                            placeholder={isFreePlan ? "Free plan has no Razorpay plan ID" : "Razorpay yearly plan ID"}
+                          />
+                          <input
+                            className={inputClass()}
+                            type="number"
+                            value={plan.labelLimit ?? ""}
+                            onChange={(e) =>
+                              updatePlan(plan.plan, {
+                                labelLimit: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            placeholder="Monthly label limit, blank = unlimited"
+                          />
+                          <input
+                            className={inputClass()}
+                            type="number"
+                            value={plan.dailyLimit ?? ""}
+                            onChange={(e) =>
+                              updatePlan(plan.plan, {
+                                dailyLimit: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            placeholder="Daily label limit, blank = none"
+                          />
+                        </div>
                       </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <input
-                          className={inputClass()}
-                          type="number"
-                          value={plan.monthlyPrice}
-                          onChange={(e) => updatePlan(plan.plan, { monthlyPrice: Number(e.target.value) })}
-                          aria-label={`${plan.plan} monthly price`}
-                        />
-                        <input
-                          className={inputClass()}
-                          value={plan.razorpayMonthlyPlanId}
-                          onChange={(e) => updatePlan(plan.plan, { razorpayMonthlyPlanId: e.target.value })}
-                          placeholder="Razorpay monthly plan ID"
-                        />
-                        <input
-                          className={inputClass()}
-                          type="number"
-                          value={plan.yearlyMonthlyEquivalent}
-                          onChange={(e) => updatePlan(plan.plan, { yearlyMonthlyEquivalent: Number(e.target.value) })}
-                          aria-label={`${plan.plan} yearly monthly equivalent`}
-                          placeholder="Yearly monthly equivalent"
-                        />
-                        <input
-                          className={inputClass()}
-                          type="number"
-                          value={plan.yearlyTotal}
-                          onChange={(e) => updatePlan(plan.plan, { yearlyTotal: Number(e.target.value) })}
-                          aria-label={`${plan.plan} yearly total`}
-                        />
-                        <input
-                          className={inputClass()}
-                          value={plan.razorpayYearlyPlanId}
-                          onChange={(e) => updatePlan(plan.plan, { razorpayYearlyPlanId: e.target.value })}
-                          placeholder="Razorpay yearly plan ID"
-                        />
-                        <input
-                          className={inputClass()}
-                          type="number"
-                          value={plan.labelLimit ?? ""}
-                          onChange={(e) =>
-                            updatePlan(plan.plan, {
-                              labelLimit: e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          placeholder="Monthly label limit, blank = unlimited"
-                        />
-                        <input
-                          className={inputClass()}
-                          type="number"
-                          value={plan.dailyLimit ?? ""}
-                          onChange={(e) =>
-                            updatePlan(plan.plan, {
-                              dailyLimit: e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          placeholder="Daily label limit, blank = none"
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </section>
