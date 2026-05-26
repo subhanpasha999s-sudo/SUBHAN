@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, CreditCard, FileText } from "lucide-react";
+import { BarChart3, CreditCard, FileText, MessageSquareReply } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/billing", label: "MRR & billing", icon: CreditCard },
+  { href: "/admin/business-support", label: "Business messages", icon: MessageSquareReply },
   { href: "/admin/blogs", label: "Blogs", icon: FileText },
 ] as const;
 

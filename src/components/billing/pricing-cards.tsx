@@ -13,12 +13,12 @@ import {
   Loader2,
   PackageCheck,
   Scissors,
-  Sparkles,
   Truck,
   Users,
   Zap,
 } from "lucide-react";
 
+import { TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { Button } from "@/components/ui/button";
 import {
   TULMIN_PLANS,
@@ -118,7 +118,7 @@ export function PricingCards({
       <div className="relative mx-auto max-w-[94rem]">
         <div className="mx-auto max-w-3xl text-center">
           <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-1 text-xs font-semibold text-white/62">
-            <Sparkles className="size-3.5 text-[#8d87ff]" aria-hidden />
+            <TulminLogoMark className="size-4" />
             Same tools in every plan
           </p>
           <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">

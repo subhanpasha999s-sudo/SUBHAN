@@ -25,6 +25,7 @@ import {
   WorkspaceModulePageStack,
   WorkspaceSurfaceCard,
 } from "@/components/layout/workspace-layout";
+import { BusinessSupportPanel } from "@/components/business-support/business-support-panel";
 import { ModulePageHeader } from "@/components/layout/module-page-header";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -649,6 +650,9 @@ export function AccountPageClient() {
                         No payment history yet.
                       </p>
                     )}
+                  </div>
+                  <div className="mt-5">
+                    <BusinessSupportPanel enabled={activePlanId === "business"} />
                   </div>
                 </>
               ) : null}

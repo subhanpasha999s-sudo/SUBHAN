@@ -96,7 +96,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     dailyLabelLimit: null,
     dailyFit: "Unlimited heavy batch workflows",
     tagline: "For high-volume teams and custom needs.",
-    cta: "Talk to Sales",
+    cta: "Upgrade to Business",
     badge: "FOR TEAMS",
     features: [
       "Unlimited heavy batch use",

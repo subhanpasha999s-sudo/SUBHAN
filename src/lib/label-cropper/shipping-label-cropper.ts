@@ -162,9 +162,29 @@ function invoiceBoundaryFromText(items: readonly PositionedTextItem[]): number |
   return null;
 }
 
+function invoiceBottomFromText(
+  items: readonly PositionedTextItem[],
+  invoiceTop: number,
+  fallbackBottom: number
+): number {
+  const lastInvoiceTextTop = items
+    .map((item) => ({
+      top: item.top,
+      normalized: item.text.replace(/\s+/g, " ").trim(),
+    }))
+    .filter((item) => item.normalized.length > 0)
+    .map((item) => item.top)
+    .filter((top) => top > invoiceTop + 0.025 && top < 0.95)
+    .sort((a, b) => b - a)[0];
+
+  if (lastInvoiceTextTop == null) return fallbackBottom;
+  return Math.max(invoiceTop + 0.18, Math.min(fallbackBottom, lastInvoiceTextTop + 0.055));
+}
+
 function rectsSplitAtInvoice(
   rects: ReturnType<typeof defaultRects>,
-  items: readonly PositionedTextItem[]
+  items: readonly PositionedTextItem[],
+  options: { invoiceTopBleed?: number } = {}
 ) {
   const boundary = invoiceBoundaryFromText(items);
   if (boundary == null) return rects;
@@ -173,11 +193,12 @@ function rectsSplitAtInvoice(
     ...rects.shipping,
     height: safeBoundary - rects.shipping.y,
   });
-  const invoiceY = Math.min(0.96, safeBoundary + 0.006);
+  const invoiceY = Math.max(0.18, Math.min(0.96, safeBoundary + 0.006 - (options.invoiceTopBleed ?? 0)));
+  const invoiceBottom = invoiceBottomFromText(items, invoiceY, rects.invoice.y + rects.invoice.height);
   const invoice = clampCropRect({
     ...rects.invoice,
     y: invoiceY,
-    height: 1 - invoiceY - 0.005,
+    height: invoiceBottom - invoiceY,
   });
   return { ...rects, shipping, invoice };
 }
@@ -382,7 +403,7 @@ function analyzePageText(
   const rects =
     marketplace === "flipkart"
       ? {
-          ...rectsSplitAtInvoice(baseRects, positionedItems),
+          ...rectsSplitAtInvoice(baseRects, positionedItems, { invoiceTopBleed: 0.035 }),
           shipping: contentBounds ?? baseRects.shipping,
           full: contentBounds ?? baseRects.shipping,
         }

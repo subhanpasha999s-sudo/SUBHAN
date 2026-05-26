@@ -5,7 +5,6 @@ import * as React from "react";
 import { toast as notify } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  AlertCircle,
   ArrowDown,
   ArrowUp,
   Archive,
@@ -21,7 +20,6 @@ import {
   X,
 } from "lucide-react";
 
-import { PricingCards } from "@/components/billing/pricing-cards";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { ShippingLabelCropper } from "@/components/label-cropper/shipping-label-cropper";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -70,7 +68,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { fetchSkuMapSnapshot } from "@/lib/supabase/sku-map-remote";
 import { readSkuMapSnapshotCache } from "@/lib/supabase/sku-map-snapshot-cache";
 import { trackEvent } from "@/lib/analytics/posthog-client";
-import { TULMIN_PLAN_BY_ID, nextPlanRecommendation, type BillingCycle, type TulminPlanId } from "@/lib/billing/plans";
+import { TULMIN_PLAN_BY_ID } from "@/lib/billing/plans";
 import { useSubscriptionEntitlement } from "@/lib/billing/use-subscription";
 import {
   analyzeCropperPdfBytes,
@@ -386,81 +384,6 @@ type ImportedPdfSource = {
   pdfBytes: Uint8Array;
   order: number;
 };
-
-type RazorpayCheckoutOptions = {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id?: string;
-  subscription_id?: string;
-  prefill?: { email?: string; name?: string };
-  notes?: Record<string, string>;
-  timeout?: number;
-  handler: (response: {
-    razorpay_order_id: string;
-    razorpay_subscription_id?: string;
-    razorpay_payment_id: string;
-    razorpay_signature: string;
-  }) => void | Promise<void>;
-  modal?: { ondismiss?: () => void };
-};
-
-type RazorpayCheckoutFailure = {
-  error?: {
-    code?: string;
-    description?: string;
-    reason?: string;
-    source?: string;
-    step?: string;
-  };
-};
-
-type RazorpayCheckoutInstance = {
-  open: () => void;
-  on?: (event: "payment.failed", handler: (response: RazorpayCheckoutFailure) => void) => void;
-};
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckoutInstance;
-  }
-}
-
-let razorpayScriptPromise: Promise<boolean> | null = null;
-
-function warmRazorpayConnection() {
-  if (typeof document === "undefined") return;
-  for (const rel of ["preconnect", "dns-prefetch"] as const) {
-    const selector = `link[rel="${rel}"][href="https://checkout.razorpay.com"]`;
-    if (document.head.querySelector(selector)) continue;
-    const link = document.createElement("link");
-    link.rel = rel;
-    link.href = "https://checkout.razorpay.com";
-    if (rel === "preconnect") link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
-  }
-}
-
-function loadRazorpayScript() {
-  if (typeof window === "undefined") return Promise.resolve(false);
-  if (window.Razorpay) return Promise.resolve(true);
-  if (razorpayScriptPromise) return razorpayScriptPromise;
-  warmRazorpayConnection();
-  razorpayScriptPromise = new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => {
-      razorpayScriptPromise = null;
-      resolve(false);
-    };
-    document.body.appendChild(script);
-  });
-  return razorpayScriptPromise;
-}
 
 type PdfExportStep = Parameters<typeof exportPdfPagesFromMultiSourceOrdered>[0][number];
 
@@ -2083,12 +2006,7 @@ export function MeeshoLabelExportTool() {
   const {
     entitlement,
     loading: entitlementLoading,
-    refresh: refreshEntitlement,
     reserveLabels,
-    upgradeOpen,
-    setUpgradeOpen,
-    upgradeReason,
-    promptUpgrade,
   } = useSubscriptionEntitlement(userId);
 
   const [rows, setRows] = React.useState<MeeshoLabelRecord[]>([]);
@@ -2112,18 +2030,7 @@ export function MeeshoLabelExportTool() {
     null
   );
   const [loginRequiredOpen, setLoginRequiredOpen] = React.useState(false);
-  const [checkoutBusy, setCheckoutBusy] = React.useState(false);
-  const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
-  const [checkoutTarget, setCheckoutTarget] = React.useState<{
-    plan: TulminPlanId;
-    cycle: BillingCycle;
-  } | null>(null);
   const pendingLoginFilesRef = React.useRef<File[] | null>(null);
-
-  React.useEffect(() => {
-    warmRazorpayConnection();
-    void loadRazorpayScript();
-  }, []);
 
   const [mapSnapshot, setMapSnapshot] = React.useState<{
     masters: MasterSkuRecord[];
@@ -2697,7 +2604,6 @@ export function MeeshoLabelExportTool() {
   const canUsePremiumExports =
     entitlement.plan === "pro" || entitlement.plan === "business";
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
-  const recommendedPlan = nextPlanRecommendation(entitlement.plan);
   const usageLoading = Boolean(userId && !entitlement.loaded);
   const usagePct =
     entitlement.labelsLimit != null && entitlement.labelsLimit > 0
@@ -2708,6 +2614,16 @@ export function MeeshoLabelExportTool() {
     entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
   const canImportLabels = !parsing;
   const importCtaLabel = "Choose PDFs";
+
+  function openPricingPage(reason: string) {
+    trackEvent("billing_pricing_page_opened_from_tool", {
+      current_plan: entitlement.plan,
+      reason,
+    });
+    const returnTo =
+      typeof window === "undefined" ? "/export-labels" : window.location.pathname || "/export-labels";
+    window.location.assign(`/pricing?returnTo=${encodeURIComponent(returnTo)}`);
+  }
 
   const filteredSkuExportBuckets = React.useMemo(
     () => buildSkuExportBuckets(filteredLabels),
@@ -3090,143 +3006,6 @@ export function MeeshoLabelExportTool() {
     setSelected({});
   }
 
-  async function startBillingCheckout(
-    input:
-      | { type: "plan"; plan: TulminPlanId; cycle: BillingCycle }
-      | { type: "topup"; labelCredits: number }
-  ) {
-    setCheckoutError(null);
-    if (!userId) {
-      setCheckoutError("Sign in before starting checkout.");
-      openOptionalSignIn();
-      return;
-    }
-    const sb = getSupabaseBrowser();
-    const { data } = sb ? await sb.auth.getSession() : { data: { session: null } };
-    const token = data.session?.access_token;
-    if (!token) {
-      setCheckoutError("Your login session is missing. Sign in again before checkout.");
-      openOptionalSignIn();
-      return;
-    }
-
-    setCheckoutBusy(true);
-    setCheckoutTarget(input.type === "plan" ? { plan: input.plan, cycle: input.cycle } : null);
-    try {
-      const scriptReadyPromise = loadRazorpayScript();
-      const checkout = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...input,
-          browser: {
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            language: navigator.language,
-            platform: navigator.platform,
-            screen: `${window.screen.width}x${window.screen.height}x${window.devicePixelRatio}`,
-          },
-        }),
-      });
-      const order = (await checkout.json().catch(() => ({}))) as {
-        ok?: boolean;
-        keyId?: string;
-        orderId?: string;
-        subscriptionId?: string;
-        amount?: number;
-        currency?: string;
-        description?: string;
-        error?: string;
-      };
-      if (!checkout.ok || !order.ok || !order.keyId || (!order.orderId && !order.subscriptionId) || !order.amount) {
-        throw new Error(order.error || "Could not start checkout.");
-      }
-      const scriptReady = await scriptReadyPromise;
-      if (!scriptReady || !window.Razorpay) throw new Error("Could not load Razorpay checkout.");
-
-      const razorpay = new window.Razorpay({
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency ?? "INR",
-        name: "Tulmin AI",
-        description: order.description ?? "Tulmin AI billing",
-        ...(order.orderId ? { order_id: order.orderId } : {}),
-        ...(order.subscriptionId ? { subscription_id: order.subscriptionId } : {}),
-        prefill: {
-          email: user?.email ?? "",
-          name: user?.user_metadata?.full_name ? String(user.user_metadata.full_name) : "",
-        },
-        timeout: 300,
-        handler: async (response) => {
-          try {
-            const verified = await fetch("/api/billing/verify", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                orderId: response.razorpay_order_id,
-                subscriptionId: response.razorpay_subscription_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-              }),
-            });
-            const json = await verified.json().catch(() => ({}));
-            if (!verified.ok) throw new Error(json.error || "Payment verification failed.");
-            await refreshEntitlement();
-            setUpgradeOpen(false);
-            notify.success(input.type === "topup" ? "Label credits added" : "Plan upgraded", {
-              description: "Your workspace is ready to continue.",
-            });
-          } catch (err) {
-            setCheckoutError(
-              err instanceof Error
-                ? `Payment verification failed: ${err.message}`
-                : "Payment verification failed. Please contact support if money was debited."
-            );
-            notify.error("Payment verification failed", {
-              description: err instanceof Error ? err.message : "Please contact support if money was debited.",
-            });
-          } finally {
-            setCheckoutBusy(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setCheckoutBusy(false);
-            notify.info("Checkout cancelled", {
-              description: "No payment was taken.",
-            });
-          },
-        },
-      });
-      razorpay.on?.("payment.failed", (response) => {
-        const message =
-          response.error?.description ||
-          response.error?.reason ||
-          "Razorpay could not complete this payment.";
-        setCheckoutError(message);
-        setCheckoutBusy(false);
-        notify.error("Payment failed", {
-          description: message,
-        });
-      });
-      razorpay.open();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Please try again.";
-      setCheckoutError(message);
-      notify.error("Checkout could not start", {
-        description: message,
-      });
-    } finally {
-      setCheckoutBusy(false);
-      setCheckoutTarget(null);
-    }
-  }
-
   async function downloadRowsPdf(
     sourceRows: readonly EnrichedMeeshoLabelRow[],
     scope: "selected" | "visible"
@@ -3367,7 +3146,7 @@ export function MeeshoLabelExportTool() {
     scope: "filtered" | "selected"
   ) {
     if (!canUsePremiumExports) {
-      promptUpgrade("ZIP by SKU is available on Pro. Upgrade when you want one clean PDF per SKU.");
+      openPricingPage("ZIP by SKU is available on Pro. Upgrade when you want one clean PDF per SKU.");
       return;
     }
     if (pdfSources.length === 0 || sourceRows.length === 0) {
@@ -3831,7 +3610,7 @@ export function MeeshoLabelExportTool() {
 
   async function downloadAutoCropPdf() {
     if (!canUsePremiumExports) {
-      promptUpgrade("Auto-crop is available on Pro. Upgrade to remove blank space and print cleaner labels.");
+      openPricingPage("Auto-crop is available on Pro. Upgrade to remove blank space and print cleaner labels.");
       return;
     }
     if (cropScopedRows.length === 0) {
@@ -3877,7 +3656,7 @@ export function MeeshoLabelExportTool() {
 
   async function downloadAutoCropZip() {
     if (!canUsePremiumExports) {
-      promptUpgrade("Cropped ZIP export is available on Pro. Upgrade to bundle clean labels faster.");
+      openPricingPage("Cropped ZIP export is available on Pro. Upgrade to bundle clean labels faster.");
       return;
     }
     if (cropScopedRows.length === 0) {
@@ -4012,7 +3791,7 @@ export function MeeshoLabelExportTool() {
                 disabled={entitlementLoading}
                 onClick={() => {
                   if (!userId) openOptionalSignIn();
-                  else promptUpgrade("Choose the plan that matches your monthly dispatch volume.");
+                  else openPricingPage("Choose the plan that matches your monthly dispatch volume.");
                 }}
               >
                 {userId ? "View plans" : "Sign in"}
@@ -4237,13 +4016,18 @@ export function MeeshoLabelExportTool() {
                             type="button"
                             className={cn(
                               "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition-colors",
-                              autoCropMode === key
+                              !manualCropOpen && autoCropMode === key
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-border/65 bg-background/55 text-muted-foreground hover:bg-muted/45 hover:text-foreground"
                             )}
-                            onClick={() => setAutoCropMode(key as CropMode)}
+                            onClick={() => {
+                              setAutoCropMode(key as CropMode);
+                              setManualCropOpen(false);
+                            }}
                           >
-                            {autoCropMode === key ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
+                            {!manualCropOpen && autoCropMode === key ? (
+                              <Check className="size-3.5 text-primary" aria-hidden />
+                            ) : null}
                             {title}
                           </button>
                         ))}
@@ -4326,10 +4110,16 @@ export function MeeshoLabelExportTool() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 rounded-xl text-[12px] font-semibold"
+                      className={cn(
+                        "h-10 rounded-xl border text-[12px] font-semibold",
+                        manualCropOpen
+                          ? "border-primary bg-primary/10 text-foreground hover:bg-primary/15"
+                          : "border-border/65 bg-background/55 text-foreground hover:bg-muted/45"
+                      )}
                       disabled={cropperDocs.length === 0}
                       onClick={() => setManualCropOpen((v) => !v)}
                     >
+                      {manualCropOpen ? <Check className="mr-1.5 size-3.5 text-primary" aria-hidden /> : null}
                       Manual Crop
                     </Button>
                     {manualCropOpen ? (
@@ -5012,110 +4802,6 @@ export function MeeshoLabelExportTool() {
               </Button>
             </DialogFooter>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={upgradeOpen}
-        onOpenChange={(open) => {
-          setUpgradeOpen(open);
-          if (!open) setCheckoutError(null);
-        }}
-      >
-        <DialogContent className="max-h-[88dvh] overflow-y-auto border-primary/20 bg-background/98 p-4 shadow-[0_24px_90px_-38px_rgb(37_99_235/0.75)] backdrop-blur-xl sm:max-w-5xl sm:p-5">
-          {upgradeReason ? (
-            <div className="mb-4 rounded-[1.35rem] border border-amber-400/20 bg-amber-400/10 p-4">
-              <p className="text-lg font-semibold text-foreground">
-                You have reached your current plan limit
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {upgradeReason ||
-                  "Your monthly label limit is exhausted. Upgrade your plan or buy more usage to continue."}
-              </p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                <RunMetric label="Current plan" value={plan.name} />
-                <RunMetric label="Used labels" value={entitlement.labelsUsed.toLocaleString()} />
-                <RunMetric
-                  label="Remaining"
-                  value={entitlement.labelsRemaining == null ? "∞" : entitlement.labelsRemaining.toLocaleString()}
-                />
-                <RunMetric label="Next plan" value={recommendedPlan.name} tone="amazon" />
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 rounded-xl border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/15"
-                  disabled={checkoutBusy}
-                  onClick={() => void startBillingCheckout({ type: "topup", labelCredits: 1000 })}
-                >
-                  {checkoutBusy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
-                  Buy More Labels
-                </Button>
-                <Button
-                  type="button"
-                  className="h-10 rounded-xl"
-                  disabled={checkoutBusy}
-                  onClick={() => {
-                    trackEvent("billing_upgrade_popup_cta", { plan: entitlement.plan });
-                    void startBillingCheckout({
-                      type: "plan",
-                      plan: recommendedPlan.id,
-                      cycle: "monthly",
-                    });
-                  }}
-                >
-                  Upgrade Plan
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 rounded-xl"
-                  onClick={() => {
-                    void refreshEntitlement();
-                    notify.info(
-                      `${entitlement.labelsUsed.toLocaleString()} / ${
-                        entitlement.labelsLimit?.toLocaleString() ?? "∞"
-                      } labels used this month`
-                    );
-                  }}
-                >
-                  View Usage
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {checkoutError ? (
-            <div
-              role="alert"
-              className="mb-4 flex gap-3 rounded-[1.1rem] border border-rose-400/25 bg-rose-500/10 p-4 text-sm leading-6 text-rose-50"
-            >
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-300" aria-hidden />
-              <div>
-                <p className="font-semibold text-rose-100">Checkout did not start</p>
-                <p className="mt-1 text-rose-50/85">{checkoutError}</p>
-                <p className="mt-1 text-xs text-rose-50/62">
-                  If you just changed Razorpay keys or plan IDs in .env, restart the dev server and try again.
-                </p>
-              </div>
-            </div>
-          ) : null}
-          <PricingCards
-            currentPlan={entitlement.plan}
-            reason={upgradeReason}
-            compact
-            busyPlan={checkoutTarget?.plan ?? null}
-            busyCycle={checkoutTarget?.cycle ?? null}
-            disabled={checkoutBusy}
-            onChoosePlan={(planId, cycle) => {
-              trackEvent("billing_plan_selected", {
-                plan: planId,
-                cycle,
-                current_plan: entitlement.plan,
-              });
-              void startBillingCheckout({ type: "plan", plan: planId, cycle });
-            }}
-          />
         </DialogContent>
       </Dialog>
 
