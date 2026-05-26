@@ -9,12 +9,15 @@ import {
   Cloud,
   CreditCard,
   FileDown,
+  IndianRupee,
   KeyRound,
   Loader2,
   LockKeyhole,
   LogOut,
   Mail,
+  PackageCheck,
   ShieldCheck,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -31,6 +34,13 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import type { SubscriptionEntitlement } from "@/lib/billing/use-subscription";
+import {
+  TULMIN_PLAN_BY_ID,
+  nextPlanRecommendation,
+  planCycleCaption,
+  planLabelLimitText,
+  type TulminPlanId,
+} from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { toast as notify } from "sonner";
 
@@ -74,6 +84,14 @@ function formatDate(value: string | undefined) {
 
 function money(value: number) {
   return `₹${value.toLocaleString("en-IN")}`;
+}
+
+function normalizePlanId(plan?: string | null): TulminPlanId {
+  return plan === "starter" || plan === "pro" || plan === "business" ? plan : "free";
+}
+
+function titleCase(value: string) {
+  return value.slice(0, 1).toUpperCase() + value.slice(1);
 }
 
 function AccountMetric({
@@ -135,6 +153,12 @@ export function AccountPageClient() {
   });
   const [billing, setBilling] = React.useState<BillingHistory | null>(null);
   const [billingBusy, setBillingBusy] = React.useState(false);
+  const activePlanId = normalizePlanId(billing?.entitlement.plan);
+  const activePlan = TULMIN_PLAN_BY_ID[activePlanId];
+  const nextPlan = nextPlanRecommendation(activePlanId);
+  const subscriptionStatus = billing?.subscription?.status ?? billing?.entitlement.status ?? "free";
+  const paidPayments = billing?.payments.filter((payment) => payment.status === "paid") ?? [];
+  const latestPaidPayment = paidPayments[0];
 
   React.useEffect(() => {
     const md = user?.user_metadata ?? {};
@@ -391,28 +415,80 @@ export function AccountPageClient() {
                 </div>
               ) : billing ? (
                 <>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <AccountMetric
-                      icon={CreditCard}
-                      label="Current plan"
-                      value={`${billing.entitlement.plan} · ${billing.subscription?.status ?? billing.entitlement.status}`}
-                      tone={billing.entitlement.plan === "free" ? "warning" : "success"}
-                    />
-                    <AccountMetric
-                      icon={Cloud}
-                      label="Usage remaining"
-                      value={
-                        billing.entitlement.labelsRemaining == null
-                          ? "Unlimited"
-                          : billing.entitlement.labelsRemaining.toLocaleString("en-IN")
-                      }
-                      tone="success"
-                    />
-                    <AccountMetric
-                      icon={BadgeCheck}
-                      label="Renewal date"
-                      value={billing.subscription?.current_period_end ? formatDate(billing.subscription.current_period_end) : "Not scheduled"}
-                    />
+                  <div className="mt-5 overflow-hidden rounded-3xl border border-border/55 bg-background/45">
+                    <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            className={cn(
+                              "px-2.5 py-1 text-xs font-bold",
+                              activePlanId === "free"
+                                ? "bg-amber-500/12 text-amber-700 ring-1 ring-amber-500/25 dark:text-amber-200"
+                                : "bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/25 dark:text-emerald-200",
+                            )}
+                          >
+                            {activePlan.name} Plan
+                          </Badge>
+                          <Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-1 text-xs">
+                            {titleCase(subscriptionStatus)}
+                          </Badge>
+                        </div>
+                        <h4 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
+                          {activePlan.name} subscription
+                        </h4>
+                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                          {activePlan.tagline}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+                          <span className="rounded-full bg-muted/45 px-3 py-1 ring-1 ring-border/45">
+                            {planLabelLimitText(activePlan)}
+                          </span>
+                          <span className="rounded-full bg-muted/45 px-3 py-1 ring-1 ring-border/45">
+                            {activePlan.dailyFit}
+                          </span>
+                          <span className="rounded-full bg-muted/45 px-3 py-1 ring-1 ring-border/45">
+                            {planCycleCaption(activePlan, latestPaidPayment?.billing_cycle === "yearly" ? "yearly" : "monthly")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:min-w-56">
+                        <Link href="/pricing" className={cn(buttonVariants(), "w-full")}>
+                          <Sparkles className="size-4" aria-hidden />
+                          {activePlanId === "business" ? "Manage plan" : `Upgrade to ${nextPlan.name}`}
+                        </Link>
+                        <p className="text-center text-xs text-muted-foreground">
+                          Compare all plans anytime.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid border-t border-border/55 sm:grid-cols-4">
+                      <AccountMetric
+                        icon={PackageCheck}
+                        label="Plan"
+                        value={activePlan.name}
+                        tone={activePlanId === "free" ? "warning" : "success"}
+                      />
+                      <AccountMetric
+                        icon={Cloud}
+                        label="Usage left"
+                        value={
+                          billing.entitlement.labelsRemaining == null
+                            ? "Unlimited"
+                            : billing.entitlement.labelsRemaining.toLocaleString("en-IN")
+                        }
+                        tone="success"
+                      />
+                      <AccountMetric
+                        icon={BadgeCheck}
+                        label="Renewal"
+                        value={billing.subscription?.current_period_end ? formatDate(billing.subscription.current_period_end) : "Not scheduled"}
+                      />
+                      <AccountMetric
+                        icon={IndianRupee}
+                        label="Last payment"
+                        value={latestPaidPayment ? money(latestPaidPayment.amount) : "No payment"}
+                      />
+                    </div>
                   </div>
                   <div className="mt-5 overflow-hidden rounded-2xl border border-border/55">
                     {billing.payments.length > 0 ? (
