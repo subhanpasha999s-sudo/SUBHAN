@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 import {
-  WorkspaceFormPageStack,
+  WorkspaceModulePageStack,
   WorkspaceSurfaceCard,
 } from "@/components/layout/workspace-layout";
 import { ModulePageHeader } from "@/components/layout/module-page-header";
@@ -106,7 +106,7 @@ function AccountMetric({
   tone?: "default" | "success" | "warning";
 }) {
   return (
-    <div className="rounded-2xl border border-border/55 bg-background/55 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
+    <div className="min-w-0 rounded-2xl border border-border/55 bg-background/55 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]">
       <div className="flex items-start gap-3">
         <span
           className={cn(
@@ -125,7 +125,7 @@ function AccountMetric({
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {label}
           </p>
-          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+          <p className="mt-1 break-words text-sm font-semibold text-foreground">
             {value}
           </p>
         </div>
@@ -292,7 +292,7 @@ export function AccountPageClient() {
         badges={<Badge variant="outline" className="border-border/65 bg-muted/35 px-2.5 py-0.5 text-xs font-normal text-muted-foreground">Account workspace</Badge>}
       />
 
-      <WorkspaceFormPageStack>
+      <WorkspaceModulePageStack className="mx-auto max-w-7xl">
         {!authReady ? (
           <WorkspaceSurfaceCard padding="p-6 sm:p-8">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -334,7 +334,7 @@ export function AccountPageClient() {
           </WorkspaceSurfaceCard>
         ) : (
           <div className="grid gap-5">
-            <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr] xl:items-start">
+            <div className="grid gap-5 xl:grid-cols-[minmax(18rem,0.42fr)_minmax(0,1fr)] xl:items-start">
             <WorkspaceSurfaceCard
               padding="p-0"
               className="overflow-hidden border-border/30 bg-[linear-gradient(145deg,hsl(var(--card)),hsl(var(--muted)/0.34))] shadow-elevate-sm ring-1 ring-black/[0.03]"
@@ -358,20 +358,20 @@ export function AccountPageClient() {
                       {activePlan.name} Plan
                     </Badge>
                   </div>
-                  <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
                     <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-sky-500 to-indigo-500 text-lg font-bold text-primary-foreground shadow-[0_20px_55px_-26px_rgb(59_130_246/0.95)] ring-1 ring-white/20 sm:size-20 sm:text-xl">
                       {initials(profile.fullName, user.email)}
                     </div>
                     <div className="min-w-0 pt-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                        <h2 className="break-words text-2xl font-semibold tracking-tight text-foreground">
                           {profile.fullName.trim() || "Tulmin operator"}
                         </h2>
                         <Badge className="bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-200">
                           Verified
                         </Badge>
                       </div>
-                      <p className="mt-1 truncate text-sm font-medium text-muted-foreground">
+                      <p className="mt-1 break-all text-sm font-medium text-muted-foreground">
                         {user.email ?? user.id}
                       </p>
                       {profile.company.trim() ? (
@@ -385,7 +385,7 @@ export function AccountPageClient() {
                   <div className="mt-6 grid gap-3">
                     <div className="rounded-2xl border border-border/55 bg-background/50 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Signed in as</p>
-                      <p className="mt-1 truncate text-sm font-semibold text-foreground">{user.email ?? user.id}</p>
+                      <p className="mt-1 break-all text-sm font-semibold text-foreground">{user.email ?? user.id}</p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                       <AccountMetric icon={ShieldCheck} label="Security" value="Protected account" tone="success" />
@@ -473,7 +473,7 @@ export function AccountPageClient() {
                         </div>
                       </div>
                       <div className="grid gap-2 sm:min-w-56">
-                        <Link href="/pricing?returnTo=/account" className={cn(buttonVariants(), "w-full")}>
+                        <Link href="/pricing?returnTo=/account" className={cn(buttonVariants(), "min-h-10 w-full whitespace-normal text-center leading-tight")}>
                           <Sparkles className="size-4" aria-hidden />
                           {activePlanId === "business" ? "Manage plan" : `Upgrade to ${nextPlan.name}`}
                         </Link>
@@ -482,7 +482,7 @@ export function AccountPageClient() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid border-t border-border/55 sm:grid-cols-4">
+                    <div className="grid border-t border-border/55 sm:grid-cols-2 xl:grid-cols-4">
                       <AccountMetric
                         icon={PackageCheck}
                         label="Plan"
@@ -554,7 +554,7 @@ export function AccountPageClient() {
             </WorkspaceSurfaceCard>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
               <WorkspaceSurfaceCard
                 padding="p-5 sm:p-6"
                 className="border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
@@ -726,7 +726,7 @@ export function AccountPageClient() {
             </div>
           </div>
         )}
-      </WorkspaceFormPageStack>
+      </WorkspaceModulePageStack>
     </>
   );
 }
