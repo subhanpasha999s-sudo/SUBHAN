@@ -6,6 +6,7 @@ import {
   recordAbuseEvent,
   requestFingerprint,
   requireBillingUser,
+  type ServerEntitlement,
   touchDeviceTrial,
 } from "@/lib/billing/server";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
@@ -31,6 +32,38 @@ const LIMIT_EXHAUSTED_MESSAGE =
 
 const DAILY_LIMIT_EXHAUSTED_MESSAGE =
   "You have used today's label allowance. Buy more labels or upgrade to continue processing now.";
+
+function reserveFromEntitlement(
+  entitlement: ServerEntitlement,
+  labelCount: number,
+  allowPartial: boolean
+): UsageReservationRow {
+  const monthlyRemaining = entitlement.labelsLimit == null
+    ? null
+    : Math.max(0, entitlement.labelsLimit - entitlement.labelsUsed);
+  const dailyRemaining = entitlement.dailyLabelsLimit == null
+    ? null
+    : Math.max(0, entitlement.dailyLabelsLimit - entitlement.dailyLabelsUsed);
+  const effectiveRemaining = Math.min(
+    monthlyRemaining ?? Number.MAX_SAFE_INTEGER,
+    dailyRemaining ?? Number.MAX_SAFE_INTEGER
+  );
+  const unlimited = monthlyRemaining == null && dailyRemaining == null;
+  const accepted = unlimited
+    ? labelCount
+    : allowPartial
+      ? Math.min(labelCount, effectiveRemaining)
+      : labelCount > effectiveRemaining
+        ? 0
+        : labelCount;
+
+  return {
+    accepted_label_count: Math.max(0, accepted),
+    rejected_label_count: Math.max(0, labelCount - Math.max(0, accepted)),
+    monthly_limit_hit: monthlyRemaining != null && labelCount > monthlyRemaining,
+    daily_limit_hit: dailyRemaining != null && labelCount > dailyRemaining,
+  };
+}
 
 export async function POST(req: NextRequest) {
   const auth = await requireBillingUser(req);
@@ -123,25 +156,11 @@ export async function POST(req: NextRequest) {
     p_metadata: {},
   });
 
-  if (reservation.error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: "server_unavailable",
-        message:
-          "Usage could not be saved, so Tulmin stopped this run to protect your monthly label limit. Apply the latest billing migration and try again.",
-        setupHint:
-          "Run the full supabase/migrations/010_atomic_usage_reservations.sql file against your Supabase project, then restart or redeploy the app.",
-        entitlement: before,
-        trackingError: reservation.error.message,
-      },
-      { status: 503 }
-    );
-  }
-
-  const reservationRow = (
-    Array.isArray(reservation.data) ? reservation.data[0] : reservation.data
-  ) as UsageReservationRow | null;
+  const reservationRow = reservation.error
+    ? reserveFromEntitlement(before, labelCount, allowPartial)
+    : (
+        Array.isArray(reservation.data) ? reservation.data[0] : reservation.data
+      ) as UsageReservationRow | null;
   const acceptedLabelCount = Math.max(0, Number(reservationRow?.accepted_label_count) || 0);
   const rejectedLabelCount = Math.max(0, Number(reservationRow?.rejected_label_count) || 0);
   const monthlyLimitHit = Boolean(reservationRow?.monthly_limit_hit);
@@ -160,6 +179,40 @@ export async function POST(req: NextRequest) {
   }
 
   if (acceptedLabelCount > 0) {
+    if (reservation.error) {
+      const saved = await billingSb.from("tulmin_usage_events").insert({
+        user_id: auth.user.id,
+        action,
+        label_count: acceptedLabelCount,
+        month_key: before.monthKey,
+        billing_period_key: before.monthKey,
+        device_hash: fp.deviceHash,
+        ip_hash: fp.ipHash,
+        ua_hash: fp.uaHash,
+        metadata: {
+          fallbackReservation: true,
+          trackingError: reservation.error.message,
+          requestedLabelCount: labelCount,
+          rejectedLabelCount,
+          allowPartial,
+        },
+      });
+      if (saved.error) {
+        return NextResponse.json(
+          {
+            ok: false,
+            reason: "server_unavailable",
+            message:
+              "Usage could not be saved, so Tulmin stopped this run to protect your monthly label limit.",
+            setupHint:
+              "Apply the billing foundation migrations in Supabase, then redeploy the app.",
+            entitlement: before,
+            trackingError: saved.error.message,
+          },
+          { status: 503 }
+        );
+      }
+    }
     if (before.plan === "free") {
       await touchDeviceTrial(billingSb, auth.user.id, fp, acceptedLabelCount);
     }
