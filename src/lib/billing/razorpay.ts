@@ -92,7 +92,7 @@ export function verifyRazorpaySubscriptionSignature(input: {
 }) {
   if (!input.secret || !input.signature) return false;
   const expected = createHmac("sha256", input.secret)
-    .update(`${input.subscriptionId}|${input.paymentId}`)
+    .update(`${input.paymentId}|${input.subscriptionId}`)
     .digest("hex");
   return expected === input.signature;
 }
