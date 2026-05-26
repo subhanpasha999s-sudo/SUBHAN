@@ -40,12 +40,16 @@ type AnalyticsPayload = {
     arpu: number;
     ltv: number;
     failedPayments: number;
+    failedPaymentAmount: number;
     renewalsDue: number;
     newUsersToday: number;
     newUsersMonth: number;
     activeUsers: number;
+    activeFreeUsers: number;
+    activationRate: number;
     labelsProcessed: number;
     labelsThisMonth: number;
+    labelsPerActiveUser: number;
   };
   revenue: {
     planWiseRevenue: Record<string, number>;
@@ -177,6 +181,33 @@ function Row({
         {sub ? <p className="truncate text-xs text-slate-500">{sub}</p> : null}
       </div>
       <p className="shrink-0 text-sm font-bold text-white">{right}</p>
+    </div>
+  );
+}
+
+function ActionCard({
+  title,
+  value,
+  helper,
+  tone = "blue",
+}: {
+  title: string;
+  value: string;
+  helper: string;
+  tone?: "blue" | "green" | "amber" | "rose";
+}) {
+  const tones = {
+    blue: "border-[#6f82ff]/30 bg-[#6f82ff]/10 text-[#c5ccff]",
+    green: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100",
+    amber: "border-amber-300/25 bg-amber-300/10 text-amber-100",
+    rose: "border-rose-300/25 bg-rose-300/10 text-rose-100",
+  };
+
+  return (
+    <div className={`rounded-lg border p-4 ${tones[tone]}`}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">{title}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="mt-2 text-sm leading-5 text-slate-300">{helper}</p>
     </div>
   );
 }
@@ -348,10 +379,36 @@ export function AdminAnalyticsDashboard() {
               </section>
 
               <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Metric icon={Users} label="Active users" value={num(data.metrics.activeUsers)} helper={`${num(data.metrics.newUsersMonth)} new this month`} />
-                <Metric icon={IndianRupee} label="Plan MRR" value={money(data.metrics.mrr)} helper={`${num(data.metrics.activeSubscribers)} paying subscriptions`} tone="green" />
-                <Metric icon={Activity} label="Usage" value={num(data.metrics.labelsThisMonth)} helper={`${num(data.metrics.labelsProcessed)} labels lifetime`} />
-                <Metric icon={AlertTriangle} label="Billing risk" value={num(data.metrics.failedPayments)} helper={`${num(data.metrics.renewalsDue)} renewals in 14 days`} tone={data.metrics.failedPayments ? "rose" : "amber"} />
+                <Metric icon={Users} label="Active users" value={num(data.metrics.activeUsers)} helper={`${pct(data.metrics.activationRate)} of all users active in 30 days`} />
+                <Metric icon={IndianRupee} label="Plan MRR" value={money(data.metrics.mrr)} helper={`${num(data.metrics.paidUsers)} paid users tracked`} tone="green" />
+                <Metric icon={Activity} label="Usage" value={num(data.metrics.labelsThisMonth)} helper={`${num(data.metrics.labelsPerActiveUser)} labels per active user`} />
+                <Metric icon={AlertTriangle} label="Billing risk" value={money(data.metrics.failedPaymentAmount)} helper={`${num(data.metrics.failedPayments)} failed payments · ${num(data.metrics.renewalsDue)} renewals`} tone={data.metrics.failedPayments ? "rose" : "amber"} />
+              </section>
+
+              <section className="grid gap-4 lg:grid-cols-4">
+                <ActionCard
+                  title="Conversion pool"
+                  value={num(data.metrics.activeFreeUsers)}
+                  helper="Active free users who already see value and should be nudged toward paid plans."
+                  tone={data.metrics.activeFreeUsers ? "amber" : "green"}
+                />
+                <ActionCard
+                  title="Activation"
+                  value={pct(data.metrics.activationRate)}
+                  helper={`${num(data.metrics.activeUsers)} active users out of ${num(data.metrics.totalUsers)} total accounts.`}
+                  tone={data.metrics.activationRate >= 40 ? "green" : data.metrics.activationRate > 0 ? "amber" : "rose"}
+                />
+                <ActionCard
+                  title="Revenue focus"
+                  value={money(data.metrics.mrr)}
+                  helper={`${pct(data.metrics.conversionRate)} paid conversion across the customer base.`}
+                  tone={data.metrics.mrr ? "green" : "amber"}
+                />
+                <ActionCard
+                  title="Usage depth"
+                  value={num(data.metrics.labelsPerActiveUser)}
+                  helper={`${num(data.metrics.labelsProcessed)} labels processed across recent activity.`}
+                />
               </section>
 
               <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">

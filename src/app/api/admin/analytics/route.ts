@@ -224,19 +224,9 @@ export async function GET(req: NextRequest) {
   const displayUser = (userId: string | null | undefined) =>
     userId ? directEmails.get(userId) ?? emails.get(userId) ?? userId : "unknown";
 
-  const planCounts: Record<TulminPlanId, number> = {
-    free: 0,
-    starter: 0,
-    pro: 0,
-    business: 0,
-  };
-
   const activeSubscribers = subs.filter((sub) => isPaidPlan(sub.plan) && isActiveStatus(sub.status));
   const trialUsers = subs.filter((sub) => sub.status === "trialing").length;
   const canceledOrPastDue = subs.filter((sub) => sub.status === "canceled" || sub.status === "past_due").length;
-  for (const sub of subs) {
-    if (sub.plan in planCounts) planCounts[sub.plan] += 1;
-  }
 
   const mrr = activeSubscribers.reduce((sum, sub) => sum + planPrice(sub.plan), 0);
   const paidRevenue = payments.filter((payment) => paymentIsPaid(payment.status));
@@ -254,8 +244,15 @@ export async function GET(req: NextRequest) {
         ? 100
         : 0;
 
+  const paidUserIds = new Set([
+    ...activeSubscribers.map((sub) => sub.user_id),
+    ...paidRevenue
+      .filter((payment) => isPaidPlan(payment.plan))
+      .map((payment) => payment.user_id ?? "")
+      .filter(Boolean),
+  ]);
   const totalUsers = Math.max(userIds.size, authUserCount);
-  const paidUsers = new Set(activeSubscribers.map((sub) => sub.user_id)).size;
+  const paidUsers = paidUserIds.size;
   const freeUsers = Math.max(0, totalUsers - paidUsers);
   const conversionRate = totalUsers ? Math.round((paidUsers / totalUsers) * 1000) / 10 : 0;
   const churnRate =
@@ -269,14 +266,19 @@ export async function GET(req: NextRequest) {
   const authCreatedDates = [...createdAt.values()];
   const newUsersToday = authCreatedDates.filter((date) => new Date(date) >= today).length;
   const newUsersMonth = authCreatedDates.filter((date) => date.slice(0, 7) === currentMonth).length;
-  const activeUsers = new Set(
+  const activeUserIds = new Set(
     usage
       .filter((row) => row.created_at && new Date(row.created_at) >= thirtyDaysAgo)
       .map((row) => row.user_id)
-  ).size;
+  );
+  const activeUsers = activeUserIds.size;
+  const activeFreeUsers = [...activeUserIds].filter((userId) => !paidUserIds.has(userId)).length;
+  const activationRate = totalUsers ? Math.round((activeUsers / totalUsers) * 1000) / 10 : 0;
 
   const currentMonthUsage = usage.filter((row) => row.month_key === currentMonth);
   const totalLabelsProcessed = usage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0);
+  const labelsThisMonth = currentMonthUsage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0);
+  const labelsPerActiveUser = activeUsers ? Math.round(totalLabelsProcessed / activeUsers) : 0;
   const labelsByUser = new Map<string, number>();
   const featureUsage = new Map<string, number>();
   for (const row of usage) {
@@ -311,6 +313,25 @@ export async function GET(req: NextRequest) {
     if (dailyUsers.has(key)) dailyUsers.set(key, (dailyUsers.get(key) ?? 0) + 1);
   }
 
+  const planCounts: Record<TulminPlanId, number> = {
+    free: freeUsers,
+    starter: 0,
+    pro: 0,
+    business: 0,
+  };
+  const userPlan = new Map<string, TulminPlanId>();
+  for (const sub of activeSubscribers) {
+    if (isPaidPlan(sub.plan)) userPlan.set(sub.user_id, sub.plan);
+  }
+  for (const payment of paidRevenue) {
+    if (payment.user_id && payment.plan && isPaidPlan(payment.plan) && !userPlan.has(payment.user_id)) {
+      userPlan.set(payment.user_id, payment.plan);
+    }
+  }
+  for (const plan of userPlan.values()) {
+    if (plan in planCounts) planCounts[plan] += 1;
+  }
+
   const planWiseRevenue: Record<string, number> = {};
   for (const plan of ["starter", "pro", "business"] as const) {
     planWiseRevenue[plan] = activeSubscribers.filter((sub) => sub.plan === plan).length * planPrice(plan);
@@ -331,6 +352,7 @@ export async function GET(req: NextRequest) {
     .slice(0, 8);
 
   const failedPayments = payments.filter((payment) => payment.status === "failed");
+  const failedPaymentAmount = failedPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
   const refundsOrCancellations = [
     ...payments.filter((payment) => payment.status === "refunded"),
     ...subs.filter((sub) => sub.status === "canceled").map((sub) => ({
@@ -370,12 +392,16 @@ export async function GET(req: NextRequest) {
       arpu,
       ltv,
       failedPayments: failedPayments.length,
+      failedPaymentAmount,
       renewalsDue: renewals.length,
       newUsersToday,
       newUsersMonth,
       activeUsers,
+      activeFreeUsers,
+      activationRate,
       labelsProcessed: totalLabelsProcessed,
-      labelsThisMonth: currentMonthUsage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0),
+      labelsThisMonth,
+      labelsPerActiveUser,
     },
     revenue: {
       planWiseRevenue,
