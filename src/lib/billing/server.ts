@@ -91,6 +91,7 @@ type CreditGrantRow = {
 };
 
 const BILLABLE_USAGE_ACTIONS = ["import", "export", "filter", "crop", "processed"] as const;
+const UNLIMITED_LABEL_SENTINEL = 2_000_000_000;
 
 const fallbackRateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -288,7 +289,7 @@ export async function getServerEntitlement(
   const creditRowsResult = credits.error
     ? await sb
       .from("tulmin_label_credit_grants")
-      .select("label_count,used_label_count,expires_at")
+      .select("label_count,used_label_count,expires_at,metadata")
       .eq("user_id", userId)
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     : credits;
@@ -299,7 +300,12 @@ export async function getServerEntitlement(
   const hasUnlimitedBonus = activeCredits.some((row) => {
     const metadataKind = typeof row.metadata?.grantKind === "string" ? row.metadata.grantKind : undefined;
     const grantKind = row.grant_kind ?? metadataKind;
-    return grantKind === "unlimited_lifetime" || grantKind === "unlimited_monthly";
+    const labelCount = Number(row.label_count) || 0;
+    return (
+      grantKind === "unlimited_lifetime" ||
+      grantKind === "unlimited_monthly" ||
+      labelCount >= UNLIMITED_LABEL_SENTINEL
+    );
   });
   const bonusLabelsAvailable =
     hasUnlimitedBonus

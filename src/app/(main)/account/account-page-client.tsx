@@ -129,6 +129,11 @@ function writeCachedBillingHistory(userId: string, billing: BillingHistory) {
   }
 }
 
+function usageValue(value: number | null | undefined, entitlement: SubscriptionEntitlement) {
+  if (value == null || entitlement.hasUnlimitedBonus || value >= 2_000_000_000) return "Unlimited";
+  return value.toLocaleString("en-IN");
+}
+
 function withTimeout(ms: number) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), ms);
@@ -595,9 +600,7 @@ export function AccountPageClient() {
                         icon={Cloud}
                         label="Usage left"
                         value={
-                          billing.entitlement.labelsRemaining == null
-                            ? "Unlimited"
-                            : billing.entitlement.labelsRemaining.toLocaleString("en-IN")
+                          usageValue(billing.entitlement.labelsRemaining, billing.entitlement)
                         }
                         tone="success"
                       />

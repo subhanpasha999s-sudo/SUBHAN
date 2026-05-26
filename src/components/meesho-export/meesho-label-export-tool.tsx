@@ -2603,13 +2603,17 @@ export function MeeshoLabelExportTool() {
     (selectedHasAmazonRows || filteredHasAmazonRows) && amazonInvoices.length > 0;
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
   const usageLoading = Boolean(userId && !entitlement.loaded);
+  const hasUnlimitedEntitlement =
+    entitlement.hasUnlimitedBonus ||
+    entitlement.labelsLimit == null ||
+    (entitlement.labelsLimit ?? 0) >= 2_000_000_000;
   const usagePct =
-    entitlement.labelsLimit != null && entitlement.labelsLimit > 0
+    !hasUnlimitedEntitlement && entitlement.labelsLimit != null && entitlement.labelsLimit > 0
       ? Math.min(100, Math.round((100 * entitlement.labelsUsed) / entitlement.labelsLimit))
       : 100;
-  const usageCloseToLimit = entitlement.labelsLimit != null && usagePct >= 90 && usagePct < 100;
+  const usageCloseToLimit = !hasUnlimitedEntitlement && entitlement.labelsLimit != null && usagePct >= 90 && usagePct < 100;
   const usageLimitExhausted =
-    entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
+    !hasUnlimitedEntitlement && entitlement.labelsLimit != null && (entitlement.labelsRemaining ?? 0) <= 0;
   const canImportLabels = !parsing;
   const importCtaLabel = "Choose PDFs";
 
@@ -3733,9 +3737,9 @@ export function MeeshoLabelExportTool() {
                   {userId
                     ? usageLoading
                       ? "Checking monthly usage..."
-                      : entitlement.labelsLimit == null
+                      : hasUnlimitedEntitlement
                       ? "Unlimited normal seller use"
-                      : `${entitlement.labelsUsed.toLocaleString()} / ${entitlement.labelsLimit.toLocaleString()} labels used this month${
+                      : `${entitlement.labelsUsed.toLocaleString()} / ${entitlement.labelsLimit!.toLocaleString()} labels used this month${
                           entitlement.dailyLabelsLimit != null
                             ? ` · ${entitlement.dailyLabelsUsed.toLocaleString()} / ${entitlement.dailyLabelsLimit.toLocaleString()} today`
                             : ""
@@ -3755,7 +3759,7 @@ export function MeeshoLabelExportTool() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {userId && entitlement.labelsLimit != null ? (
+              {userId && entitlement.labelsLimit != null && !hasUnlimitedEntitlement ? (
                 <div className="hidden w-32 space-y-1 sm:block">
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
