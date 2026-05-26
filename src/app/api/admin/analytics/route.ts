@@ -45,6 +45,13 @@ type PaymentRow = {
   created_at: string | null;
 };
 
+type AuthUserProfile = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  createdAt: string | null;
+};
+
 function startOfDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
@@ -157,20 +164,27 @@ async function loadPaymentEvents(sb: SupabaseAdminClient) {
 async function loadAuthUsers(sb: SupabaseAdminClient, userIds: Set<string>) {
   const emails = new Map<string, string>();
   const createdAt = new Map<string, string>();
-  let authUserCount = 0;
+  const profiles = new Map<string, AuthUserProfile>();
 
   for (let page = 1; page <= 20; page += 1) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
     if (error || !data?.users?.length) break;
-    authUserCount += data.users.length;
     for (const user of data.users) {
+      const metadata = user.user_metadata ?? {};
+      const fullName = metadata.full_name ?? metadata.name ?? metadata.display_name;
+      profiles.set(user.id, {
+        id: user.id,
+        email: user.email?.toLowerCase() ?? null,
+        name: typeof fullName === "string" && fullName.trim() ? fullName.trim() : null,
+        createdAt: user.created_at ?? null,
+      });
       if (user.created_at) createdAt.set(user.id, user.created_at);
       if (userIds.has(user.id) && user.email) emails.set(user.id, user.email.toLowerCase());
     }
     if (data.users.length < 1000) break;
   }
 
-  return { emails, createdAt, authUserCount };
+  return { emails, createdAt, profiles };
 }
 
 export async function GET(req: NextRequest) {
@@ -220,13 +234,23 @@ export async function GET(req: NextRequest) {
   for (const row of [...subs, ...usage, ...payments]) {
     if (row.user_id && row.user_email) directEmails.set(row.user_id, row.user_email.toLowerCase());
   }
-  const { emails, createdAt, authUserCount } = await loadAuthUsers(sb, userIds);
+  const { emails, createdAt, profiles } = await loadAuthUsers(sb, userIds);
   const displayUser = (userId: string | null | undefined) =>
     userId ? directEmails.get(userId) ?? emails.get(userId) ?? userId : "unknown";
 
-  const activeSubscribers = subs.filter((sub) => isPaidPlan(sub.plan) && isActiveStatus(sub.status));
-  const trialUsers = subs.filter((sub) => sub.status === "trialing").length;
-  const canceledOrPastDue = subs.filter((sub) => sub.status === "canceled" || sub.status === "past_due").length;
+  const latestSubByUser = new Map<string, SubscriptionRow>();
+  for (const sub of subs) {
+    const existing = latestSubByUser.get(sub.user_id);
+    if (!existing || (sub.updated_at ?? sub.created_at ?? "") > (existing.updated_at ?? existing.created_at ?? "")) {
+      latestSubByUser.set(sub.user_id, sub);
+    }
+  }
+  const latestSubs = [...latestSubByUser.values()];
+  const activeSubscribers = latestSubs.filter((sub) => isPaidPlan(sub.plan) && isActiveStatus(sub.status));
+  const trialUsers = new Set(latestSubs.filter((sub) => sub.status === "trialing").map((sub) => sub.user_id)).size;
+  const canceledOrPastDue = new Set(
+    latestSubs.filter((sub) => sub.status === "canceled" || sub.status === "past_due").map((sub) => sub.user_id)
+  ).size;
 
   const mrr = activeSubscribers.reduce((sum, sub) => sum + planPrice(sub.plan), 0);
   const paidRevenue = payments.filter((payment) => paymentIsPaid(payment.status));
@@ -244,6 +268,10 @@ export async function GET(req: NextRequest) {
         ? 100
         : 0;
 
+  const allUserIds = new Set([
+    ...profiles.keys(),
+    ...userIds,
+  ]);
   const paidUserIds = new Set([
     ...activeSubscribers.map((sub) => sub.user_id),
     ...paidRevenue
@@ -251,7 +279,7 @@ export async function GET(req: NextRequest) {
       .map((payment) => payment.user_id ?? "")
       .filter(Boolean),
   ]);
-  const totalUsers = Math.max(userIds.size, authUserCount);
+  const totalUsers = allUserIds.size;
   const paidUsers = paidUserIds.size;
   const freeUsers = Math.max(0, totalUsers - paidUsers);
   const conversionRate = totalUsers ? Math.round((paidUsers / totalUsers) * 1000) / 10 : 0;
@@ -280,9 +308,19 @@ export async function GET(req: NextRequest) {
   const labelsThisMonth = currentMonthUsage.reduce((sum, row) => sum + Math.max(0, Number(row.label_count) || 0), 0);
   const labelsPerActiveUser = activeUsers ? Math.round(totalLabelsProcessed / activeUsers) : 0;
   const labelsByUser = new Map<string, number>();
+  const labelsThisMonthByUser = new Map<string, number>();
   const featureUsage = new Map<string, number>();
+  const usageEventsByUser = new Map<string, number>();
+  const lastActiveByUser = new Map<string, string>();
   for (const row of usage) {
     labelsByUser.set(row.user_id, (labelsByUser.get(row.user_id) ?? 0) + Math.max(0, Number(row.label_count) || 0));
+    if (row.month_key === currentMonth) {
+      labelsThisMonthByUser.set(row.user_id, (labelsThisMonthByUser.get(row.user_id) ?? 0) + Math.max(0, Number(row.label_count) || 0));
+    }
+    usageEventsByUser.set(row.user_id, (usageEventsByUser.get(row.user_id) ?? 0) + 1);
+    if (row.created_at && (!lastActiveByUser.get(row.user_id) || row.created_at > (lastActiveByUser.get(row.user_id) ?? ""))) {
+      lastActiveByUser.set(row.user_id, row.created_at);
+    }
     const action = row.action || "usage";
     featureUsage.set(action, (featureUsage.get(action) ?? 0) + 1);
   }
@@ -331,6 +369,48 @@ export async function GET(req: NextRequest) {
   for (const plan of userPlan.values()) {
     if (plan in planCounts) planCounts[plan] += 1;
   }
+
+  const revenueByUser = new Map<string, number>();
+  const failedPaymentsByUser = new Map<string, number>();
+  for (const payment of payments) {
+    if (!payment.user_id) continue;
+    if (paymentIsPaid(payment.status)) {
+      revenueByUser.set(payment.user_id, (revenueByUser.get(payment.user_id) ?? 0) + Math.max(0, Number(payment.amount) || 0));
+    }
+    if (payment.status === "failed") {
+      failedPaymentsByUser.set(payment.user_id, (failedPaymentsByUser.get(payment.user_id) ?? 0) + 1);
+    }
+  }
+
+  const userDetails = [...allUserIds]
+    .map((userId) => {
+      const profile = profiles.get(userId);
+      const sub = latestSubByUser.get(userId);
+      const plan = userPlan.get(userId) ?? sub?.plan ?? "free";
+      const status = sub?.status ?? (paidUserIds.has(userId) ? "paid" : "free");
+      const lastActiveAt = lastActiveByUser.get(userId) ?? null;
+      const joinedAt = profile?.createdAt ?? createdAt.get(userId) ?? sub?.created_at ?? null;
+      return {
+        userId,
+        email: directEmails.get(userId) ?? profile?.email ?? emails.get(userId) ?? null,
+        name: profile?.name ?? null,
+        joinedAt,
+        plan,
+        status,
+        isActive: Boolean(lastActiveAt && new Date(lastActiveAt) >= thirtyDaysAgo),
+        isPaid: paidUserIds.has(userId),
+        labelsProcessed: labelsByUser.get(userId) ?? 0,
+        labelsThisMonth: labelsThisMonthByUser.get(userId) ?? 0,
+        usageEvents: usageEventsByUser.get(userId) ?? 0,
+        lastActiveAt,
+        totalRevenue: revenueByUser.get(userId) ?? 0,
+        failedPayments: failedPaymentsByUser.get(userId) ?? 0,
+      };
+    })
+    .sort((a, b) => {
+      if (b.labelsProcessed !== a.labelsProcessed) return b.labelsProcessed - a.labelsProcessed;
+      return (b.lastActiveAt ?? b.joinedAt ?? "").localeCompare(a.lastActiveAt ?? a.joinedAt ?? "");
+    });
 
   const planWiseRevenue: Record<string, number> = {};
   for (const plan of ["starter", "pro", "business"] as const) {
@@ -410,6 +490,7 @@ export async function GET(req: NextRequest) {
     users: {
       growth: [...dailyUsers.entries()].map(([date, value]) => ({ date, value })),
       planMix: planCounts,
+      details: userDetails,
     },
     usage: {
       dailyLabels: [...dailyLabels.entries()].map(([date, labels]) => ({ date, labels })),

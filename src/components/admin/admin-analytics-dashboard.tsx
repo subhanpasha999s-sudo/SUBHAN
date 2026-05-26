@@ -18,8 +18,39 @@ import {
 
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type TrendPoint = { date: string; value?: number; labels?: number };
+type UserDetail = {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  joinedAt: string | null;
+  plan: string;
+  status: string | null;
+  isActive: boolean;
+  isPaid: boolean;
+  labelsProcessed: number;
+  labelsThisMonth: number;
+  usageEvents: number;
+  lastActiveAt: string | null;
+  totalRevenue: number;
+  failedPayments: number;
+};
 
 type AnalyticsPayload = {
   generatedAt: string;
@@ -58,6 +89,7 @@ type AnalyticsPayload = {
   users: {
     growth: TrendPoint[];
     planMix: Record<string, number>;
+    details: UserDetail[];
   };
   usage: {
     dailyLabels: TrendPoint[];
@@ -88,18 +120,26 @@ function dateLabel(value: string | null) {
   return value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "No date";
 }
 
+function dateTimeLabel(value: string | null) {
+  return value
+    ? new Date(value).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "No activity";
+}
+
 function Metric({
   label,
   value,
   helper,
   icon: Icon,
   tone = "blue",
+  onClick,
 }: {
   label: string;
   value: string;
   helper: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   tone?: "blue" | "green" | "amber" | "rose";
+  onClick?: () => void;
 }) {
   const tones = {
     blue: "border-[#6f82ff]/25 bg-[#6f82ff]/12 text-[#b9c3ff]",
@@ -108,8 +148,8 @@ function Metric({
     rose: "border-rose-300/25 bg-rose-300/10 text-rose-100",
   };
 
-  return (
-    <section className="rounded-lg border border-white/10 bg-[#0e141f] p-4">
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
@@ -120,6 +160,24 @@ function Metric({
         </span>
       </div>
       <p className="mt-3 text-sm leading-5 text-slate-400">{helper}</p>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-lg border border-white/10 bg-[#0e141f] p-4 text-left transition hover:border-[#6f82ff]/45 hover:bg-[#121b2b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border border-white/10 bg-[#0e141f] p-4">
+      {content}
     </section>
   );
 }
@@ -190,11 +248,13 @@ function ActionCard({
   value,
   helper,
   tone = "blue",
+  onClick,
 }: {
   title: string;
   value: string;
   helper: string;
   tone?: "blue" | "green" | "amber" | "rose";
+  onClick?: () => void;
 }) {
   const tones = {
     blue: "border-[#6f82ff]/30 bg-[#6f82ff]/10 text-[#c5ccff]",
@@ -203,12 +263,111 @@ function ActionCard({
     rose: "border-rose-300/25 bg-rose-300/10 text-rose-100",
   };
 
-  return (
-    <div className={`rounded-lg border p-4 ${tones[tone]}`}>
+  const className = `rounded-lg border p-4 ${tones[tone]} ${onClick ? "text-left transition hover:border-white/35 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60" : ""}`;
+
+  const content = (
+    <>
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">{title}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{value}</p>
       <p className="mt-2 text-sm leading-5 text-slate-300">{helper}</p>
-    </div>
+    </>
+  );
+
+  return onClick ? (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
+  );
+}
+
+type UserFilter = "all" | "active" | "free" | "paid" | "conversion";
+
+function filterUsers(users: UserDetail[], filter: UserFilter) {
+  if (filter === "active") return users.filter((user) => user.isActive);
+  if (filter === "free") return users.filter((user) => !user.isPaid);
+  if (filter === "paid") return users.filter((user) => user.isPaid);
+  if (filter === "conversion") return users.filter((user) => user.isActive && !user.isPaid);
+  return users;
+}
+
+function UserDrilldownDialog({
+  open,
+  onOpenChange,
+  filter,
+  users,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  filter: UserFilter;
+  users: UserDetail[];
+}) {
+  const labels: Record<UserFilter, string> = {
+    all: "All unique users",
+    active: "Active users",
+    free: "Free users",
+    paid: "Paid users",
+    conversion: "Conversion pool",
+  };
+  const rows = filterUsers(users, filter);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-[#0e141f] text-white sm:max-w-[min(1120px,calc(100vw-2rem))]">
+        <DialogHeader className="pr-10">
+          <DialogTitle className="text-xl font-semibold">{labels[filter]}</DialogTitle>
+          <DialogDescription className="text-slate-400">
+            {num(rows.length)} unique users with email, plan, join date, activity, labels, and revenue.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[68dvh] overflow-auto rounded-lg border border-white/10">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-[#111827] text-slate-400">
+              <TableRow className="border-white/10 hover:bg-transparent">
+                <TableHead className="text-slate-400">User</TableHead>
+                <TableHead className="text-slate-400">Plan</TableHead>
+                <TableHead className="text-slate-400">Joined</TableHead>
+                <TableHead className="text-right text-slate-400">Labels</TableHead>
+                <TableHead className="text-right text-slate-400">This month</TableHead>
+                <TableHead className="text-slate-400">Last active</TableHead>
+                <TableHead className="text-right text-slate-400">Revenue</TableHead>
+                <TableHead className="text-right text-slate-400">Failed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length ? (
+                rows.map((user) => (
+                  <TableRow key={user.userId} className="border-white/10 hover:bg-white/[0.04]">
+                    <TableCell className="min-w-[240px]">
+                      <p className="font-semibold text-slate-100">{user.name || user.email || "Unknown user"}</p>
+                      <p className="text-xs text-slate-500">{user.email || user.userId}</p>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex rounded-md border border-white/10 bg-black/20 px-2 py-1 text-xs font-semibold capitalize text-slate-200">
+                        {user.plan || "free"} · {user.status || "unknown"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-300">{dateLabel(user.joinedAt)}</TableCell>
+                    <TableCell className="text-right font-semibold text-white">{num(user.labelsProcessed)}</TableCell>
+                    <TableCell className="text-right text-slate-300">{num(user.labelsThisMonth)}</TableCell>
+                    <TableCell className="text-slate-300">{dateTimeLabel(user.lastActiveAt)}</TableCell>
+                    <TableCell className="text-right text-slate-300">{money(user.totalRevenue)}</TableCell>
+                    <TableCell className="text-right text-slate-300">{num(user.failedPayments)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow className="border-white/10">
+                  <TableCell colSpan={8} className="py-8 text-center text-slate-500">
+                    No users in this segment yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -226,6 +385,13 @@ export function AdminAnalyticsDashboard() {
   const [data, setData] = React.useState<AnalyticsPayload | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const [userFilter, setUserFilter] = React.useState<UserFilter>("all");
+  const [usersOpen, setUsersOpen] = React.useState(false);
+
+  const openUsers = React.useCallback((filter: UserFilter) => {
+    setUserFilter(filter);
+    setUsersOpen(true);
+  }, []);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -355,22 +521,30 @@ export function AdminAnalyticsDashboard() {
 
                 <Panel title="Customer mix" eyebrow="email-first admin view">
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div className="rounded-md bg-black/20 p-3">
+                    <button type="button" onClick={() => openUsers("all")} className="rounded-md bg-black/20 p-3 text-left transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60">
+                      <p className="text-xs text-slate-500">Total users</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.totalUsers)}</p>
+                    </button>
+                    <button type="button" onClick={() => openUsers("active")} className="rounded-md bg-black/20 p-3 text-left transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60">
+                      <p className="text-xs text-slate-500">Active users</p>
+                      <p className="mt-1 text-xl font-semibold">{num(data.metrics.activeUsers)}</p>
+                    </button>
+                    <button type="button" onClick={() => openUsers("paid")} className="rounded-md bg-black/20 p-3 text-left transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60">
                       <p className="text-xs text-slate-500">Active subscribers</p>
                       <p className="mt-1 text-xl font-semibold">{num(data.metrics.activeSubscribers)}</p>
-                    </div>
+                    </button>
                     <div className="rounded-md bg-black/20 p-3">
                       <p className="text-xs text-slate-500">Trial users</p>
                       <p className="mt-1 text-xl font-semibold">{num(data.metrics.trialUsers)}</p>
                     </div>
-                    <div className="rounded-md bg-black/20 p-3">
+                    <button type="button" onClick={() => openUsers("paid")} className="rounded-md bg-black/20 p-3 text-left transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60">
                       <p className="text-xs text-slate-500">Paid users</p>
                       <p className="mt-1 text-xl font-semibold">{num(data.metrics.paidUsers)}</p>
-                    </div>
-                    <div className="rounded-md bg-black/20 p-3">
+                    </button>
+                    <button type="button" onClick={() => openUsers("free")} className="rounded-md bg-black/20 p-3 text-left transition hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8fa8ff]/60">
                       <p className="text-xs text-slate-500">Free users</p>
                       <p className="mt-1 text-xl font-semibold">{num(data.metrics.freeUsers)}</p>
-                    </div>
+                    </button>
                   </div>
                   <p className="mt-4 rounded-md border border-white/10 bg-black/20 p-3 text-xs leading-5 text-slate-500">
                     {data.identity.note}
@@ -379,7 +553,7 @@ export function AdminAnalyticsDashboard() {
               </section>
 
               <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Metric icon={Users} label="Active users" value={num(data.metrics.activeUsers)} helper={`${pct(data.metrics.activationRate)} of all users active in 30 days`} />
+                <Metric icon={Users} label="Active users" value={num(data.metrics.activeUsers)} helper={`${pct(data.metrics.activationRate)} of all users active in 30 days`} onClick={() => openUsers("active")} />
                 <Metric icon={IndianRupee} label="Plan MRR" value={money(data.metrics.mrr)} helper={`${num(data.metrics.paidUsers)} paid users tracked`} tone="green" />
                 <Metric icon={Activity} label="Usage" value={num(data.metrics.labelsThisMonth)} helper={`${num(data.metrics.labelsPerActiveUser)} labels per active user`} />
                 <Metric icon={AlertTriangle} label="Billing risk" value={money(data.metrics.failedPaymentAmount)} helper={`${num(data.metrics.failedPayments)} failed payments · ${num(data.metrics.renewalsDue)} renewals`} tone={data.metrics.failedPayments ? "rose" : "amber"} />
@@ -391,12 +565,14 @@ export function AdminAnalyticsDashboard() {
                   value={num(data.metrics.activeFreeUsers)}
                   helper="Active free users who already see value and should be nudged toward paid plans."
                   tone={data.metrics.activeFreeUsers ? "amber" : "green"}
+                  onClick={() => openUsers("conversion")}
                 />
                 <ActionCard
                   title="Activation"
                   value={pct(data.metrics.activationRate)}
                   helper={`${num(data.metrics.activeUsers)} active users out of ${num(data.metrics.totalUsers)} total accounts.`}
                   tone={data.metrics.activationRate >= 40 ? "green" : data.metrics.activationRate > 0 ? "amber" : "rose"}
+                  onClick={() => openUsers("all")}
                 />
                 <ActionCard
                   title="Revenue focus"
@@ -535,6 +711,14 @@ export function AdminAnalyticsDashboard() {
           ) : null}
         </div>
       </div>
+      {data ? (
+        <UserDrilldownDialog
+          open={usersOpen}
+          onOpenChange={setUsersOpen}
+          filter={userFilter}
+          users={data.users.details}
+        />
+      ) : null}
     </main>
   );
 }
