@@ -43,6 +43,7 @@ type RazorpayCheckoutOptions = {
   modal?: {
     ondismiss?: () => void;
   };
+  timeout?: number;
 };
 
 type RazorpayCheckoutInstance = {
@@ -175,6 +176,7 @@ export function PricingPageClient() {
           email: user.email ?? "",
           name: user.user_metadata?.full_name ? String(user.user_metadata.full_name) : "",
         },
+        timeout: 300,
         handler: async (response) => {
           try {
             const verified = await fetch("/api/billing/verify", {

@@ -126,7 +126,6 @@ export async function POST(req: NextRequest) {
         notes: {
           userId: auth.user.id,
           userEmail: auth.user.email ?? "",
-          checkoutExpiresAt,
           type: body.type,
           plan,
           cycle,
@@ -169,7 +168,6 @@ export async function POST(req: NextRequest) {
         notes: {
           userId: auth.user.id,
           userEmail: auth.user.email ?? "",
-          checkoutExpiresAt,
           type: body.type,
           plan: plan ?? "",
           cycle,

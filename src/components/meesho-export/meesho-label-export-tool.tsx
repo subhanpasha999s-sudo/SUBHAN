@@ -397,6 +397,7 @@ type RazorpayCheckoutOptions = {
   subscription_id?: string;
   prefill?: { email?: string; name?: string };
   notes?: Record<string, string>;
+  timeout?: number;
   handler: (response: {
     razorpay_order_id: string;
     razorpay_subscription_id?: string;
@@ -3157,6 +3158,7 @@ export function MeeshoLabelExportTool() {
           email: user?.email ?? "",
           name: user?.user_metadata?.full_name ? String(user.user_metadata.full_name) : "",
         },
+        timeout: 300,
         handler: async (response) => {
           try {
             const verified = await fetch("/api/billing/verify", {

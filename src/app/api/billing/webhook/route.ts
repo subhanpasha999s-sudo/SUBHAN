@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
   const notes = payment?.notes ?? {};
   const userId = notes.userId;
   const userEmail = notes.userEmail?.trim().toLowerCase() || null;
-  const noteCheckoutExpiresAt = notes.checkoutExpiresAt?.trim() || null;
 
   if ((!orderId && !subscriptionId) || !paymentId || !userId) {
     return NextResponse.json({ ok: true, ignored: true });
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
     | null;
 
   const storedCheckoutExpiresAt = metadataCheckoutExpiresAt(row?.metadata);
-  const effectiveCheckoutExpiresAt = storedCheckoutExpiresAt ?? noteCheckoutExpiresAt;
+  const effectiveCheckoutExpiresAt = storedCheckoutExpiresAt;
   if (row?.status !== "paid" && checkoutExpired(effectiveCheckoutExpiresAt)) {
     const failurePayload = {
       user_id: row?.user_id ?? userId,
