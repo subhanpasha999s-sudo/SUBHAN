@@ -118,6 +118,7 @@ export function AppTopbar({
 
   const guestSignedOut = authReady && !user;
   const { title, subtitle, ctaHref, ctaLabel } = pageChrome(pathname);
+  const pricingHref = `/pricing?returnTo=${encodeURIComponent(pathname || "/")}`;
 
   return (
     <header className="sticky top-0 z-30 pt-safe-top">
@@ -199,7 +200,7 @@ export function AppTopbar({
             data-tour="login-cloud"
           >
             <Link
-              href="/pricing"
+              href={pricingHref}
               prefetch={false}
               className="motion-lift hidden h-10 items-center rounded-2xl border border-border/60 bg-card/70 px-3 text-[12px] font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground md:inline-flex"
             >

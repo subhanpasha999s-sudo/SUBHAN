@@ -333,17 +333,33 @@ export function AccountPageClient() {
             </div>
           </WorkspaceSurfaceCard>
         ) : (
-          <>
+          <div className="grid gap-5">
+            <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr] xl:items-start">
             <WorkspaceSurfaceCard
               padding="p-0"
-              className="overflow-hidden border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+              className="overflow-hidden border-border/30 bg-[linear-gradient(145deg,hsl(var(--card)),hsl(var(--muted)/0.34))] shadow-elevate-sm ring-1 ring-black/[0.03]"
             >
               <div className="relative overflow-hidden px-5 py-6 sm:px-8 sm:py-8">
                 <div className="pointer-events-none absolute right-[-8rem] top-[-9rem] h-72 w-72 rounded-full bg-primary/14 blur-3xl" />
                 <div className="pointer-events-none absolute bottom-[-10rem] left-[-7rem] h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
-                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="relative">
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <Badge variant="outline" className="border-border/65 bg-background/50 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                      Account overview
+                    </Badge>
+                    <Badge
+                      className={cn(
+                        "px-2.5 py-1 text-xs font-bold",
+                        activePlanId === "free"
+                          ? "bg-amber-500/12 text-amber-700 ring-1 ring-amber-500/25 dark:text-amber-200"
+                          : "bg-emerald-500/12 text-emerald-700 ring-1 ring-emerald-500/25 dark:text-emerald-200",
+                      )}
+                    >
+                      {activePlan.name} Plan
+                    </Badge>
+                  </div>
                   <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex size-16 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-primary via-sky-500 to-indigo-500 text-lg font-bold text-primary-foreground shadow-[0_20px_55px_-26px_rgb(59_130_246/0.95)] ring-1 ring-white/20 sm:size-20 sm:text-xl">
+                    <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-sky-500 to-indigo-500 text-lg font-bold text-primary-foreground shadow-[0_20px_55px_-26px_rgb(59_130_246/0.95)] ring-1 ring-white/20 sm:size-20 sm:text-xl">
                       {initials(profile.fullName, user.email)}
                     </div>
                     <div className="min-w-0 pt-1">
@@ -366,10 +382,20 @@ export function AccountPageClient() {
                       ) : null}
                     </div>
                   </div>
+                  <div className="mt-6 grid gap-3">
+                    <div className="rounded-2xl border border-border/55 bg-background/50 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Signed in as</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-foreground">{user.email ?? user.id}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                      <AccountMetric icon={ShieldCheck} label="Security" value="Protected account" tone="success" />
+                      <AccountMetric icon={BadgeCheck} label="Member since" value={formatDate(user.created_at)} />
+                    </div>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full sm:w-auto"
+                    className="mt-5 w-full"
                     disabled={signOutBusy}
                     onClick={() => void signOut()}
                   >
@@ -381,17 +407,12 @@ export function AccountPageClient() {
                     Sign out
                   </Button>
                 </div>
-                <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
-                  <AccountMetric icon={Cloud} label="Workspace" value="Cloud synced" tone="success" />
-                  <AccountMetric icon={ShieldCheck} label="Security" value="Protected account" tone="success" />
-                  <AccountMetric icon={BadgeCheck} label="Member since" value={formatDate(user.created_at)} />
-                </div>
               </div>
             </WorkspaceSurfaceCard>
 
             <WorkspaceSurfaceCard
               padding="p-5 sm:p-6"
-              className="border-border/30 bg-card/90 shadow-elevate-sm ring-1 ring-black/[0.03]"
+              className="border-border/30 bg-card/95 shadow-elevate-sm ring-1 ring-black/[0.03]"
             >
               <div className="flex flex-col gap-4 border-b border-border/55 pb-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -402,7 +423,7 @@ export function AccountPageClient() {
                     Plan, usage, renewal, payments, and invoices in one place.
                   </p>
                 </div>
-                <Link href="/pricing" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                <Link href="/pricing?returnTo=/account" className={cn(buttonVariants(), "w-full sm:w-auto")}>
                   Change plan
                 </Link>
               </div>
@@ -452,7 +473,7 @@ export function AccountPageClient() {
                         </div>
                       </div>
                       <div className="grid gap-2 sm:min-w-56">
-                        <Link href="/pricing" className={cn(buttonVariants(), "w-full")}>
+                        <Link href="/pricing?returnTo=/account" className={cn(buttonVariants(), "w-full")}>
                           <Sparkles className="size-4" aria-hidden />
                           {activePlanId === "business" ? "Manage plan" : `Upgrade to ${nextPlan.name}`}
                         </Link>
@@ -531,6 +552,7 @@ export function AccountPageClient() {
                 </>
               ) : null}
             </WorkspaceSurfaceCard>
+            </div>
 
             <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
               <WorkspaceSurfaceCard
@@ -702,7 +724,7 @@ export function AccountPageClient() {
                 </section>
               </WorkspaceSurfaceCard>
             </div>
-          </>
+          </div>
         )}
       </WorkspaceFormPageStack>
     </>
