@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { fulfilBillingPayment } from "@/lib/billing/payment-fulfillment";
-import { getRazorpayBillingConfig, verifyRazorpayWebhookSignature } from "@/lib/billing/razorpay";
+import { getRazorpayBillingConfig, getRazorpaySubscription, verifyRazorpayWebhookSignature } from "@/lib/billing/razorpay";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
 type RazorpayWebhook = {
@@ -97,6 +97,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
+  const razorpaySubscription = subscriptionId
+    ? await getRazorpaySubscription({
+        keyId: config.keyId,
+        keySecret: config.keySecret,
+        subscriptionId,
+      })
+    : null;
+
   const row = existing.data as
     | {
         id: number;
@@ -175,6 +183,8 @@ export async function POST(req: NextRequest) {
       plan: inserted.data.plan,
       cycle: inserted.data.billing_cycle,
       labelCredits: inserted.data.label_credits,
+      currentPeriodStart: razorpaySubscription?.current_start ?? razorpaySubscription?.start_at ?? null,
+      currentPeriodEnd: razorpaySubscription?.current_end ?? razorpaySubscription?.charge_at ?? null,
       rawEvent: event,
     });
     return NextResponse.json({ ok: true });
@@ -200,6 +210,8 @@ export async function POST(req: NextRequest) {
     plan: row.plan,
     cycle: row.billing_cycle,
     labelCredits: row.label_credits,
+    currentPeriodStart: razorpaySubscription?.current_start ?? razorpaySubscription?.start_at ?? null,
+    currentPeriodEnd: razorpaySubscription?.current_end ?? razorpaySubscription?.charge_at ?? null,
     rawEvent: event,
   });
 

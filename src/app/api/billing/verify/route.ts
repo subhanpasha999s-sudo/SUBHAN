@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { fulfilBillingPayment } from "@/lib/billing/payment-fulfillment";
 import {
   getRazorpayBillingConfig,
+  getRazorpaySubscription,
   verifyRazorpayPaymentSignature,
   verifyRazorpaySubscriptionSignature,
 } from "@/lib/billing/razorpay";
@@ -118,6 +119,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const razorpaySubscription = subscriptionId
+    ? await getRazorpaySubscription({
+        keyId: config.keyId,
+        keySecret: config.keySecret,
+        subscriptionId,
+      })
+    : null;
+
   await fulfilBillingPayment(service, {
     userId: row.user_id,
     paymentEventId: row.id,
@@ -128,6 +137,8 @@ export async function POST(req: NextRequest) {
     plan: row.plan,
     cycle: row.billing_cycle,
     labelCredits: row.label_credits,
+    currentPeriodStart: razorpaySubscription?.current_start ?? razorpaySubscription?.start_at ?? null,
+    currentPeriodEnd: razorpaySubscription?.current_end ?? razorpaySubscription?.charge_at ?? null,
   });
 
   return NextResponse.json({ ok: true });

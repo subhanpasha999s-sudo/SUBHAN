@@ -25,9 +25,11 @@ type RazorpaySubscriptionResponse = {
   status?: string;
   plan_id?: string;
   short_url?: string;
+  start_at?: number;
   current_start?: number;
   current_end?: number;
   charge_at?: number;
+  end_at?: number;
 };
 
 export function getRazorpayEnvConfig(): RazorpayBillingConfig | null {
@@ -174,4 +176,21 @@ export async function createRazorpaySubscription(input: {
     throw new Error(json.error?.description || "Could not create Razorpay subscription.");
   }
   return json;
+}
+
+export async function getRazorpaySubscription(input: {
+  keyId: string;
+  keySecret: string;
+  subscriptionId: string;
+}): Promise<RazorpaySubscriptionResponse | null> {
+  if (!input.keyId || !input.keySecret || !input.subscriptionId) return null;
+  const auth = Buffer.from(`${input.keyId}:${input.keySecret}`).toString("base64");
+  const res = await fetch(`https://api.razorpay.com/v1/subscriptions/${input.subscriptionId}`, {
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return (await res.json().catch(() => null)) as RazorpaySubscriptionResponse | null;
 }

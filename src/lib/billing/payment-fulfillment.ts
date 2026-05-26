@@ -19,6 +19,11 @@ export function periodEndForCycle(cycle: BillingCycle | "topup" | undefined, fro
   return next.toISOString();
 }
 
+function unixSecondsToIso(value?: number | null) {
+  if (!value || !Number.isFinite(value)) return null;
+  return new Date(value * 1000).toISOString();
+}
+
 function missingColumn(error: { message?: string } | null | undefined, column: string) {
   return Boolean(error?.message?.includes(column));
 }
@@ -37,6 +42,8 @@ export async function fulfilBillingPayment(
     cycle?: BillingCycle | "topup" | null;
     labelCredits?: number | null;
     invoiceUrl?: string | null;
+    currentPeriodStart?: string | number | null;
+    currentPeriodEnd?: string | number | null;
     rawEvent?: unknown;
   }
 ) {
@@ -62,13 +69,21 @@ export async function fulfilBillingPayment(
   }
 
   if (input.plan && input.plan !== "free") {
+    const currentPeriodStart =
+      typeof input.currentPeriodStart === "number"
+        ? unixSecondsToIso(input.currentPeriodStart)
+        : input.currentPeriodStart;
+    const currentPeriodEnd =
+      typeof input.currentPeriodEnd === "number"
+        ? unixSecondsToIso(input.currentPeriodEnd)
+        : input.currentPeriodEnd;
     const subscriptionRow = {
       user_id: input.userId,
       user_email: input.userEmail?.toLowerCase() ?? null,
       plan: input.plan,
       status: "active",
-      current_period_start: now,
-      current_period_end: periodEndForCycle(cycle === "yearly" ? "yearly" : "monthly"),
+      current_period_start: currentPeriodStart || now,
+      current_period_end: currentPeriodEnd || periodEndForCycle(cycle === "yearly" ? "yearly" : "monthly"),
       provider: "razorpay",
       provider_subscription_id: input.providerSubscriptionId ?? undefined,
       updated_at: now,
