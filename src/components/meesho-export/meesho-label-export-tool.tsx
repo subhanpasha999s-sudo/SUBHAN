@@ -2006,6 +2006,7 @@ export function MeeshoLabelExportTool() {
   const {
     entitlement,
     loading: entitlementLoading,
+    refresh: refreshEntitlement,
     reserveLabels,
   } = useSubscriptionEntitlement(userId);
 
@@ -2601,8 +2602,11 @@ export function MeeshoLabelExportTool() {
   );
   const showAmazonInvoiceDownloadOption =
     (selectedHasAmazonRows || filteredHasAmazonRows) && amazonInvoices.length > 0;
-  const canUsePremiumExports =
-    entitlement.plan === "pro" || entitlement.plan === "business";
+  const hasUnlimitedWorkflowAccess =
+    entitlement.labelsLimit == null ||
+    entitlement.hasUnlimitedBonus ||
+    entitlement.plan === "pro" ||
+    entitlement.plan === "business";
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
   const usageLoading = Boolean(userId && !entitlement.loaded);
   const usagePct =
@@ -2623,6 +2627,23 @@ export function MeeshoLabelExportTool() {
     const returnTo =
       typeof window === "undefined" ? "/export-labels" : window.location.pathname || "/export-labels";
     window.location.assign(`/pricing?returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
+  async function ensureUnlimitedWorkflowAccess(reason: string) {
+    if (!userId) {
+      openOptionalSignIn();
+      return false;
+    }
+    if (hasUnlimitedWorkflowAccess && entitlement.loaded) return true;
+    const fresh = await refreshEntitlement();
+    const freshHasAccess =
+      fresh.labelsLimit == null ||
+      fresh.hasUnlimitedBonus ||
+      fresh.plan === "pro" ||
+      fresh.plan === "business";
+    if (freshHasAccess) return true;
+    openPricingPage(reason);
+    return false;
   }
 
   const filteredSkuExportBuckets = React.useMemo(
@@ -3145,8 +3166,7 @@ export function MeeshoLabelExportTool() {
     zipFilename: string,
     scope: "filtered" | "selected"
   ) {
-    if (!canUsePremiumExports) {
-      openPricingPage("ZIP by SKU is available on Pro. Upgrade when you want one clean PDF per SKU.");
+    if (!(await ensureUnlimitedWorkflowAccess("ZIP by SKU is available on Pro or unlimited bonus access."))) {
       return;
     }
     if (pdfSources.length === 0 || sourceRows.length === 0) {
@@ -3609,8 +3629,7 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropPdf() {
-    if (!canUsePremiumExports) {
-      openPricingPage("Auto-crop is available on Pro. Upgrade to remove blank space and print cleaner labels.");
+    if (!(await ensureUnlimitedWorkflowAccess("Auto-crop is available on Pro or unlimited bonus access."))) {
       return;
     }
     if (cropScopedRows.length === 0) {
@@ -3655,8 +3674,7 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropZip() {
-    if (!canUsePremiumExports) {
-      openPricingPage("Cropped ZIP export is available on Pro. Upgrade to bundle clean labels faster.");
+    if (!(await ensureUnlimitedWorkflowAccess("Cropped ZIP export is available on Pro or unlimited bonus access."))) {
       return;
     }
     if (cropScopedRows.length === 0) {

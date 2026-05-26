@@ -33,7 +33,7 @@ export function defaultBillingPlans(): AdminBillingPlanSetting[] {
     yearlyMonthlyEquivalent: plan.yearlyMonthlyEquivalent,
     yearlyTotal: plan.yearlyTotal,
     labelLimit: plan.labelLimit,
-    dailyLimit: plan.id === "starter" ? 50 : null,
+    dailyLimit: plan.dailyLabelLimit ?? null,
     razorpayMonthlyPlanId: "",
     razorpayYearlyPlanId: "",
   }));

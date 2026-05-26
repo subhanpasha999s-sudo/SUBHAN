@@ -56,7 +56,7 @@ export const TULMIN_PLANS: readonly TulminPlan[] = [
     yearlyMonthlyEquivalent: 70,
     yearlyTotal: 840,
     labelLimit: 1500,
-    dailyLabelLimit: 50,
+    dailyLabelLimit: null,
     dailyFit: "1,500 complete workflows/month",
     tagline: "Best first paid plan for regular dispatch.",
     cta: "Upgrade to Starter",

@@ -16,6 +16,7 @@ export type ServerEntitlement = {
   labelsLimit: number | null;
   baseLabelsLimit?: number | null;
   bonusLabelsAvailable?: number;
+  hasUnlimitedBonus?: boolean;
   labelsRemaining: number | null;
   dailyLabelsUsed: number;
   dailyLabelsLimit: number | null;
@@ -36,15 +37,39 @@ export function currentDayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+function addUtcMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setUTCMonth(next.getUTCMonth() + months);
+  return next;
+}
+
+function monthlyUsagePeriodKey(start?: string | null, end?: string | null, now = new Date()) {
+  if (!start) return currentMonthKey(now);
+  const startDate = new Date(start);
+  if (Number.isNaN(startDate.getTime()) || startDate > now) return currentMonthKey(now);
+  const rawMonthDiff =
+    (now.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
+    (now.getUTCMonth() - startDate.getUTCMonth());
+  let monthDiff = Math.max(0, rawMonthDiff);
+  if (addUtcMonths(startDate, monthDiff) > now) monthDiff = Math.max(0, monthDiff - 1);
+  const periodStart = addUtcMonths(startDate, monthDiff);
+  let periodEnd = addUtcMonths(startDate, monthDiff + 1);
+  if (end) {
+    const subscriptionEnd = new Date(end);
+    if (!Number.isNaN(subscriptionEnd.getTime()) && subscriptionEnd < periodEnd) {
+      periodEnd = subscriptionEnd;
+    }
+  }
+  return `period:${periodStart.toISOString()}:${periodEnd.toISOString()}`;
+}
+
+function periodIsCurrent(end?: string | null) {
+  return !end || new Date(end).getTime() > Date.now();
+}
+
 function sha(input: string) {
   return createHash("sha256").update(input).digest("hex");
 }
-
-type DynamicPlanSetting = {
-  enabled?: boolean | null;
-  label_limit?: number | null;
-  daily_limit?: number | null;
-};
 
 type UsageTotalsRow = {
   labels_used?: number | null;
@@ -183,14 +208,14 @@ export async function getServerEntitlement(
   userId: string,
   deviceHash?: string
 ): Promise<ServerEntitlement> {
-  const monthKey = currentMonthKey();
+  let monthKey = currentMonthKey();
   const dayKey = currentDayKey();
   let plan: TulminPlanId = "free";
   let status: ServerEntitlement["status"] = "free";
 
   const subscription = await sb
     .from("tulmin_user_subscriptions")
-    .select("plan,status,current_period_end")
+    .select("plan,status,current_period_start,current_period_end")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -198,22 +223,20 @@ export async function getServerEntitlement(
     const row = subscription.data as {
       plan?: string;
       status?: string;
+      current_period_start?: string | null;
       current_period_end?: string | null;
     };
-    if (row.plan && row.plan in TULMIN_PLAN_BY_ID) plan = row.plan as TulminPlanId;
-    if (row.status === "active" || row.status === "trialing" || row.status === "past_due") {
+    if (
+      row.plan &&
+      row.plan in TULMIN_PLAN_BY_ID &&
+      row.plan !== "free" &&
+      (row.status === "active" || row.status === "trialing") &&
+      periodIsCurrent(row.current_period_end)
+    ) {
+      plan = row.plan as TulminPlanId;
       status = row.status;
+      monthKey = monthlyUsagePeriodKey(row.current_period_start, row.current_period_end);
     }
-  }
-
-  let dynamicPlan: DynamicPlanSetting | null = null;
-  const dynamicPlanResult = await sb
-    .from("tulmin_plan_settings")
-    .select("enabled,label_limit,daily_limit")
-    .eq("plan", plan)
-    .maybeSingle();
-  if (!dynamicPlanResult.error && dynamicPlanResult.data) {
-    dynamicPlan = dynamicPlanResult.data as DynamicPlanSetting;
   }
 
   const usageTotals = await sb.rpc("tulmin_usage_totals", {
@@ -259,7 +282,7 @@ export async function getServerEntitlement(
 
   const credits = await sb
     .from("tulmin_label_credit_grants")
-    .select("label_count,used_label_count,expires_at,metadata")
+    .select("label_count,used_label_count,expires_at,status,grant_kind,metadata")
     .eq("user_id", userId)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
   const creditRowsResult = credits.error
@@ -291,7 +314,7 @@ export async function getServerEntitlement(
   let abuseReview = false;
   let riskScore = 0;
   let blockedUntil: string | null = null;
-  if (deviceHash && plan === "free") {
+  if (deviceHash && plan === "free" && !hasUnlimitedBonus) {
     const deviceUsers = await sb
       .from("tulmin_device_trials")
       .select("user_id")
@@ -323,14 +346,12 @@ export async function getServerEntitlement(
   }
 
   const planConfig = TULMIN_PLAN_BY_ID[plan];
-  const baseLabelsLimit =
-    dynamicPlan?.label_limit !== undefined ? dynamicPlan.label_limit : planConfig.labelLimit;
+  const baseLabelsLimit = planConfig.labelLimit;
   const labelsLimit =
     hasUnlimitedBonus || baseLabelsLimit == null
       ? null
       : Math.max(0, Number(baseLabelsLimit) || 0) + bonusLabelsAvailable;
-  const dailyLabelsLimit =
-    dynamicPlan?.daily_limit !== undefined ? dynamicPlan.daily_limit : (planConfig.dailyLabelLimit ?? null);
+  const dailyLabelsLimit = null;
   return {
     plan,
     status,
@@ -338,6 +359,7 @@ export async function getServerEntitlement(
     labelsLimit,
     baseLabelsLimit,
     bonusLabelsAvailable,
+    hasUnlimitedBonus,
     labelsRemaining:
       labelsLimit == null ? null : Math.max(0, labelsLimit - labelsUsed),
     dailyLabelsUsed,

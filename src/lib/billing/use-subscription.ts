@@ -13,6 +13,7 @@ export type SubscriptionEntitlement = {
   labelsLimit: number | null;
   baseLabelsLimit?: number | null;
   bonusLabelsAvailable?: number;
+  hasUnlimitedBonus?: boolean;
   labelsRemaining: number | null;
   dailyLabelsUsed: number;
   dailyLabelsLimit: number | null;
