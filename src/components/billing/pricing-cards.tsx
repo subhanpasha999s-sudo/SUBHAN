@@ -46,22 +46,22 @@ const PLAN_COPY: Record<
   { promise: string; bestFor: string; footer: string }
 > = {
   free: {
-    promise: "See what Tulmin AI can do with your real marketplace labels.",
-    bestFor: "New sellers checking the workflow",
-    footer: "Use this to test the workflow before upgrading.",
+    promise: "Use the same Tulmin workflow with a free monthly label limit.",
+    bestFor: "New sellers testing real labels",
+    footer: "All core tools are included. Upgrade when label volume grows.",
   },
   starter: {
-    promise: "Filter daily dispatch batches without opening every PDF manually.",
+    promise: "Run the full dispatch workflow every day with starter volume.",
     bestFor: "Small teams packing up to 50 labels/day",
-    footer: "Good first paid plan for regular dispatch.",
+    footer: "Best first paid plan when you dispatch regularly.",
   },
   pro: {
-    promise: "Unlock the complete filter, crop, ZIP, and Amazon SKU/QTY workflow.",
-    bestFor: "Active sellers who want faster dispatch",
-    footer: "Most growing sellers should start here.",
+    promise: "Keep the full workflow running without normal seller limits.",
+    bestFor: "Active sellers who dispatch daily",
+    footer: "Most growing sellers should choose this.",
   },
   business: {
-    promise: "Scale heavy batch processing with team controls and priority workflow.",
+    promise: "Use the full workflow for team dispatch and heavier batches.",
     bestFor: "Warehouses and multi-user teams",
     footer: "Use this when multiple people handle dispatch.",
   },
@@ -121,7 +121,7 @@ export function PricingCards({
             Upgrade your plan
           </h2>
           <p className="mt-3 text-sm leading-6 text-white/62">
-            Choose the label volume and automation level that fits your Meesho, Flipkart, and Amazon dispatch work.
+            Every plan includes the complete workflow. Pick the label volume, support level, and team scale that fits your dispatch work.
           </p>
 
           {reason ? (
