@@ -43,27 +43,31 @@ type PricingCardsProps = {
 
 const PLAN_COPY: Record<
   TulminPlanId,
-  { promise: string; bestFor: string; footer: string }
+  { promise: string; bestFor: string; workflowLimit: string; footer: string }
 > = {
   free: {
-    promise: "Use the same Tulmin workflow with a free monthly label limit.",
-    bestFor: "New sellers testing real labels",
-    footer: "All core tools are included. Upgrade when label volume grows.",
+    promise: "150 labels/month includes 150 complete workflows.",
+    bestFor: "Testing Tulmin or very small dispatch",
+    workflowLimit: "Full workflow included for every processed label",
+    footer: "Start free, then upgrade only when label volume grows.",
   },
   starter: {
-    promise: "Run the full dispatch workflow every day with starter volume.",
-    bestFor: "Small teams packing up to 50 labels/day",
-    footer: "Best first paid plan when you dispatch regularly.",
+    promise: "1,500 labels/month includes 1,500 complete workflows.",
+    bestFor: "Regular sellers with steady orders",
+    workflowLimit: "Full workflow included for every processed label",
+    footer: "Best first paid plan for sellers dispatching every week.",
   },
   pro: {
-    promise: "Keep the full workflow running without normal seller limits.",
-    bestFor: "Active sellers who dispatch daily",
-    footer: "Most growing sellers should choose this.",
+    promise: "Unlimited labels for normal seller use.",
+    bestFor: "Growing sellers who process labels daily",
+    workflowLimit: "Unlimited complete workflows for normal use",
+    footer: "Choose Pro when you do not want to think about monthly limits.",
   },
   business: {
-    promise: "Use the full workflow for team dispatch and heavier batches.",
-    bestFor: "Warehouses and multi-user teams",
-    footer: "Use this when multiple people handle dispatch.",
+    promise: "Unlimited heavy batch use with higher support.",
+    bestFor: "High-volume sellers and business workflows",
+    workflowLimit: "Unlimited complete workflows for heavy batches",
+    footer: "Use this for bigger batches, support priority, and requested enablement.",
   },
 };
 
@@ -115,13 +119,13 @@ export function PricingCards({
         <div className="mx-auto max-w-3xl text-center">
           <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-1 text-xs font-semibold text-white/62">
             <Sparkles className="size-3.5 text-[#8d87ff]" aria-hidden />
-            Pick your dispatch workspace
+            Same tools in every plan
           </p>
           <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Upgrade your plan
+            Choose by label volume, not features
           </h2>
           <p className="mt-3 text-sm leading-6 text-white/62">
-            Every plan includes the complete workflow. Pick the label volume, support level, and team scale that fits your dispatch work.
+            Every Tulmin plan includes the full dispatch workflow. Your plan only controls how many labels you can process each month, plus support and business capacity.
           </p>
 
           {reason ? (
@@ -167,7 +171,7 @@ export function PricingCards({
               <article
                 key={plan.id}
                 className={cn(
-                  "relative flex min-h-[42rem] flex-col rounded-[1.25rem] border bg-[#202020] p-6 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
+                  "relative flex min-h-[40rem] flex-col rounded-[1.25rem] border bg-[#202020] p-6 shadow-[0_18px_70px_-54px_rgb(0_0_0/0.9)] transition-all duration-300 motion-safe:hover:-translate-y-1",
                   highlighted
                     ? "border-[#726bff]/80 bg-[linear-gradient(145deg,#34305f,#202026_70%)] shadow-[0_26px_96px_-58px_rgb(107_99_255/0.95)]"
                     : "border-white/[0.14] hover:border-white/25",
@@ -182,7 +186,7 @@ export function PricingCards({
 
                 <h3 className="text-[1.65rem] font-semibold tracking-tight">{plan.name}</h3>
 
-                <div className="mt-12">
+                <div className="mt-9">
                   {paid && cycle === "yearly" ? (
                     <p className="mb-1 text-sm font-semibold text-white/42 line-through">
                       ₹{plan.monthlyPrice.toLocaleString("en-IN")} / month
@@ -198,7 +202,7 @@ export function PricingCards({
                     </span>
                   </div>
 
-                  <p className="mt-6 min-h-16 text-[1rem] font-semibold leading-6 text-white/92">
+                  <p className="mt-5 min-h-14 text-[1rem] font-semibold leading-6 text-white/92">
                     {copy.promise}
                   </p>
                   <p className="mt-2 min-h-9 text-xs font-semibold uppercase tracking-[0.16em] text-white/48">
@@ -221,11 +225,15 @@ export function PricingCards({
                   {!active && !busy ? <ArrowRight className="size-4" aria-hidden /> : null}
                 </Button>
 
-                <ul className="mt-7 space-y-3.5">
+                <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold leading-5 text-white/86">
+                  {copy.workflowLimit}
+                </div>
+
+                <ul className="mt-5 space-y-3">
                   {plan.features.map((feature, index) => {
                     const Icon = FEATURE_ICONS[index % FEATURE_ICONS.length];
                     return (
-                      <li key={feature} className="flex gap-3 text-sm leading-5 text-white/78">
+                      <li key={feature} className="flex gap-3 text-[13px] leading-5 text-white/78">
                         <Icon className="mt-0.5 size-4 shrink-0 text-white/82" aria-hidden />
                         <span>{feature}</span>
                       </li>
