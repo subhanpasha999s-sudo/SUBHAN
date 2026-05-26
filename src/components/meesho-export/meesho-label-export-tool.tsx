@@ -2006,7 +2006,6 @@ export function MeeshoLabelExportTool() {
   const {
     entitlement,
     loading: entitlementLoading,
-    refresh: refreshEntitlement,
     reserveLabels,
   } = useSubscriptionEntitlement(userId);
 
@@ -2602,11 +2601,6 @@ export function MeeshoLabelExportTool() {
   );
   const showAmazonInvoiceDownloadOption =
     (selectedHasAmazonRows || filteredHasAmazonRows) && amazonInvoices.length > 0;
-  const hasUnlimitedWorkflowAccess =
-    entitlement.labelsLimit == null ||
-    entitlement.hasUnlimitedBonus ||
-    entitlement.plan === "pro" ||
-    entitlement.plan === "business";
   const plan = TULMIN_PLAN_BY_ID[entitlement.plan];
   const usageLoading = Boolean(userId && !entitlement.loaded);
   const usagePct =
@@ -2627,23 +2621,6 @@ export function MeeshoLabelExportTool() {
     const returnTo =
       typeof window === "undefined" ? "/export-labels" : window.location.pathname || "/export-labels";
     window.location.assign(`/pricing?returnTo=${encodeURIComponent(returnTo)}`);
-  }
-
-  async function ensureUnlimitedWorkflowAccess(reason: string) {
-    if (!userId) {
-      openOptionalSignIn();
-      return false;
-    }
-    if (hasUnlimitedWorkflowAccess && entitlement.loaded) return true;
-    const fresh = await refreshEntitlement();
-    const freshHasAccess =
-      fresh.labelsLimit == null ||
-      fresh.hasUnlimitedBonus ||
-      fresh.plan === "pro" ||
-      fresh.plan === "business";
-    if (freshHasAccess) return true;
-    openPricingPage(reason);
-    return false;
   }
 
   const filteredSkuExportBuckets = React.useMemo(
@@ -3166,9 +3143,6 @@ export function MeeshoLabelExportTool() {
     zipFilename: string,
     scope: "filtered" | "selected"
   ) {
-    if (!(await ensureUnlimitedWorkflowAccess("ZIP by SKU is available on Pro or unlimited bonus access."))) {
-      return;
-    }
     if (pdfSources.length === 0 || sourceRows.length === 0) {
       if (scope === "filtered") {
         trackEvent("meesho_export_all_skus_blocked", { reason: "no_visible_labels" });
@@ -3629,9 +3603,6 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropPdf() {
-    if (!(await ensureUnlimitedWorkflowAccess("Auto-crop is available on Pro or unlimited bonus access."))) {
-      return;
-    }
     if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
@@ -3674,9 +3645,6 @@ export function MeeshoLabelExportTool() {
   }
 
   async function downloadAutoCropZip() {
-    if (!(await ensureUnlimitedWorkflowAccess("Cropped ZIP export is available on Pro or unlimited bonus access."))) {
-      return;
-    }
     if (cropScopedRows.length === 0) {
       notify.info("No crop pages available yet.");
       return;
