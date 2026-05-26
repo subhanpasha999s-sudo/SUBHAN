@@ -186,8 +186,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f8fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#080f1d" },
   ],
 };
 
@@ -198,7 +198,7 @@ export default function RootLayout({
 }>) {
   const themeBoot = `(function(){try{var k=${JSON.stringify(
     THEME_STORAGE_KEY
-  )};var p=localStorage.getItem(k)||"system";var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
+  )};var p=localStorage.getItem(k)||"system";var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var t=d?"dark":"light";document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=t;var m=document.querySelector('meta[name="theme-color"][data-tulmin-theme-color="true"]');if(!m){m=document.createElement("meta");m.name="theme-color";m.setAttribute("data-tulmin-theme-color","true");document.head.appendChild(m)}m.content=d?"#080f1d":"#f6f8fb";}catch(e){}})();`;
   const faviconBoot = `(function(){try{var href="/tulmin-favicon-64.png?v=2";document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(el){el.parentNode&&el.parentNode.removeChild(el)});["icon","shortcut icon"].forEach(function(rel){var link=document.createElement("link");link.rel=rel;link.type="image/png";link.sizes="64x64";link.href=href;document.head.appendChild(link)});var svg=document.createElement("link");svg.rel="icon";svg.type="image/svg+xml";svg.sizes="any";svg.href="/tulmin-favicon.svg?v=2";document.head.appendChild(svg);var apple=document.createElement("link");apple.rel="apple-touch-icon";apple.sizes="180x180";apple.href="/apple-touch-icon.png?v=2";document.head.appendChild(apple);}catch(e){}})();`;
 
   return (

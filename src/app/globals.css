@@ -136,13 +136,11 @@
   @keyframes tulmin-scroll-fade-up {
     from {
       opacity: 0;
-      transform: translate3d(0, 22px, 0) scale(0.985);
-      filter: blur(7px);
+      transform: translate3d(0, 12px, 0);
     }
     to {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-      filter: blur(0);
+      transform: translate3d(0, 0, 0);
     }
   }
 
@@ -169,12 +167,10 @@
     from {
       opacity: 0;
       transform: translate3d(0, 10px, 0);
-      filter: blur(5px);
     }
     to {
       opacity: 1;
       transform: translate3d(0, 0, 0);
-      filter: blur(0);
     }
   }
 
@@ -191,7 +187,6 @@
     transition-property: transform, background-color, border-color, color, box-shadow, opacity, filter;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
   }
 
   .motion-lift:hover {
@@ -204,16 +199,16 @@
 
   .scroll-fade-up {
     animation: tulmin-scroll-fade-up both;
-    animation-duration: 720ms;
+    animation-duration: 420ms;
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .motion-soft-float {
-    animation: tulmin-soft-float 8s ease-in-out infinite;
+    animation: none;
   }
 
   .motion-panel-sheen {
-    animation: tulmin-panel-sheen 8s ease-in-out infinite;
+    animation: none;
   }
 
   .motion-preview-card {
@@ -223,7 +218,7 @@
   @supports (animation-timeline: view()) {
     .scroll-fade-up {
       animation-timeline: view();
-      animation-range: entry 8% cover 28%;
+      animation-range: entry 10% cover 24%;
     }
   }
 
@@ -256,7 +251,13 @@
       color-mix(in srgb, var(--foreground) 10%, transparent),
       transparent
     );
-    animation: tulmin-shimmer 1050ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    animation: none;
+  }
+
+  @media (update: fast) {
+    .skeleton-shimmer::after {
+      animation: tulmin-shimmer 1250ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    }
   }
 
   [data-sonner-toast] {
@@ -444,27 +445,27 @@
     --font-sans: var(--font-sans);
   }
 
-  /* ─── Light: gray canvas (#f8fafc), white lifted cards/sidebar ─── */
+  /* ─── Light: quiet SaaS canvas, lifted white work surfaces ─── */
   :root {
-    --background: #f5f8fd;
-    --foreground: #0d1728;
+    --background: #f6f8fb;
+    --foreground: #111827;
     --card: #ffffff;
-    --card-foreground: #0d1728;
+    --card-foreground: #111827;
     --popover: #ffffff;
-    --popover-foreground: #111111;
-    --primary: #3f6cff;
+    --popover-foreground: #111827;
+    --primary: #335cff;
     --primary-foreground: #ffffff;
-    --secondary: #f1f5f9;
-    --secondary-foreground: #0f172a;
-    --muted: #eef3fa;
-    --muted-foreground: #617086;
-    --accent: #eef3fa;
-    --accent-foreground: #0f172a;
+    --secondary: #eef2f7;
+    --secondary-foreground: #111827;
+    --muted: #edf2f7;
+    --muted-foreground: #667085;
+    --accent: #eaf2ff;
+    --accent-foreground: #111827;
     --destructive: #dc4f5e;
-    /** Silver-toned boundaries (cards, inputs, dashed zones, chrome) */
-    --border: #9aa8be;
-    --input: #9aa8be;
-    --ring: #4a74ff;
+    /** Refined low-contrast boundaries for premium SaaS surfaces. */
+    --border: #d5dce8;
+    --input: #cbd5e1;
+    --ring: #4169ff;
     --radius: 0.5rem;
 
     --chart-1: #2563eb;
@@ -474,14 +475,14 @@
     --chart-5: #f59e0b;
 
     /** Sidebar — cool enterprise rail (Zoho-style layering vs.canvas) */
-    --sidebar: #f2f6fd;
-    --sidebar-foreground: #0f172a;
-    --sidebar-primary: #3f6cff;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #111827;
+    --sidebar-primary: #335cff;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: rgba(63, 108, 255, 0.1);
     --sidebar-accent-foreground: #0f172a;
-    --sidebar-border: rgba(91, 120, 166, 0.46);
-    --sidebar-ring: #4a74ff;
+    --sidebar-border: rgba(148, 163, 184, 0.38);
+    --sidebar-ring: #4169ff;
     /** Active nav row top edge (readable on light + dark rails) */
     --sidebar-inset-highlight: rgba(15, 23, 42, 0.06);
 
@@ -492,25 +493,25 @@
   }
 
   .dark {
-    --background: #060d1a;
+    --background: #080f1d;
     --foreground: #eaf0fb;
-    --card: #0e1728;
+    --card: #101827;
     --card-foreground: #eaf0fb;
     --popover: #101b2e;
     --popover-foreground: #eaf0fb;
-    --primary: #5f86ff;
-    --primary-foreground: #061022;
+    --primary: #7da0ff;
+    --primary-foreground: #08111f;
     --secondary: #1a2638;
     --secondary-foreground: #eef4ff;
-    --muted: #152234;
-    --muted-foreground: #8ea2bf;
-    --accent: #192739;
+    --muted: #172235;
+    --muted-foreground: #9aa9bd;
+    --accent: #172840;
     --accent-foreground: #f8fafc;
     --destructive: #e66c7a;
     /** Dark-mode boundaries: readable slate (not black) */
     --border: #30455f;
     --input: #3b516d;
-    --ring: #6d90ff;
+    --ring: #8aa8ff;
 
     --chart-1: #60a5fa;
     --chart-2: #94a3b8;
@@ -518,14 +519,14 @@
     --chart-4: #4ade80;
     --chart-5: #fbbf24;
 
-    --sidebar: #071224;
+    --sidebar: #0b1424;
     --sidebar-foreground: #e6eefb;
-    --sidebar-primary: #6b92ff;
+    --sidebar-primary: #86a5ff;
     --sidebar-primary-foreground: #061327;
     --sidebar-accent: rgba(255, 255, 255, 0.06);
     --sidebar-accent-foreground: #f1f5f9;
     --sidebar-border: rgba(148, 163, 184, 0.22);
-    --sidebar-ring: #6d90ff;
+    --sidebar-ring: #8aa8ff;
     --sidebar-inset-highlight: rgba(255, 255, 255, 0.06);
 
     --label-sheet: #0f1b2d;

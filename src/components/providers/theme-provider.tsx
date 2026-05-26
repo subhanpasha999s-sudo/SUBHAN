@@ -9,6 +9,11 @@ import {
 
 export type ResolvedTheme = "light" | "dark";
 
+const THEME_COLORS: Record<ResolvedTheme, string> = {
+  light: "#f6f8fb",
+  dark: "#080f1d",
+};
+
 function readStoredPreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
   try {
@@ -34,6 +39,18 @@ function resolveTheme(pref: ThemePreference): ResolvedTheme {
 function applyDom(theme: ResolvedTheme) {
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
+
+  let meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"][data-tulmin-theme-color="true"]'
+  );
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.dataset.tulminThemeColor = "true";
+    document.head.appendChild(meta);
+  }
+  meta.content = THEME_COLORS[theme];
 }
 
 type ThemeCtx = {

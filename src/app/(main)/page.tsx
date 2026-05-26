@@ -119,7 +119,7 @@ function ProductPreview() {
   ];
 
   return (
-    <div className="scroll-fade-up motion-soft-float relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-[#0d1728] shadow-[0_28px_100px_-54px_rgb(0_0_0/0.95)] ring-1 ring-white/[0.05]">
+    <div className="scroll-fade-up motion-soft-float relative mx-auto w-full max-w-[680px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-[#101827] shadow-[0_28px_100px_-54px_rgb(0_0_0/0.9)] ring-1 ring-white/[0.05]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(143,164,255,0.75),transparent)]" aria-hidden />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.06)_42%,transparent_54%)] opacity-60 motion-panel-sheen" aria-hidden />
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3">
@@ -133,7 +133,7 @@ function ProductPreview() {
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-2">
           <div className="mb-2 flex items-center justify-between px-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
               Filter by
@@ -147,7 +147,7 @@ function ProductPreview() {
             <div
               key={label}
               className={cn(
-                "motion-preview-card rounded-xl border border-white/10 bg-[#0b1424] px-3 py-2.5",
+                "motion-preview-card rounded-xl border border-white/10 bg-[#0d1626] px-3 py-2.5",
                 index < 3 ? "lg:col-span-2" : "lg:col-span-3"
               )}
               style={{ animationDelay: `${index * 90}ms` }}
@@ -160,7 +160,7 @@ function ProductPreview() {
         </div>
 
         <div>
-          <div className="rounded-2xl border border-white/10 bg-[#07101f] p-4">
+          <div className="rounded-2xl border border-white/10 bg-[#0b1424] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-white">Ready for Meesho, Flipkart, and Amazon</p>
@@ -244,8 +244,8 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] text-slate-950 dark:bg-[#07101f] dark:text-white">
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#f7f9fc]/86 backdrop-blur-xl dark:border-white/10 dark:bg-[#07101f]/82">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-30 border-b border-border/65 bg-background/86 backdrop-blur-xl dark:border-white/10 dark:bg-background/82">
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="Tulmin home">
             <TulminBrand
@@ -293,11 +293,11 @@ export default async function HomePage() {
 
       <main>
         <section className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_12%,rgba(51,92,255,0.18),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.15),transparent_28%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(99,125,255,0.2),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(251,191,36,0.12),transparent_28%)]" aria-hidden />
+          <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_18%_12%,rgba(51,92,255,0.12),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(16,185,129,0.10),transparent_28%)] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(125,160,255,0.16),transparent_32%),radial-gradient(circle_at_78%_0%,rgba(16,185,129,0.10),transparent_28%)]" aria-hidden />
           <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.88fr_1.12fr] lg:px-8">
             <div className="scroll-fade-up max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300">
-                <Clock3 className="size-3.5 text-[#335cff]" strokeWidth={1.8} aria-hidden />
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/75 bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+                <Clock3 className="size-3.5 text-primary" strokeWidth={1.8} aria-hidden />
                 Built for marketplace sellers
               </div>
               <h1 className="mt-6 max-w-[12ch] text-[clamp(2.55rem,13vw,4.1rem)] font-semibold leading-[1.02] text-slate-950 sm:max-w-[15ch] sm:text-[clamp(3.35rem,5vw,5.45rem)] dark:text-white">
@@ -307,21 +307,21 @@ export default async function HomePage() {
                 {marketplaceBadges.map(([name, action], index) => (
                   <div
                     key={name}
-                    className="motion-preview-card rounded-2xl border border-slate-200 bg-white/82 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.055] sm:p-3.5"
+                    className="motion-preview-card rounded-2xl border border-border/70 bg-card/88 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.055] sm:p-3.5"
                     style={{ animationDelay: `${index * 110}ms` }}
                   >
                     <p className="text-base font-semibold text-slate-950 dark:text-white">{name}</p>
-                    <p className="mt-1 text-xs font-semibold leading-snug text-[#335cff] dark:text-[#91a3ff]">{action}</p>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-primary dark:text-[#aebcff]">{action}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 max-w-2xl overflow-hidden rounded-[1.45rem] border border-slate-200 bg-white/82 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.65)] backdrop-blur dark:border-white/10 dark:bg-white/[0.05]">
-                <div className="flex flex-col gap-3 border-b border-slate-200/80 p-4 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
+              <div className="mt-4 max-w-2xl overflow-hidden rounded-[1.45rem] border border-border/70 bg-card/88 shadow-elevate-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.05]">
+                <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-end sm:justify-between dark:border-white/10">
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#335cff] dark:text-[#91a3ff]">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary dark:text-[#aebcff]">
                       Dispatch control
                     </p>
-                    <p className="mt-2 text-base font-semibold leading-7 text-slate-850 sm:text-lg dark:text-slate-100">
+                    <p className="mt-2 text-base font-semibold leading-7 text-foreground sm:text-lg dark:text-slate-100">
                       Turn mixed marketplace labels into exact files for today&apos;s packing desk.
                     </p>
                   </div>
@@ -329,16 +329,16 @@ export default async function HomePage() {
                     PDF + ZIP ready
                   </span>
                 </div>
-                <div className="grid gap-px bg-slate-200/70 p-px md:grid-cols-2 dark:bg-white/10">
+                <div className="grid gap-px bg-border/65 p-px md:grid-cols-2 dark:bg-white/10">
                   {heroActions.map(([Icon, label, value], index) => {
                     const ActionIcon = Icon as typeof Layers3;
                     return (
                       <div
                         key={label as string}
-                        className="motion-preview-card flex items-center gap-3 bg-white px-3 py-3.5 dark:bg-[#111b2b] sm:px-4"
+                        className="motion-preview-card flex items-center gap-3 bg-card px-3 py-3.5 dark:bg-[#111b2b] sm:px-4"
                         style={{ animationDelay: `${index * 70}ms` }}
                       >
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#335cff]/10 text-[#335cff] dark:bg-[#6b86ff]/14 dark:text-[#aebcff]">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-[#6b86ff]/14 dark:text-[#aebcff]">
                           <ActionIcon className="size-4" strokeWidth={1.9} aria-hidden />
                         </span>
                         <span className="min-w-0">
