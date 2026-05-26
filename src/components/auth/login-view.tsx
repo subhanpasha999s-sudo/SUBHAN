@@ -26,8 +26,10 @@ import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   AUTH_DASHBOARD_PATH,
   EMAIL_OTP_LENGTH,
+  getAuthReturnPath,
   getOtpEmailRedirectUrl,
   LAST_AUTH_METHOD_KEY,
+  rememberAuthReturnPath,
   SIGNIN_FLOW_QUERY_PARAM,
   safeInternalNextPath,
 } from "@/lib/auth/constants";
@@ -42,8 +44,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Full-page `/login` is only for OAuth / magic-link return paths and forced
- * `?signin=1`. Workspace entry is modal-based — plain `/login` and `/login?next=`
- * bounce to the public landing page so users see the product first by default.
+ * `?signin=1`. Plain `/login` bounces back to the previous workspace page.
  */
 function shouldStayOnLoginPage(searchParams: URLSearchParams): boolean {
   const signin = searchParams.get(SIGNIN_FLOW_QUERY_PARAM);
@@ -96,7 +97,7 @@ export function LoginView() {
   const searchParams = useSearchParams();
   const nextPath = React.useMemo(
     () =>
-      safeInternalNextPath(searchParams.get("next"), AUTH_DASHBOARD_PATH),
+      safeInternalNextPath(searchParams.get("next"), getAuthReturnPath(AUTH_DASHBOARD_PATH)),
     [searchParams]
   );
 
@@ -121,6 +122,7 @@ export function LoginView() {
   }, [preferredPasswordMode]);
 
   React.useEffect(() => {
+    rememberAuthReturnPath(nextPath);
     if (!authReady || !user) return;
     router.replace(nextPath);
   }, [authReady, user, router, nextPath]);
@@ -334,7 +336,8 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
     });
     setSendBusy(true);
     try {
-      const emailRedirectTo = getOtpEmailRedirectUrl();
+      rememberAuthReturnPath(redirectTo);
+      const emailRedirectTo = getOtpEmailRedirectUrl(redirectTo);
       const { error } = await sb.auth.signInWithOtp({
         email: trimmed,
         options: {
@@ -388,6 +391,7 @@ function OtpLoginPanel({ redirectTo }: { redirectTo: string }) {
         return;
       }
       notify.success("You’re signed in.");
+      rememberAuthReturnPath(redirectTo);
       router.replace(redirectTo);
     } finally {
       setVerifyBusy(false);
@@ -533,11 +537,17 @@ function PasswordLoginPanel({
           return;
         }
         notify.success("You’re signed in.");
+        rememberAuthReturnPath(redirectTo);
         router.replace(redirectTo);
       } else {
+        const emailRedirectTo =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/login?signin=1&next=${encodeURIComponent(redirectTo)}`
+            : undefined;
         const { data, error } = await sb.auth.signUp({
           email: em,
           password,
+          options: emailRedirectTo ? { emailRedirectTo } : undefined,
         });
         if (error) {
           trackEvent("auth_login_failed", {
@@ -552,6 +562,7 @@ function PasswordLoginPanel({
         if (data.session) {
           trackEvent("auth_signup_success", { method: "password" });
           notify.success("Account ready.");
+          rememberAuthReturnPath(redirectTo);
           router.replace(redirectTo);
           return;
         }

@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
+import { rememberAuthReturnPath } from "@/lib/auth/constants";
 import { useAuth } from "@/lib/supabase/auth-context";
 
 const ValueFirstOtpModal = dynamic(
@@ -36,10 +38,15 @@ export function ValueFirstAuthProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const { user, authReady } = useAuth();
   const [modalOpen, setModalOpen] = React.useState(false);
   const [intent, setIntent] = React.useState<ValueFirstGateIntent | null>(null);
   const pendingRef = React.useRef<ContinueFn | null>(null);
+
+  React.useEffect(() => {
+    rememberAuthReturnPath();
+  }, [pathname]);
 
   const handleModalOpenChange = React.useCallback((open: boolean) => {
     if (!open) pendingRef.current = null;
@@ -54,6 +61,7 @@ export function ValueFirstAuthProvider({
         void continuation();
         return;
       }
+      rememberAuthReturnPath();
       pendingRef.current = continuation;
       setIntent(intentArg);
       setModalOpen(true);
@@ -63,6 +71,7 @@ export function ValueFirstAuthProvider({
 
   const openOptionalSignIn = React.useCallback(() => {
     if (!authReady || user) return;
+    rememberAuthReturnPath();
     pendingRef.current = null;
     setIntent("optional-signin");
     setModalOpen(true);

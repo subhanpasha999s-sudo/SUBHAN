@@ -19,7 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OtpSixInput } from "@/components/auth/otp-six-input";
 import { SocialAuthButtons } from "@/components/auth/premium/social-buttons";
-import { EMAIL_OTP_LENGTH, getOtpEmailRedirectUrl } from "@/lib/auth/constants";
+import {
+  authLoginHref,
+  EMAIL_OTP_LENGTH,
+  getAuthReturnPath,
+  getOtpEmailRedirectUrl,
+  rememberAuthReturnPath,
+} from "@/lib/auth/constants";
 import { getOtpSendErrorMessage } from "@/lib/auth/otp-errors";
 import { markSignupTourPending } from "@/lib/auth/signup-tour";
 import type { ValueFirstGateIntent } from "@/lib/auth/value-first-gate-types";
@@ -76,7 +82,9 @@ export function ValueFirstOtpModal(props: {
 
   const copyIntent: ValueFirstGateIntent = intent ?? "optional-signin";
   const copy = COPY[copyIntent];
-  const authRedirectTo = React.useMemo(() => getOtpEmailRedirectUrl() ?? "", []);
+  const returnTo = open ? getAuthReturnPath() : "/";
+  const authRedirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}${returnTo}` : "";
 
   React.useEffect(() => {
     if (!open) {
@@ -114,7 +122,8 @@ export function ValueFirstOtpModal(props: {
     }
     setSendBusy(true);
     try {
-      const emailRedirectTo = getOtpEmailRedirectUrl();
+      rememberAuthReturnPath(returnTo);
+      const emailRedirectTo = getOtpEmailRedirectUrl(returnTo);
       const { error } = await sb.auth.signInWithOtp({
         email: trimmed,
         options: {
@@ -159,6 +168,7 @@ export function ValueFirstOtpModal(props: {
         return;
       }
       notify.success("You’re signed in.");
+      rememberAuthReturnPath(returnTo);
       await Promise.resolve(onVerifiedContinue());
       onOpenChange(false);
     } finally {
@@ -166,11 +176,12 @@ export function ValueFirstOtpModal(props: {
     }
   }
 
-  function openFullAuth(target: "/login?signin=1" | "/login?signin=1&mode=signup") {
+  function openFullAuth(mode: "signin" | "signup") {
+    rememberAuthReturnPath(returnTo);
     onOpenChange(false);
     // Let dialog close first so auth page does not appear behind the modal.
     window.setTimeout(() => {
-      router.push(target);
+      router.push(authLoginHref(mode, returnTo));
     }, 30);
   }
 
@@ -200,14 +211,14 @@ export function ValueFirstOtpModal(props: {
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
-                onClick={() => openFullAuth("/login?signin=1")}
+                onClick={() => openFullAuth("signin")}
                 className={cn(buttonVariants(), "min-h-10 flex-1 font-semibold")}
               >
                 Open login
               </button>
               <button
                 type="button"
-                onClick={() => openFullAuth("/login?signin=1&mode=signup")}
+                onClick={() => openFullAuth("signup")}
                 className={cn(
                   buttonVariants({ variant: "outline" }),
                   "min-h-10 flex-1 font-semibold"
@@ -265,14 +276,14 @@ export function ValueFirstOtpModal(props: {
             <div className="flex items-center justify-between gap-3 pt-1 text-[12px] text-muted-foreground">
               <button
                 type="button"
-                onClick={() => openFullAuth("/login?signin=1")}
+                onClick={() => openFullAuth("signin")}
                 className="font-medium underline-offset-2 hover:underline"
               >
                 Login with password
               </button>
               <button
                 type="button"
-                onClick={() => openFullAuth("/login?signin=1&mode=signup")}
+                onClick={() => openFullAuth("signup")}
                 className="font-medium underline-offset-2 hover:underline"
               >
                 Create account

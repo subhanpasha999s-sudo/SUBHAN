@@ -5,6 +5,7 @@ import { Globe } from "lucide-react";
 import { toast as notify } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { rememberAuthReturnPath } from "@/lib/auth/constants";
 import { markSignupTourPending } from "@/lib/auth/signup-tour";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,14 @@ export function SocialAuthButtons({
     try {
       if (signupIntent) {
         markSignupTourPending("*");
+      }
+      if (redirectTo) {
+        try {
+          const url = new URL(redirectTo);
+          rememberAuthReturnPath(`${url.pathname}${url.search}${url.hash}`);
+        } catch {
+          rememberAuthReturnPath();
+        }
       }
       const { data, error } = await sb.auth.signInWithOAuth({
         provider: p,

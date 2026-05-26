@@ -4,6 +4,14 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { TULMIN_PLAN_BY_ID, type TulminPlanId } from "@/lib/billing/plans";
 import { getSupabaseServiceRole } from "@/lib/supabase/server-admin";
 
+type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseServiceRole>>;
+type SupabaseQueryError = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
 type SubscriptionRow = {
   user_id: string;
   user_email?: string | null;
@@ -69,24 +77,100 @@ function daysBetween(a: Date, b: Date) {
   return Math.ceil((b.getTime() - a.getTime()) / 86_400_000);
 }
 
-async function loadUserEmails(userIds: Set<string>) {
-  const sb = getSupabaseServiceRole();
+function errorText(error: SupabaseQueryError | null | undefined) {
+  return [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
+}
+
+function missingColumn(error: SupabaseQueryError | null | undefined, column: string) {
+  const text = errorText(error).toLowerCase();
+  return Boolean(error && text.includes(column.toLowerCase()));
+}
+
+function analyticsSetupError(errors: Array<{ name: string; error: SupabaseQueryError | null | undefined }>) {
+  const failed = errors.filter((item) => item.error);
+  if (failed.length === 0) return null;
+  return `Admin analytics tables are not ready: ${failed
+    .map((item) => `${item.name} (${item.error?.message ?? "query failed"})`)
+    .join("; ")}`;
+}
+
+async function loadSubscriptions(sb: SupabaseAdminClient) {
+  const result = await sb
+    .from("tulmin_user_subscriptions")
+    .select("user_id, user_email, plan, status, current_period_start, current_period_end, created_at, updated_at")
+    .limit(50000);
+
+  if (!missingColumn(result.error, "user_email")) {
+    return { rows: (result.data ?? []) as SubscriptionRow[], error: result.error };
+  }
+
+  const fallback = await sb
+    .from("tulmin_user_subscriptions")
+    .select("user_id, plan, status, current_period_start, current_period_end, created_at, updated_at")
+    .limit(50000);
+
+  return { rows: (fallback.data ?? []) as SubscriptionRow[], error: fallback.error };
+}
+
+async function loadUsageEvents(sb: SupabaseAdminClient, activityWindowStart: Date) {
+  const result = await sb
+    .from("tulmin_usage_events")
+    .select("user_id, user_email, action, label_count, month_key, created_at")
+    .gte("created_at", activityWindowStart.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30000);
+
+  if (!missingColumn(result.error, "user_email")) {
+    return { rows: (result.data ?? []) as UsageRow[], error: result.error };
+  }
+
+  const fallback = await sb
+    .from("tulmin_usage_events")
+    .select("user_id, action, label_count, month_key, created_at")
+    .gte("created_at", activityWindowStart.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30000);
+
+  return { rows: (fallback.data ?? []) as UsageRow[], error: fallback.error };
+}
+
+async function loadPaymentEvents(sb: SupabaseAdminClient) {
+  const result = await sb
+    .from("tulmin_payment_events")
+    .select("user_id, user_email, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50000);
+
+  if (!missingColumn(result.error, "user_email")) {
+    return { rows: (result.data ?? []) as PaymentRow[], error: result.error };
+  }
+
+  const fallback = await sb
+    .from("tulmin_payment_events")
+    .select("user_id, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50000);
+
+  return { rows: (fallback.data ?? []) as PaymentRow[], error: fallback.error };
+}
+
+async function loadAuthUsers(sb: SupabaseAdminClient, userIds: Set<string>) {
   const emails = new Map<string, string>();
   const createdAt = new Map<string, string>();
-  if (!sb || userIds.size === 0) return { emails, createdAt };
+  let authUserCount = 0;
 
   for (let page = 1; page <= 20; page += 1) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
     if (error || !data?.users?.length) break;
+    authUserCount += data.users.length;
     for (const user of data.users) {
-      if (!userIds.has(user.id)) continue;
-      if (user.email) emails.set(user.id, user.email.toLowerCase());
       if (user.created_at) createdAt.set(user.id, user.created_at);
+      if (userIds.has(user.id) && user.email) emails.set(user.id, user.email.toLowerCase());
     }
-    if (data.users.length < 1000 || emails.size >= userIds.size) break;
+    if (data.users.length < 1000) break;
   }
 
-  return { emails, createdAt };
+  return { emails, createdAt, authUserCount };
 }
 
 export async function GET(req: NextRequest) {
@@ -106,27 +190,24 @@ export async function GET(req: NextRequest) {
   const activityWindowStart = new Date(now.getTime() - 180 * 86_400_000);
   const renewalWindowEnd = new Date(now.getTime() + 14 * 86_400_000);
 
-  const [{ data: subscriptions }, { data: usageEvents }, { data: paymentEvents }] = await Promise.all([
-    sb
-      .from("tulmin_user_subscriptions")
-      .select("user_id, user_email, plan, status, current_period_start, current_period_end, created_at, updated_at")
-      .limit(50000),
-    sb
-      .from("tulmin_usage_events")
-      .select("user_id, user_email, action, label_count, month_key, created_at")
-      .gte("created_at", activityWindowStart.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(30000),
-    sb
-      .from("tulmin_payment_events")
-      .select("user_id, user_email, plan, amount, status, billing_cycle, label_credits, failure_reason, invoice_url, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50000),
+  const [subscriptionsResult, usageEventsResult, paymentEventsResult] = await Promise.all([
+    loadSubscriptions(sb),
+    loadUsageEvents(sb, activityWindowStart),
+    loadPaymentEvents(sb),
   ]);
 
-  const subs = (subscriptions ?? []) as SubscriptionRow[];
-  const usage = (usageEvents ?? []) as UsageRow[];
-  const payments = (paymentEvents ?? []) as PaymentRow[];
+  const setupError = analyticsSetupError([
+    { name: "tulmin_user_subscriptions", error: subscriptionsResult.error },
+    { name: "tulmin_usage_events", error: usageEventsResult.error },
+    { name: "tulmin_payment_events", error: paymentEventsResult.error },
+  ]);
+  if (setupError) {
+    return NextResponse.json({ error: setupError }, { status: 503 });
+  }
+
+  const subs = subscriptionsResult.rows;
+  const usage = usageEventsResult.rows;
+  const payments = paymentEventsResult.rows;
 
   const userIds = new Set(
     [
@@ -139,7 +220,7 @@ export async function GET(req: NextRequest) {
   for (const row of [...subs, ...usage, ...payments]) {
     if (row.user_id && row.user_email) directEmails.set(row.user_id, row.user_email.toLowerCase());
   }
-  const { emails, createdAt } = await loadUserEmails(userIds);
+  const { emails, createdAt, authUserCount } = await loadAuthUsers(sb, userIds);
   const displayUser = (userId: string | null | undefined) =>
     userId ? directEmails.get(userId) ?? emails.get(userId) ?? userId : "unknown";
 
@@ -173,7 +254,7 @@ export async function GET(req: NextRequest) {
         ? 100
         : 0;
 
-  const totalUsers = userIds.size;
+  const totalUsers = Math.max(userIds.size, authUserCount);
   const paidUsers = new Set(activeSubscribers.map((sub) => sub.user_id)).size;
   const freeUsers = Math.max(0, totalUsers - paidUsers);
   const conversionRate = totalUsers ? Math.round((paidUsers / totalUsers) * 1000) / 10 : 0;
