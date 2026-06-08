@@ -297,20 +297,40 @@ const AUTO_CROP_PREP_MAX_IMPORT_FILES = 80;
 const AUTO_CROP_PREP_MAX_LABELS = 700;
 const CROP_EXPORT_BATCH_SIZE = 140;
 
-type SkuExportBucket = { masterSku: string | null; rows: EnrichedMeeshoLabelRow[] };
+type SkuExportBucket = {
+  skuName: string;
+  masterSku: string | null;
+  labelCount: number;
+  rows: EnrichedMeeshoLabelRow[];
+};
 
 function buildSkuExportBuckets(sourceRows: readonly EnrichedMeeshoLabelRow[]): SkuExportBucket[] {
   const buckets = new Map<string, SkuExportBucket>();
   for (const r of sourceRows) {
-    const key = rowMasterExportKey(r);
+    const skuName =
+      (r.master_sku?.trim() || r.listing_sku?.trim() || "Unmapped").trim() ||
+      "Unmapped";
+    const key = skuName.toLowerCase();
     const cur = buckets.get(key);
     if (cur) {
       cur.rows.push(r);
+      cur.labelCount += 1;
     } else {
-      buckets.set(key, { masterSku: r.master_sku?.trim() || null, rows: [r] });
+      buckets.set(key, {
+        skuName,
+        masterSku: r.master_sku?.trim() || null,
+        labelCount: 1,
+        rows: [r],
+      });
     }
   }
-  return [...buckets.values()].filter((b) => b.rows.length > 0);
+  return [...buckets.values()]
+    .filter((b) => b.rows.length > 0)
+    .sort((a, b) =>
+      b.labelCount !== a.labelCount
+        ? b.labelCount - a.labelCount
+        : a.skuName.localeCompare(b.skuName, undefined, { sensitivity: "base" })
+    );
 }
 
 async function yieldToUiFrame(): Promise<void> {
@@ -350,10 +370,11 @@ function buildSelectedExportFilename(
   return name;
 }
 
-function makeSkuBucketFileLabel(masterSku: string | null | undefined): string {
-  const raw = masterSku?.trim();
+function makeSkuBucketFileLabel(skuName: string, labelCount: number): string {
+  const raw = skuName.trim();
+  const qty = Math.max(0, Math.round(labelCount));
   if (!raw) return "SKU-MISSING";
-  return sanitizeExportFilenameSegment(raw, 80);
+  return `${sanitizeExportFilenameSegment(raw, 80)}_QTY-${qty}`;
 }
 
 function dedupeFilename(baseName: string, usedLower: Set<string>): string {
@@ -3195,7 +3216,7 @@ export function MeeshoLabelExportTool() {
             yieldEvery: optimizedLargeZip ? 20 : 75,
           });
         }
-        const base = makeSkuBucketFileLabel(bucket.masterSku);
+        const base = makeSkuBucketFileLabel(bucket.skuName, bucket.labelCount);
         const fileBase = dedupeFilename(base, usedNames);
         zip.file(`${fileBase}.pdf`, pdfOut);
 

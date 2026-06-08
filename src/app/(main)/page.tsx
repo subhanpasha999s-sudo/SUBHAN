@@ -272,7 +272,7 @@ export default async function HomePage() {
           <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:hidden">
             <Link
               href="/pricing?returnTo=/"
-              className="rounded-full px-2.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
+              className="inline-flex h-10 min-w-[4.75rem] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-900 shadow-[0_10px_24px_-18px_rgb(15_23_42/0.65)] ring-1 ring-black/[0.03] transition hover:border-[#335cff]/35 hover:text-[#335cff] active:scale-[0.98] dark:border-white/12 dark:bg-white/[0.07] dark:text-white dark:ring-white/[0.04]"
             >
               Plans
             </Link>
