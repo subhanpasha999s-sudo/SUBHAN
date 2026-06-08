@@ -370,11 +370,13 @@ function buildSelectedExportFilename(
   return name;
 }
 
-function makeSkuBucketFileLabel(skuName: string, labelCount: number): string {
+function makeSkuBucketFileLabel(skuName: string, labelCount: number, order: number, total: number): string {
   const raw = skuName.trim();
   const qty = Math.max(0, Math.round(labelCount));
-  if (!raw) return "SKU-MISSING";
-  return `${sanitizeExportFilenameSegment(raw, 80)}_QTY-${qty}`;
+  const width = Math.max(2, String(Math.max(1, total)).length);
+  const prefix = String(Math.max(1, order)).padStart(width, "0");
+  const sku = raw ? sanitizeExportFilenameSegment(raw, 80) : "SKU-MISSING";
+  return `${prefix}_${sku}_QTY-${qty}`;
 }
 
 function dedupeFilename(baseName: string, usedLower: Set<string>): string {
@@ -3216,7 +3218,12 @@ export function MeeshoLabelExportTool() {
             yieldEvery: optimizedLargeZip ? 20 : 75,
           });
         }
-        const base = makeSkuBucketFileLabel(bucket.skuName, bucket.labelCount);
+        const base = makeSkuBucketFileLabel(
+          bucket.skuName,
+          bucket.labelCount,
+          i + 1,
+          bucketList.length
+        );
         const fileBase = dedupeFilename(base, usedNames);
         zip.file(`${fileBase}.pdf`, pdfOut);
 
