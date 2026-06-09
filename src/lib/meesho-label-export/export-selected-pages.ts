@@ -102,6 +102,14 @@ async function yieldToBrowser(): Promise<void> {
   });
 }
 
+function amazonOverlayLines(text: string): string[] {
+  const lines = text
+    .split(/\s+\|\s+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length > 0 ? lines : [text.trim()];
+}
+
 export async function exportPdfPagesFromMultiSourceOrdered(
   steps: readonly {
     importKey: string;
@@ -195,16 +203,24 @@ export async function exportPdfPagesFromMultiSourceOrdered(
     if (step.overlayText?.trim()) {
       const { width, height } = copied.getSize();
       const text = step.overlayText.trim();
-      const fontSize = Math.max(12, Math.min(18, width / Math.max(16, text.length * 0.5)));
       if (!font) {
         out.addPage(copied);
         continue;
       }
-      const textWidth = font.widthOfTextAtSize(text, fontSize);
-      const boxW = Math.min(width * 0.48, textWidth + 28);
-      const boxH = fontSize + 14;
-      const x = Math.max(18, width - boxW - width * 0.08);
-      const y = Math.max(40, height * 0.11);
+      const lines = amazonOverlayLines(text);
+      const marginX = Math.max(18, Math.min(28, width * 0.04));
+      const maxBoxW = Math.max(150, width - marginX * 2);
+      let fontSize = 13;
+      let lineWidths = lines.map((line) => font.widthOfTextAtSize(line, fontSize));
+      while (fontSize > 8 && Math.max(...lineWidths) + 24 > maxBoxW) {
+        fontSize -= 0.5;
+        lineWidths = lines.map((line) => font.widthOfTextAtSize(line, fontSize));
+      }
+      const lineGap = Math.max(2, fontSize * 0.22);
+      const boxW = Math.min(maxBoxW, Math.max(...lineWidths) + 24);
+      const boxH = lines.length * fontSize + (lines.length - 1) * lineGap + 14;
+      const x = width - boxW - marginX;
+      const y = Math.max(28, height * 0.055);
       copied.drawRectangle({
         x,
         y,
@@ -214,12 +230,15 @@ export async function exportPdfPagesFromMultiSourceOrdered(
         borderColor: rgb(0, 0, 0),
         borderWidth: 0.75,
       });
-      copied.drawText(text, {
-        x: x + (boxW - textWidth) / 2,
-        y: y + 6,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
+      lines.forEach((line, lineIndex) => {
+        const textWidth = lineWidths[lineIndex] ?? font.widthOfTextAtSize(line, fontSize);
+        copied.drawText(line, {
+          x: x + (boxW - textWidth) / 2,
+          y: y + boxH - 7 - fontSize - lineIndex * (fontSize + lineGap),
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
       });
     }
     out.addPage(copied);
