@@ -1,0 +1,317 @@
+/**
+ * V2 application entity types — mirror the Postgres schema (supabase/migrations).
+ * The demo provider stores these in the browser; the Supabase provider maps
+ * them 1:1 onto tables.
+ */
+import {
+  ExpenseRecord,
+  LedgerEvent,
+  OrderRow,
+  PaymentEvent,
+  SkuMapEntry,
+} from "@/book/lib/engine";
+
+export type Role = "owner" | "manager" | "returns_manager" | "accountant" | "viewer";
+
+export interface OrgUser {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  role: Role;
+  active: boolean;
+}
+
+export interface Org {
+  name: string;
+  gstin: string;
+  state: string;
+  plan: string;
+  settleAfterDays: number;
+}
+
+export interface Sku {
+  skuCode: string;
+  productName: string;
+  category: string;
+  sizeSet: string;
+  currentCogs: number;
+  gstRate: number;
+  hsnCode: string;
+  reorderLevel: number;
+  status: "active" | "archived";
+  // V4 §6a — extended product fields
+  imageUrl?: string;       // data URL (demo) / Supabase Storage URL (prod)
+  gstInclusive?: boolean;  // is currentCogs / sellingRate GST-inclusive?
+  openingStock?: number;   // opening stock units
+  sellingRate?: number;    // intended selling price
+}
+
+/** V4 §6b — vendor master for purchase bills. */
+export interface Vendor {
+  id: string;
+  name: string;
+  gstin: string;
+  address: string;
+  contact: string;
+  createdAt: string;
+}
+
+export interface CogsHistoryEntry {
+  skuCode: string;
+  oldCogs: number;
+  newCogs: number;
+  reason: "PURCHASE_AVG" | "MANUAL";
+  at: string;
+  by: string;
+}
+
+export interface Purchase {
+  id: string;
+  vendorId?: string; // V4 §6b
+  supplierName: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  totalAmount: number;
+  gstAmount: number;
+  paymentStatus: "paid" | "pending" | "partial";
+  notes: string;
+  items: { skuCode: string; quantity: number; unitCost: number; gstRate: number }[];
+  dueDate?: string;     // for AP aging buckets (§2.8)
+  amountPaid?: number;  // running paid total when matched to bank txns
+}
+
+export interface ReturnsQueueItem {
+  id: string;
+  subOrderNo: string;
+  skuCode: string;
+  returnType: "RTO" | "CUSTOMER_RETURN" | "EXCHANGE_RETURN";
+  receivedDate: string | null;
+  qcStatus: "PENDING" | "DONE";
+  qcResult: "SELLABLE" | "DAMAGED" | "DAMAGED_REPAIRABLE" | "MISMATCH" | null;
+  qcNotes: string;
+  qcBy: string | null;
+  restocked: boolean;
+  createdAt: string;
+}
+
+export interface Claim {
+  id: string;
+  subOrderNo: string;
+  skuCode: string;
+  raisedDate: string;
+  ticketRef: string;
+  status: "RAISED" | "APPROVED" | "REJECTED" | "PAID";
+  amountClaimed: number;
+  amountReceived: number;
+  notes: string;
+}
+
+export interface StoredExpense extends ExpenseRecord {
+  id: string;
+  createdBy: string;
+}
+
+export interface UploadRecord {
+  id: string;
+  fileName: string;
+  fileType: "ORDERS_CSV" | "PAYMENTS_XLSX" | "BANK_STATEMENT";
+  fileHash: string;
+  monthLabel: string;
+  rowCount: number;
+  matched: number;
+  unmatched: number;
+  at: string;
+}
+
+// ── Bank accounts (§2.1) ──────────────────────────────────────────────
+
+export type BankAccountType = "bank" | "credit_card" | "cash";
+
+export interface BankAccount {
+  id: string;
+  name: string;              // user label, e.g. "HDFC Current"
+  bankName: string;
+  accountNumberLast4: string; // only last 4 stored
+  currency: string;          // ISO code, e.g. "INR"
+  accountType: BankAccountType;
+  openingBalance: number;
+  archived?: boolean;        // soft-delete (keep txns for audit)
+  createdAt: string;
+}
+
+/** One categorized slice of a bank transaction (§2.3 splits). */
+export interface TransactionSplit {
+  id: string;
+  amount: number;
+  coaCode: string;
+  category: string;          // COA label
+  vendorId?: string;
+  memo?: string;
+}
+
+/**
+ * Persistent bank transaction (§3). Lives in V2State after an import is
+ * confirmed. `status` mirrors the brief: uncategorized / categorized /
+ * excluded / transfer_pending (legacy IGNORED kept for old data).
+ */
+export interface StoredBankTxn {
+  id: string;
+  bankAccountId?: string;
+  txnDate: string;
+  description: string;
+  rawDescription?: string;   // original statement line
+  referenceNumber?: string;
+  debit: number;
+  credit: number;
+  status: "PENDING" | "CATEGORIZED" | "EXCLUDED" | "TRANSFER_PENDING" | "IGNORED";
+  category?: string;
+  coaCode?: string;          // COA account code for GL posting (single-category)
+  vendorId?: string;
+  splits?: TransactionSplit[]; // present when the txn is split across categories
+  matchedBillId?: string;    // linked Purchase (AP)
+  matchedInvoiceId?: string; // linked Invoice (AR)
+  transferPairId?: string;   // linked counterpart txn when this is a transfer
+  bankTxnId?: string;        // OFX FITID / CAMT ref — used for dedup
+  sourceFile?: string;       // original file name for audit trail
+  importBatchId?: string;
+  importSessionId?: string;
+}
+
+// ── Customers & Invoices (Accounts Receivable, §3) ────────────────────
+
+export interface Customer {
+  id: string;
+  name: string;
+  defaultCoaCode?: string;
+  createdFromTxnId?: string;
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  customerId: string;
+  number: string;
+  amount: number;
+  amountPaid: number;
+  invoiceDate: string;
+  dueDate: string;
+  status: "open" | "partial" | "paid";
+  notes?: string;
+}
+
+/** One statement import run (§3 ImportBatch). */
+export interface ImportBatch {
+  id: string;
+  bankAccountId?: string;
+  fileName: string;
+  fileType: string;
+  rowsParsed: number;
+  rowsImported: number;
+  rowsDuplicate: number;
+  importedBy: string;
+  importedAt: string;
+}
+
+// ── Bank import staging ───────────────────────────────────────────────
+
+export type StagedTxnStatus =
+  | "PENDING"       // no category matched yet
+  | "RULE_MATCH"    // matched by a categorization rule
+  | "AI_SUGGESTED"  // AI suggested, needs user review
+  | "CONFIRMED"     // user confirmed
+  | "DUPLICATE"     // flagged as duplicate of existing txn
+  | "IGNORED";      // user chose to skip
+
+export interface StagedBankTxn {
+  id: string;
+  txnDate: string;
+  description: string;
+  debit: number;
+  credit: number;
+  bankTxnId?: string;
+  category: string | null;
+  coaCode: string | null;
+  status: StagedTxnStatus;
+  aiConfidence?: number;    // 0–1 when AI_SUGGESTED
+  matchedRuleId?: string;
+  sourceFile: string;
+}
+
+export interface SavedBankMapping {
+  id: string;
+  headerHash: string;    // hash of header row for auto-detection
+  bankName: string;      // user-supplied label
+  mapping: import("@/book/lib/engine").BankColumnMapping;
+  createdAt: string;
+}
+
+export interface CategorizationRule {
+  id: string;
+  pattern: string;
+  isRegex: boolean;
+  category: string;      // display name (COA label)
+  coaCode: string;       // COA account code
+  direction: "debit" | "credit" | "both";
+  isStarter: boolean;    // built-in vs user-created
+  timesMatched: number;
+  createdAt: string;
+}
+
+export interface AuditEntry {
+  at: string;
+  actor: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  details?: string;
+}
+
+/** Whole-org state — the demo provider persists this in localStorage. */
+export interface V2State {
+  org: Org;
+  users: OrgUser[];
+  currentUserId: string;
+  skus: Sku[];
+  cogsHistory: CogsHistoryEntry[];
+  purchases: Purchase[];
+  ledger: LedgerEvent[];
+  orders: OrderRow[]; // OrderRow.subOrderNo unique
+  events: PaymentEvent[];
+  returnsQueue: ReturnsQueueItem[];
+  claims: Claim[];
+  expenses: StoredExpense[];
+  bankTxns: StoredBankTxn[];
+  categoryHints: { pattern: string; category: string }[];
+  expenseCategories: string[];
+  uploads: UploadRecord[];
+  disputed: string[];
+  audit: AuditEntry[];
+  /** V3: listing SKU → inventory SKU mapping (incl. bundles). */
+  skuMap: SkuMapEntry[];
+  vendors: Vendor[];
+  /** V3: notification center feed (newest last). */
+  notifications: AppNotification[];
+  /** V3: per-org email-in inbound address (demo stub). */
+  inboundAddress: string;
+  /** Bank import staging — cleared after confirm. */
+  stagingTxns: StagedBankTxn[];
+  /** Saved CSV column mappings per bank. */
+  bankMappings: SavedBankMapping[];
+  /** User-defined + starter categorization rules. */
+  categorizationRules: CategorizationRule[];
+  /** Banking module (§3). */
+  bankAccounts: BankAccount[];
+  customers: Customer[];
+  invoices: Invoice[];
+  importBatches: ImportBatch[];
+}
+
+export interface AppNotification {
+  id: string;
+  at: string;
+  kind: "import" | "low_stock" | "qc_aging" | "unpaid_aging" | "settlement" | "info";
+  title: string;
+  body: string;
+  read: boolean;
+}

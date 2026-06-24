@@ -1,0 +1,830 @@
+"use client";
+/**
+ * V2 data provider — DEMO MODE implementation (in-browser, localStorage).
+ *
+ * Every action body is the demo equivalent of a server action; the Supabase
+ * implementation maps each one onto inserts guarded by requireRole()
+ * (src/lib/supabase/server.ts) with RLS underneath.
+ * PHASE2: swap persistence to Supabase — the component tree only talks to
+ * this context, so screens don't change.
+ */
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AdsRow,
+  LedgerEvent,
+  OrderRow,
+  PaymentRow,
+  SkuMapEntry,
+  UploadResult,
+  adsAutoExpense,
+  applyPaymentUpload,
+  buildSkuMap,
+  canonicalizeOrders,
+  classifyReconciled,
+  isExchangeThenReturn,
+  qcReturnTypesFor,
+  hintFromCategorization,
+  ledgerEventsForOrderMapped,
+  paymentRowToEvent,
+  qcDecisionEvent,
+  QcResult,
+  weightedAvgCogs,
+  currentStock,
+} from "@/book/lib/engine";
+import { canDo } from "./rbac";
+import { buildEmptyState } from "./emptyState";
+import {
+  AppNotification, BankAccount, CategorizationRule, Claim,
+  OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
+  StoredExpense, UploadRecord, V2State, Vendor,
+} from "./types";
+
+/**
+ * Rebuild ALL order-derived ledger rows (and the pending QC queue) from the
+ * current orders + sku map. Purchase/adjustment/QC rows are preserved; only
+ * rows whose refType is "order" are recomputed. Used after a mapping change so
+ * retroactive mappings flow into inventory (spec §2).
+ */
+function rebuildOrderLedger(state: V2State): { ledger: LedgerEvent[]; returnsQueue: ReturnsQueueItem[] } {
+  const map = buildSkuMap(state.skuMap);
+  // keep non-order ledger rows (purchases, manual adjustments, QC, labels)
+  const ledger: LedgerEvent[] = state.ledger.filter((l) => l.refType !== "order");
+  // keep QC entries the user already acted on; drop stale PENDING order-derived ones
+  const resolvedQueue = state.returnsQueue.filter((r) => r.qcStatus === "DONE");
+  const resolvedKeys = new Set(resolvedQueue.map((r) => `${r.subOrderNo}|${r.skuCode}|${r.returnType}`));
+  const queue: ReturnsQueueItem[] = [...resolvedQueue];
+  for (const o of state.orders) {
+    const orderEvents = state.events.filter((e) => e.subOrderNo === o.subOrderNo);
+    const cls = classifyReconciled(o, orderEvents);
+    // Delivered → Exchange → Return: both the original and the replacement came
+    // back, so the ledger gets two return legs and the queue two QC entries.
+    const exchangeThenReturn = isExchangeThenReturn(o, orderEvents);
+    // inventory ledger movement is mapping-gated (unmapped → no stock effect)
+    const { events } = ledgerEventsForOrderMapped(o, cls, o.orderDate || "", map, { exchangeThenReturn });
+    ledger.push(...events);
+    // QC queue is NOT mapping-gated — every RTO / Customer Return / Exchange
+    // creates a QC-pending entry, keyed on the order's listing SKU. An
+    // exchange-then-return yields two entries (CUSTOMER_RETURN + EXCHANGE_RETURN).
+    for (const qcType of qcReturnTypesFor(o, orderEvents)) {
+      const key = `${o.subOrderNo}|${o.sku}|${qcType}`;
+      if (!resolvedKeys.has(key)) {
+        queue.push({
+          id: `rq-${queue.length + 1}-${o.subOrderNo}`, subOrderNo: o.subOrderNo, skuCode: o.sku,
+          returnType: qcType, receivedDate: o.orderDate || null, qcStatus: "PENDING",
+          qcResult: null, qcNotes: "", qcBy: null, restocked: false, createdAt: o.orderDate || new Date().toISOString(),
+        });
+      }
+    }
+  }
+  return { ledger, returnsQueue: queue };
+}
+
+// v3 key: starts clean; abandons any previously-seeded demo data under v2.
+const KEY = "meeshoprofit:v3";
+// The SKU map persists in its OWN small key so it survives data deletion and
+// even a quota failure on the big state blob (it's tiny and always writable).
+const SKUMAP_KEY = "meeshoprofit:skumap";
+let nextId = 1;
+const uid = (p: string) => `${p}-${Date.now().toString(36)}-${nextId++}`;
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const formatReceived = (n: number) =>
+  `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+/** Payment import result + V4 reproducible summary numbers (§1a). */
+export type PaymentImportResult = UploadResult & {
+  rowsRead: number;       // payment rows with a Sub Order No
+  matchedRows: number;    // rows whose sub order exists in the order file
+  unmatchedRows: number;  // rows with no matching order (unacknowledged payouts)
+  fileReceived: number;   // Σ Final Settlement Amount in this file
+};
+
+export interface V2Actions {
+  switchUser(userId: string): void;
+  resetDemo(): void;
+  /** Delete a single imported file and the records it brought in. */
+  deleteUpload(uploadId: string): void;
+  /** Delete ALL imported order/payment data (keeps SKUs, vendors, settings). */
+  clearImportedData(): void;
+  /** Ingest a parsed payment file (idempotent). Returns the what-changed summary. */
+  ingestPaymentFile(args: {
+    fileName: string; fileHash: string; monthBucket: string;
+    paymentRows: PaymentRow[]; adsRows: AdsRow[];
+  }): PaymentImportResult | { error: string };
+  ingestOrderFile(args: { fileName: string; fileHash: string; orderRows: OrderRow[] }):
+    { newOrders: number; rawRows: number; uniqueOrders: number; merged: number } | { error: string };
+  qcDecision(itemId: string, result: QcResult, notes?: string): void;
+  addPurchase(p: Omit<Purchase, "id">): void;
+  overrideCogs(skuCode: string, newCogs: number): void;
+  updateSku(skuCode: string, patch: Partial<Sku>): void;
+  /** V4 §6a — create or fully edit a product. */
+  upsertProduct(sku: Sku, originalCode?: string): void;
+  /** V4 §6b — add a vendor to the master. */
+  addVendor(v: Omit<Vendor, "id" | "createdAt">): void;
+  addExpense(e: Omit<StoredExpense, "id" | "createdBy">): void;
+  deleteExpense(id: string): void;
+  importBankTxns(txns: Omit<StoredBankTxn, "id" | "status">[]): void;
+  categorizeBankTxn(id: string, category: string | null): void; // null = ignore
+  addClaim(c: Omit<Claim, "id">): void;
+  updateClaim(id: string, patch: Partial<Claim>): void;
+  markDisputed(subOrderNo: string, disputed: boolean): void;
+  stockAdjustment(skuCode: string, delta: number, reason: string): void;
+  printLabels(items: { skuCode: string; count: number }[]): void;
+  inviteUser(u: Omit<OrgUser, "id" | "active">): void;
+  setSettleAfterDays(days: number): void;
+  /** V3: map a listing SKU (retroactively rebuilds affected inventory ledger). */
+  mapSku(entry: SkuMapEntry): void;
+  /** Map many listing SKUs in one rebuild (fast bulk auto-map). */
+  mapSkuBulk(entries: SkuMapEntry[]): void;
+  /** V3: remove a listing→inventory mapping (pushes orders back to the tray). */
+  unmapSku(listingSku: string): void;
+  /** V3: quick-create an inventory SKU inline from the mapping screen. */
+  quickCreateSku(sku: Partial<Sku> & { skuCode: string }): void;
+  markNotificationsRead(): void;
+  // ── Bank import staging ────────────────────────────────────────────
+  setStagingTxns(txns: StagedBankTxn[]): void;
+  updateStagingTxn(id: string, patch: Partial<StagedBankTxn>): void;
+  clearStaging(): void;
+  /** Move confirmed staging txns to bankTxns and clear staging. */
+  confirmBankImport(txns: StagedBankTxn[]): void;
+  saveBankMapping(m: SavedBankMapping): void;
+  addCategorizationRule(r: Omit<CategorizationRule, "id" | "createdAt" | "timesMatched">): void;
+  updateCategorizationRule(id: string, patch: Partial<CategorizationRule>): void;
+  deleteCategorizationRule(id: string): void;
+  // ── Bank accounts (§2.1) ───────────────────────────────────────────
+  addBankAccount(a: Omit<BankAccount, "id" | "createdAt">): void;
+  updateBankAccount(id: string, patch: Partial<BankAccount>): void;
+  archiveBankAccount(id: string): void;
+}
+
+const Ctx = createContext<{ state: V2State; me: OrgUser; actions: V2Actions; persistError: boolean } | null>(null);
+
+export function useV2() {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useV2 outside provider");
+  return v;
+}
+
+export function V2Provider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<V2State | null>(null);
+  const [persistError, setPersistError] = useState(false);
+  const stateRef = useRef<V2State | null>(null);
+  stateRef.current = state;
+
+  useEffect(() => {
+    let loaded: V2State;
+    try {
+      const raw = localStorage.getItem(KEY);
+      // Only fall back to empty when there is genuinely nothing to load. A
+      // parse failure here means the blob is unreadable anyway.
+      loaded = raw ? (JSON.parse(raw) as V2State) : buildEmptyState();
+    } catch {
+      setState(buildEmptyState());
+      return;
+    }
+    // The SKU map is authoritative from its own durable key — so it survives
+    // data deletion AND a prior quota failure on the main blob. Falls back to
+    // whatever the main blob carried.
+    try {
+      const sm = localStorage.getItem(SKUMAP_KEY);
+      if (sm) loaded.skuMap = JSON.parse(sm);
+    } catch { /* keep loaded.skuMap */ }
+    // Self-heal: the order-derived ledger + QC queue are pure functions of
+    // orders + events + skuMap. Rebuild them on load so data imported under
+    // older logic is corrected without a manual re-import — e.g. an
+    // exchange-then-return that previously created one QC entry now correctly
+    // yields two. DONE QC and non-order ledger rows are preserved.
+    // CRITICAL: a rebuild failure must NEVER discard the user's loaded orders/
+    // events — keep the loaded state as-is rather than wiping to empty.
+    if (loaded.orders?.length) {
+      try {
+        const rebuilt = rebuildOrderLedger(loaded);
+        loaded.ledger = rebuilt.ledger;
+        loaded.returnsQueue = rebuilt.returnsQueue;
+      } catch {
+        /* keep loaded data unchanged — never nuke real orders on a rebuild error */
+      }
+    }
+    setState(loaded);
+  }, []);
+
+  useEffect(() => {
+    if (!state) return;
+    // 1) Persist the SKU map to its own small key FIRST — it's tiny, so it
+    //    practically never hits the quota, keeping mappings durable even when
+    //    the big blob below fails.
+    try { localStorage.setItem(SKUMAP_KEY, JSON.stringify(state.skuMap)); } catch { /* unlikely */ }
+    // 2) Persist the full state. If this throws (e.g. QuotaExceededError on a
+    //    large import), SURFACE it — never swallow silently, or the user would
+    //    think data saved when it didn't and lose it on reload.
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      setPersistError(false);
+    } catch {
+      setPersistError(true);
+    }
+  }, [state]);
+
+  const value = useMemo(() => {
+    if (!state) return null;
+    const me = state.users.find((u) => u.id === state.currentUserId) ?? state.users[0];
+
+    const audit = (action: string, entity: string, entityId: string, details?: string) => ({
+      at: new Date().toISOString(), actor: me.name, action, entity, entityId, details,
+    });
+
+    const guard = (action: Parameters<typeof canDo>[1]) => {
+      // layer 2 (server-action equivalent): refuse mutations the role lacks
+      if (!canDo(me.role, action)) throw new Error(`Role ${me.role} cannot ${action}`);
+    };
+
+    const actions: V2Actions = {
+      switchUser: (userId) => setState((s) => s && { ...s, currentUserId: userId }),
+      resetDemo: () => setState(buildEmptyState()),
+
+      deleteUpload: (uploadId) => {
+        guard("upload_files");
+        setState((cur) => {
+          if (!cur) return cur;
+          const up = cur.uploads.find((u) => u.id === uploadId);
+          if (!up) return cur;
+          let orders = cur.orders;
+          let events = cur.events;
+          let expenses = cur.expenses;
+          if (up.fileType === "ORDERS_CSV") {
+            orders = cur.orders.filter((o) => o.sourceFile !== up.fileName);
+          } else if (up.fileType === "PAYMENTS_XLSX") {
+            events = cur.events.filter((e) => e.sourceFile !== up.fileName);
+            // drop the auto ads expense for this file's month if no other
+            // payment file for that month remains
+            const monthStillCovered = cur.uploads.some(
+              (u) => u.id !== uploadId && u.fileType === "PAYMENTS_XLSX" && u.monthLabel === up.monthLabel
+            );
+            if (!monthStillCovered) {
+              expenses = expenses.filter(
+                (e) => !(e.source === "ADS_AUTO" && e.sourceKey === `ads:${up.monthLabel}`)
+              );
+            }
+          }
+          const uploads = cur.uploads.filter((u) => u.id !== uploadId);
+          const rebuilt = rebuildOrderLedger({ ...cur, orders, events });
+          return {
+            ...cur, orders, events, expenses, uploads,
+            ledger: rebuilt.ledger, returnsQueue: rebuilt.returnsQueue,
+            audit: [...cur.audit, audit("DELETE_UPLOAD", up.fileType, up.fileName,
+              `removed ${up.fileName} (${up.rowCount} rows)`)],
+          };
+        });
+      },
+
+      clearImportedData: () => {
+        guard("upload_files");
+        setState((cur) => {
+          if (!cur) return cur;
+          // keep SKUs, vendors, mappings, purchases, manual expenses, settings,
+          // users; drop everything brought in by order/payment imports.
+          const ledger = cur.ledger.filter((l) => l.refType === "purchase" || l.refType === "manual");
+          const expenses = cur.expenses.filter((e) => e.source !== "ADS_AUTO");
+          return {
+            ...cur,
+            orders: [], events: [], uploads: [], returnsQueue: [], disputed: [],
+            ledger, expenses,
+            notifications: [...cur.notifications, {
+              id: uid("n"), at: new Date().toISOString(), kind: "info" as const,
+              title: "Imported data cleared",
+              body: "All order & payment imports were removed. Your products, vendors and settings are kept.",
+              read: false,
+            }],
+            audit: [...cur.audit, audit("CLEAR_IMPORTS", "data", "all", "cleared all imported order & payment data")],
+          };
+        });
+      },
+
+      ingestPaymentFile: ({ fileName, fileHash, monthBucket, paymentRows, adsRows }) => {
+        guard("upload_files");
+        const s = stateRef.current!;
+        if (s.uploads.some((u) => u.fileHash === fileHash)) {
+          return { error: "This exact file was already uploaded (same content hash)." };
+        }
+        const incoming = paymentRows.map((r) => paymentRowToEvent(r, monthBucket, fileName));
+        const orderMap = new Map(s.orders.map((o) => [o.subOrderNo, o]));
+        const result = applyPaymentUpload(orderMap, s.events, incoming);
+
+        // Rebuild ledger + QC queue from full orders + all events so every
+        // return/RTO/failed-exchange confirmed by payment becomes QC-pending.
+        const nextState: V2State = { ...s, events: [...s.events, ...result.newEvents] };
+        const rebuilt = rebuildOrderLedger(nextState);
+        const ledger = rebuilt.ledger;
+        const queue = rebuilt.returnsQueue;
+
+        // import-summary numbers (V4 §1a) — reproducible, file-scoped
+        const fileReceived = Math.round(incoming.reduce((a, e) => a + e.finalSettlement, 0) * 100) / 100;
+        const matchedRows = incoming.filter((e) => orderMap.has(e.subOrderNo)).length;
+        const unmatchedRows = incoming.length - matchedRows;
+
+        const expenses = [...s.expenses];
+        const ads = adsAutoExpense(adsRows, monthBucket);
+        if (ads) {
+          const idx = expenses.findIndex((e) => e.source === "ADS_AUTO" && e.sourceKey === ads.sourceKey);
+          if (idx >= 0) expenses[idx] = { ...expenses[idx], ...ads };
+          else expenses.push({ ...ads, id: uid("ex"), createdBy: "system" });
+        }
+
+        const upload: UploadRecord = {
+          id: uid("up"), fileName, fileType: "PAYMENTS_XLSX", fileHash,
+          monthLabel: monthBucket, rowCount: paymentRows.length,
+          matched: incoming.filter((e) => orderMap.has(e.subOrderNo)).length,
+          unmatched: incoming.filter((e) => !orderMap.has(e.subOrderNo)).length,
+          at: new Date().toISOString(),
+        };
+        const note: AppNotification = {
+          id: uid("n"), at: new Date().toISOString(), kind: "import",
+          title: `${monthBucket} payment imported`,
+          body: `${formatReceived(result.summary.totalReceived)} received · ${result.summary.ordersUpdated} orders updated · ${result.summary.reclassified.length} reclassified.`,
+          read: false,
+        };
+        setState((cur) => cur && {
+          ...cur,
+          events: [...cur.events, ...result.newEvents],
+          ledger, returnsQueue: queue, expenses,
+          uploads: [...cur.uploads, upload],
+          notifications: [...cur.notifications, note],
+          audit: [...cur.audit, audit("UPLOAD", fileName, upload.id,
+            `${result.summary.ordersUpdated} orders updated · ${result.summary.newSettlements} new settlements`)],
+        });
+        return { ...result, rowsRead: incoming.length, matchedRows, unmatchedRows, fileReceived };
+      },
+
+      ingestOrderFile: ({ fileName, fileHash, orderRows }) => {
+        guard("upload_files");
+        const s = stateRef.current!;
+        if (s.uploads.some((u) => u.fileHash === fileHash)) {
+          return { error: "This exact file was already uploaded (same content hash)." };
+        }
+        // Canonical order identity: collapse multi-row Sub Order Nos into one
+        // canonical order (exchange/cancel-line merges) — never inflate counts.
+        const canon = canonicalizeOrders(orderRows);
+        const known = new Set(s.orders.map((o) => o.subOrderNo));
+        // stamp the source file so this import can be deleted later
+        const fresh = canon.orders
+          .filter((o) => !known.has(o.subOrderNo))
+          .map((o) => ({ ...o, sourceFile: fileName }));
+
+        // rebuild ledger + QC queue from the full order set + existing events so
+        // returns/RTO confirmed by payment always create QC-pending entries.
+        const nextState: V2State = { ...s, orders: [...s.orders, ...fresh] };
+        const rebuilt = rebuildOrderLedger(nextState);
+
+        const upload: UploadRecord = {
+          id: uid("up"), fileName, fileType: "ORDERS_CSV", fileHash,
+          monthLabel: fresh[0]?.orderDate?.slice(0, 7) ?? "", rowCount: orderRows.length,
+          matched: fresh.length, unmatched: 0, at: new Date().toISOString(),
+        };
+        const note: AppNotification = {
+          id: uid("n"), at: new Date().toISOString(), kind: "import",
+          title: `Order file imported — ${fresh.length.toLocaleString("en-IN")} orders`,
+          body: canon.mergedSubOrders.length
+            ? `${canon.rawRowCount} order rows → ${canon.uniqueCount} unique orders (${canon.mergedSubOrders.length} multi-line orders merged).`
+            : `${canon.uniqueCount} unique orders.`,
+          read: false,
+        };
+        setState((cur) => cur && {
+          ...cur, orders: [...cur.orders, ...fresh],
+          ledger: rebuilt.ledger, returnsQueue: rebuilt.returnsQueue,
+          uploads: [...cur.uploads, upload],
+          notifications: [...cur.notifications, note],
+          audit: [...cur.audit, audit("UPLOAD", fileName, upload.id,
+            `${canon.rawRowCount} rows → ${fresh.length} orders (${canon.mergedSubOrders.length} merged)`)],
+        });
+        return { newOrders: fresh.length, rawRows: canon.rawRowCount, uniqueOrders: canon.uniqueCount, merged: canon.mergedSubOrders.length };
+      },
+
+      qcDecision: (itemId, result, notes = "") => {
+        guard("qc_decision");
+        setState((cur) => {
+          if (!cur) return cur;
+          const item = cur.returnsQueue.find((r) => r.id === itemId);
+          if (!item || item.qcStatus === "DONE") return cur;
+          const ev = qcDecisionEvent(item.skuCode, item.subOrderNo, result, 1, todayIso(), notes);
+          return {
+            ...cur,
+            ledger: [...cur.ledger, ev],
+            returnsQueue: cur.returnsQueue.map((r) =>
+              r.id === itemId
+                ? { ...r, qcStatus: "DONE", qcResult: result, qcNotes: notes, qcBy: me.id, restocked: result === "SELLABLE", receivedDate: r.receivedDate ?? todayIso() }
+                : r
+            ),
+            // mismatch → seed a claim draft (links to claim tracker)
+            claims: result === "MISMATCH"
+              ? [...cur.claims, {
+                  id: uid("cl"), subOrderNo: item.subOrderNo, skuCode: item.skuCode,
+                  raisedDate: todayIso(), ticketRef: "", status: "RAISED",
+                  amountClaimed: cur.skus.find((s) => s.skuCode === item.skuCode)?.currentCogs ?? 0,
+                  amountReceived: 0, notes: notes || "QC mismatch — raise with Meesho",
+                }]
+              : cur.claims,
+            audit: [...cur.audit, audit(`QC_${result}`, "return", item.subOrderNo, notes)],
+          };
+        });
+      },
+
+      addPurchase: (p) => {
+        guard("add_purchase");
+        setState((cur) => {
+          if (!cur) return cur;
+          const id = uid("pur");
+          const stock = currentStock(cur.ledger);
+          const skus = [...cur.skus];
+          const cogsHistory = [...cur.cogsHistory];
+          const ledger = [...cur.ledger];
+          for (const item of p.items) {
+            ledger.push({
+              skuCode: item.skuCode, eventType: "PURCHASE_IN", quantityDelta: item.quantity,
+              refType: "purchase", refId: id, createdAt: p.invoiceDate || todayIso(),
+            });
+            const i = skus.findIndex((s) => s.skuCode === item.skuCode);
+            if (i >= 0) {
+              const oldCogs = skus[i].currentCogs;
+              const newCogs = weightedAvgCogs(stock.get(item.skuCode) ?? 0, oldCogs, item.quantity, item.unitCost);
+              if (newCogs !== oldCogs) {
+                skus[i] = { ...skus[i], currentCogs: newCogs };
+                cogsHistory.push({ skuCode: item.skuCode, oldCogs, newCogs, reason: "PURCHASE_AVG", at: todayIso(), by: me.name });
+              }
+            }
+          }
+          return {
+            ...cur, purchases: [...cur.purchases, { ...p, id }], ledger, skus, cogsHistory,
+            audit: [...cur.audit, audit("PURCHASE_ADD", "purchase", id, `${p.supplierName} ₹${p.totalAmount}`)],
+          };
+        });
+      },
+
+      overrideCogs: (skuCode, newCogs) => {
+        guard("override_cogs");
+        setState((cur) => {
+          if (!cur) return cur;
+          const sku = cur.skus.find((s) => s.skuCode === skuCode);
+          if (!sku) return cur;
+          return {
+            ...cur,
+            skus: cur.skus.map((s) => (s.skuCode === skuCode ? { ...s, currentCogs: newCogs } : s)),
+            cogsHistory: [...cur.cogsHistory, { skuCode, oldCogs: sku.currentCogs, newCogs, reason: "MANUAL", at: todayIso(), by: me.name }],
+            audit: [...cur.audit, audit("COGS_OVERRIDE", "sku", skuCode, `₹${sku.currentCogs} → ₹${newCogs}`)],
+          };
+        });
+      },
+
+      updateSku: (skuCode, patch) => {
+        guard("edit_skus");
+        setState((cur) => cur && {
+          ...cur,
+          skus: cur.skus.map((s) => (s.skuCode === skuCode ? { ...s, ...patch } : s)),
+        });
+      },
+
+      upsertProduct: (sku, originalCode) => {
+        guard("edit_skus");
+        setState((cur) => {
+          if (!cur) return cur;
+          const code = originalCode ?? sku.skuCode;
+          const exists = cur.skus.some((s) => s.skuCode === code);
+          const skus = exists
+            ? cur.skus.map((s) => (s.skuCode === code ? sku : s))
+            : [...cur.skus, sku];
+          // opening stock → a one-time ADJUSTMENT ledger row (only on create)
+          const ledger = [...cur.ledger];
+          if (!exists && sku.openingStock && sku.openingStock > 0) {
+            ledger.push({
+              skuCode: sku.skuCode, eventType: "ADJUSTMENT", quantityDelta: sku.openingStock,
+              refType: "manual", refId: uid("open"), notes: "Opening stock", createdAt: todayIso(),
+            });
+          }
+          return {
+            ...cur, skus, ledger,
+            audit: [...cur.audit, audit(exists ? "PRODUCT_EDIT" : "PRODUCT_CREATE", "sku", sku.skuCode)],
+          };
+        });
+      },
+
+      addVendor: (v) => {
+        guard("add_purchase");
+        setState((cur) => cur && {
+          ...cur,
+          vendors: [...cur.vendors, { ...v, id: uid("ven"), createdAt: new Date().toISOString() }],
+          audit: [...cur.audit, audit("VENDOR_ADD", "vendor", v.name)],
+        });
+      },
+
+      addExpense: (e) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          expenses: [...cur.expenses, { ...e, id: uid("ex"), createdBy: me.id }],
+          audit: [...cur.audit, audit("EXPENSE_ADD", "expense", e.description, `₹${e.amount}`)],
+        });
+      },
+
+      deleteExpense: (id) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          expenses: cur.expenses.filter((e) => e.id !== id),
+          audit: [...cur.audit, audit("EXPENSE_DELETE", "expense", id)],
+        });
+      },
+
+      importBankTxns: (txns) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          bankTxns: [...cur.bankTxns, ...txns.map((t) => ({ ...t, id: uid("bt"), status: "PENDING" as const }))],
+        });
+      },
+
+      categorizeBankTxn: (id, category) => {
+        guard("add_expense");
+        setState((cur) => {
+          if (!cur) return cur;
+          const txn = cur.bankTxns.find((t) => t.id === id);
+          if (!txn) return cur;
+          if (category === null) {
+            return { ...cur, bankTxns: cur.bankTxns.map((t) => (t.id === id ? { ...t, status: "IGNORED" } : t)) };
+          }
+          const hint = hintFromCategorization(txn.description, category);
+          return {
+            ...cur,
+            bankTxns: cur.bankTxns.map((t) => (t.id === id ? { ...t, status: "CATEGORIZED", category } : t)),
+            expenses: [...cur.expenses, {
+              id: uid("ex"), expenseDate: txn.txnDate, category,
+              description: txn.description, amount: txn.debit, gstAmount: 0,
+              paymentMode: "Bank", source: "BANK_IMPORT", sourceKey: null,
+              bankRef: txn.id, createdBy: me.id,
+            }],
+            categoryHints: cur.categoryHints.some((h) => h.pattern === hint.pattern)
+              ? cur.categoryHints
+              : [...cur.categoryHints, hint],
+          };
+        });
+      },
+
+      addClaim: (c) => {
+        guard("raise_claim");
+        setState((cur) => cur && { ...cur, claims: [...cur.claims, { ...c, id: uid("cl") }] });
+      },
+
+      updateClaim: (id, patch) => {
+        guard("raise_claim");
+        setState((cur) => cur && {
+          ...cur,
+          claims: cur.claims.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        });
+      },
+
+      markDisputed: (subOrderNo, disputed) => {
+        guard("mark_disputed");
+        setState((cur) => cur && {
+          ...cur,
+          disputed: disputed
+            ? Array.from(new Set([...cur.disputed, subOrderNo]))
+            : cur.disputed.filter((s) => s !== subOrderNo),
+          audit: [...cur.audit, audit(disputed ? "MARK_DISPUTED" : "CLEAR_DISPUTED", "order", subOrderNo)],
+        });
+      },
+
+      stockAdjustment: (skuCode, delta, reason) => {
+        guard("stock_adjustment");
+        if (!reason.trim()) throw new Error("Adjustment reason is mandatory.");
+        setState((cur) => cur && {
+          ...cur,
+          ledger: [...cur.ledger, {
+            skuCode, eventType: "ADJUSTMENT", quantityDelta: delta,
+            refType: "manual", refId: uid("adj"), notes: reason, createdAt: todayIso(),
+          }],
+          audit: [...cur.audit, audit("STOCK_ADJUSTMENT", "sku", skuCode, `${delta > 0 ? "+" : ""}${delta}: ${reason}`)],
+        });
+      },
+
+      printLabels: (items) => {
+        guard("print_labels");
+        setState((cur) => cur && {
+          ...cur,
+          ledger: [...cur.ledger, ...items.map((i) => ({
+            skuCode: i.skuCode, eventType: "LABEL_PRINTED" as const, quantityDelta: 0,
+            refType: "label" as const, refId: uid("lbl"), notes: `${i.count} labels`, createdAt: todayIso(),
+          }))],
+          audit: [...cur.audit, audit("LABELS_PRINTED", "labels", items.map((i) => `${i.skuCode}×${i.count}`).join(", "))],
+        });
+      },
+
+      inviteUser: (u) => {
+        guard("manage_team");
+        setState((cur) => cur && {
+          ...cur,
+          users: [...cur.users, { ...u, id: uid("u"), active: true }],
+          audit: [...cur.audit, audit("USER_INVITED", "user", u.name, u.role)],
+        });
+      },
+
+      setSettleAfterDays: (days) => {
+        setState((cur) => cur && { ...cur, org: { ...cur.org, settleAfterDays: days } });
+      },
+
+      mapSku: (entry) => {
+        guard("edit_skus");
+        setState((cur) => {
+          if (!cur) return cur;
+          const skuMap = [
+            ...cur.skuMap.filter((m) => m.listingSku.toLowerCase() !== entry.listingSku.toLowerCase()),
+            entry,
+          ];
+          // retroactively recompute the order-derived ledger with the new map
+          const rebuilt = rebuildOrderLedger({ ...cur, skuMap });
+          return {
+            ...cur, skuMap, ledger: rebuilt.ledger, returnsQueue: rebuilt.returnsQueue,
+            audit: [...cur.audit, audit("SKU_MAP", "sku_map", entry.listingSku,
+              entry.components ? `bundle → ${entry.components.map((c) => `${c.inventorySku}×${c.qty}`).join(", ")}` : `→ ${entry.inventorySku}`)],
+          };
+        });
+      },
+
+      mapSkuBulk: (entries) => {
+        guard("edit_skus");
+        if (entries.length === 0) return;
+        setState((cur) => {
+          if (!cur) return cur;
+          const incoming = new Set(entries.map((e) => e.listingSku.toLowerCase()));
+          const skuMap = [
+            ...cur.skuMap.filter((m) => !incoming.has(m.listingSku.toLowerCase())),
+            ...entries,
+          ];
+          // one ledger rebuild for the whole batch (fast)
+          const rebuilt = rebuildOrderLedger({ ...cur, skuMap });
+          return {
+            ...cur, skuMap, ledger: rebuilt.ledger, returnsQueue: rebuilt.returnsQueue,
+            audit: [...cur.audit, audit("SKU_MAP_BULK", "sku_map", `${entries.length} auto-mapped`)],
+          };
+        });
+      },
+
+      unmapSku: (listingSku) => {
+        guard("edit_skus");
+        setState((cur) => {
+          if (!cur) return cur;
+          const skuMap = cur.skuMap.filter((m) => m.listingSku.toLowerCase() !== listingSku.toLowerCase());
+          const rebuilt = rebuildOrderLedger({ ...cur, skuMap });
+          return {
+            ...cur, skuMap, ledger: rebuilt.ledger, returnsQueue: rebuilt.returnsQueue,
+            audit: [...cur.audit, audit("SKU_UNMAP", "sku_map", listingSku)],
+          };
+        });
+      },
+
+      quickCreateSku: (sku) => {
+        guard("edit_skus");
+        setState((cur) => {
+          if (!cur || cur.skus.some((s) => s.skuCode === sku.skuCode)) return cur;
+          return {
+            ...cur,
+            skus: [...cur.skus, {
+              skuCode: sku.skuCode, productName: sku.productName ?? sku.skuCode,
+              category: sku.category ?? "", sizeSet: sku.sizeSet ?? "",
+              currentCogs: sku.currentCogs ?? 0, gstRate: sku.gstRate ?? 5,
+              hsnCode: sku.hsnCode ?? "", reorderLevel: sku.reorderLevel ?? 0, status: "active",
+            }],
+            audit: [...cur.audit, audit("SKU_CREATE", "sku", sku.skuCode)],
+          };
+        });
+      },
+
+      markNotificationsRead: () => {
+        setState((cur) => cur && {
+          ...cur, notifications: cur.notifications.map((n) => ({ ...n, read: true })),
+        });
+      },
+
+      // ── Bank import staging ────────────────────────────────────────
+      setStagingTxns: (txns) => {
+        guard("add_expense");
+        setState((cur) => cur && { ...cur, stagingTxns: txns });
+      },
+
+      updateStagingTxn: (id, patch) => {
+        setState((cur) => cur && {
+          ...cur,
+          stagingTxns: cur.stagingTxns.map((t) => t.id === id ? { ...t, ...patch } : t),
+        });
+      },
+
+      clearStaging: () => {
+        setState((cur) => cur && { ...cur, stagingTxns: [] });
+      },
+
+      confirmBankImport: (txns) => {
+        guard("add_expense");
+        setState((cur) => {
+          if (!cur) return cur;
+          const toPost = txns.filter((t) => t.status !== "IGNORED" && t.status !== "DUPLICATE");
+          const newBankTxns: StoredBankTxn[] = toPost.map((t) => ({
+            id: uid("bt"),
+            txnDate: t.txnDate,
+            description: t.description,
+            debit: t.debit,
+            credit: t.credit,
+            status: "CATEGORIZED" as const,
+            category: t.category ?? undefined,
+            coaCode: t.coaCode ?? undefined,
+            bankTxnId: t.bankTxnId,
+            sourceFile: t.sourceFile,
+          }));
+          return {
+            ...cur,
+            stagingTxns: [],
+            bankTxns: [...cur.bankTxns, ...newBankTxns],
+            audit: [...cur.audit, audit(
+              "BANK_IMPORT_CONFIRMED", "bank",
+              `${toPost.length} txns from ${txns[0]?.sourceFile ?? "statement"}`,
+            )],
+          };
+        });
+      },
+
+      saveBankMapping: (m) => {
+        setState((cur) => {
+          if (!cur) return cur;
+          const rest = cur.bankMappings.filter((bm) => bm.headerHash !== m.headerHash);
+          return { ...cur, bankMappings: [...rest, m] };
+        });
+      },
+
+      addCategorizationRule: (r) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          categorizationRules: [
+            ...cur.categorizationRules,
+            { ...r, id: uid("cr"), createdAt: todayIso(), timesMatched: 0 },
+          ],
+        });
+      },
+
+      updateCategorizationRule: (id, patch) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          categorizationRules: cur.categorizationRules.map((r) => r.id === id ? { ...r, ...patch } : r),
+        });
+      },
+
+      deleteCategorizationRule: (id) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          categorizationRules: cur.categorizationRules.filter((r) => r.id !== id),
+        });
+      },
+
+      // ── Bank accounts (§2.1) ─────────────────────────────────────────
+      addBankAccount: (a) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          bankAccounts: [...cur.bankAccounts, { ...a, id: uid("ba"), createdAt: todayIso() }],
+          audit: [...cur.audit, audit("BANK_ACCOUNT_ADD", "bank_account", a.name)],
+        });
+      },
+
+      updateBankAccount: (id, patch) => {
+        guard("add_expense");
+        setState((cur) => cur && {
+          ...cur,
+          bankAccounts: cur.bankAccounts.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+          audit: [...cur.audit, audit("BANK_ACCOUNT_UPDATE", "bank_account", id)],
+        });
+      },
+
+      archiveBankAccount: (id) => {
+        guard("add_expense");
+        // Soft-delete: keep the account + its transactions for audit (§6).
+        setState((cur) => cur && {
+          ...cur,
+          bankAccounts: cur.bankAccounts.map((b) => (b.id === id ? { ...b, archived: true } : b)),
+          audit: [...cur.audit, audit("BANK_ACCOUNT_ARCHIVE", "bank_account", id)],
+        });
+      },
+    };
+
+    return { state, me, actions };
+  }, [state]);
+
+  if (!value) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-10">
+        <div className="skeleton h-10 w-48" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-28" />)}
+        </div>
+        <div className="skeleton h-80" />
+      </div>
+    );
+  }
+  return <Ctx.Provider value={{ ...value, persistError }}>{children}</Ctx.Provider>;
+}
