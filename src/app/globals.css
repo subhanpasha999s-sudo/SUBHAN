@@ -462,6 +462,10 @@
     --accent: #eaf2ff;
     --accent-foreground: #111827;
     --destructive: #dc4f5e;
+    /* Tulmin Book status tokens (profit / caution / loss). */
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
     /** Refined low-contrast boundaries for premium SaaS surfaces. */
     --border: #d5dce8;
     --input: #cbd5e1;
@@ -508,6 +512,10 @@
     --accent: #172840;
     --accent-foreground: #f8fafc;
     --destructive: #e66c7a;
+    /* Tulmin Book status tokens (brighter for dark surfaces). */
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
     /** Dark-mode boundaries: readable slate (not black) */
     --border: #30455f;
     --input: #3b516d;

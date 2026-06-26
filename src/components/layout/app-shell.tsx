@@ -12,6 +12,7 @@ import {
   CircleUserRound,
   Cloud,
   FileScan,
+  IndianRupee,
   Link2,
   LockKeyhole,
   Settings2,
@@ -50,6 +51,18 @@ type NavDef = {
 type NavGroup = { id: string; label: string; items: NavDef[] };
 
 const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "apps",
+    label: "Apps",
+    items: [
+      {
+        href: "/book/dashboard",
+        label: "Tulmin Book",
+        description: "Accounting & books",
+        icon: IndianRupee,
+      },
+    ],
+  },
   {
     id: "flow",
     label: "Flow",

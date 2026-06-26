@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { AlertTriangle, ArrowRight, CheckCircle2, OctagonAlert } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Landmark, ListOrdered, OctagonAlert, PackageOpen, Sparkles } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { bankReconciliation, dashboardData, insightsFeed, orderStatusCounts } from "@/book/lib/v2/derived";
 import { Guard, CountUpINR, PageHeader, fmtDate } from "@/book/components/v2/common";
@@ -31,13 +31,16 @@ export default function DashboardPage() {
       ? ((data.trueNet - data.prevTrueNet) / Math.abs(data.prevTrueNet)) * 100
       : null;
 
+  // First run: no orders, products, or purchases yet → show a guided start.
+  const isFirstRun = state.orders.length === 0 && state.skus.length === 0 && state.purchases.length === 0;
+
   return (
     <Guard section="dashboard">
       {/* delight: celebrate when this month's profit beats last month */}
       <Confetti fire={momPct !== null && momPct > 0 && data.trueNet > 0} />
       <PageHeader title="Dashboard" sub={`${state.org.name} · ${data.month}`} />
 
-      <div className="mb-6"><HealthBanner /></div>
+      {isFirstRun ? <FirstRun /> : <div className="mb-6"><HealthBanner /></div>}
 
       {/* Hero */}
       <Card className="relative overflow-hidden p-6">
@@ -182,5 +185,40 @@ export default function DashboardPage() {
         </div>
       </Card>
     </Guard>
+  );
+}
+
+/** First-run guided start — shown until the seller has any data. */
+function FirstRun() {
+  const steps = [
+    { icon: ListOrdered, title: "Import orders & payouts", desc: "Upload your Meesho order + payment files to see true profit.", href: "/book/integrations", cta: "Import" },
+    { icon: PackageOpen, title: "Add your products", desc: "Set COGS so margins and inventory stay accurate.", href: "/book/inventory", cta: "Add items" },
+    { icon: Landmark, title: "Reconcile your bank", desc: "Import a statement — only bank-confirmed counts as paid.", href: "/book/bank", cta: "Import" },
+  ];
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary"><Sparkles className="size-5" /></span>
+        <div>
+          <h2 className="text-lg font-bold">Welcome to Tulmin Book</h2>
+          <p className="text-sm text-muted-foreground">Three quick steps to your real numbers.</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {steps.map((s, i) => (
+          <Link key={s.title} href={s.href} className="group flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-primary"><s.icon className="size-5" /></span>
+              <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
+            </div>
+            <p className="text-sm font-bold">{s.title}</p>
+            <p className="mt-1 flex-1 text-xs text-muted-foreground">{s.desc}</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+              {s.cta} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -50,6 +50,10 @@ const config: Config = {
           DEFAULT: "var(--destructive)",
           foreground: "var(--foreground)",
         },
+        /* Tulmin Book status colors */
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",

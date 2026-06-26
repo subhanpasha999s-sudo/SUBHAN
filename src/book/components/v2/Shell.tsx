@@ -10,13 +10,16 @@ import { flushSync } from "react-dom";
 import { motion } from "framer-motion";
 import { Aurora, PageReveal } from "./motion";
 import {
-  BarChart3, Boxes, ChevronDown, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, Scissors, Link2,
+  BarChart3, Boxes, ChevronDown, Cloud, CloudOff, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, Scissors, Link2,
   ListOrdered, Menu, Moon, PackageOpen, Receipt, RotateCcw, Search, Settings, Shuffle,
   ShoppingCart, Store, Sun, Timer, Users, X, BookOpen, Landmark,
 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { AppSection, canSee, homeFor, ROLE_LABELS } from "@/book/lib/v2/rbac";
 import { cn } from "@/book/components/ui";
+import { useAuth } from "@/lib/supabase/auth-context";
+import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
+import { AppSwitcher } from "@/components/app-switcher";
 import NotificationBell from "./NotificationBell";
 import AnalyticsPage from "@/app/book/analytics/page";
 import DashboardPage from "@/app/book/dashboard/page";
@@ -287,6 +290,32 @@ function NavList({
   );
 }
 
+/** Cloud-sync status — signed-in users sync their Book data; others can sign in. */
+function BookCloudSync() {
+  const { user, authReady } = useAuth();
+  const { openOptionalSignIn } = useValueFirstAuth();
+  if (!authReady) return null;
+  if (user) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs">
+        <Cloud className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+        <span className="min-w-0 flex-1 truncate text-emerald-600 dark:text-emerald-400">
+          Synced · {user.email ?? user.phone ?? "signed in"}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <button
+      onClick={openOptionalSignIn}
+      className="flex w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+    >
+      <CloudOff className="h-3.5 w-3.5 shrink-0" />
+      <span className="text-left leading-tight">Sign in to sync across devices</span>
+    </button>
+  );
+}
+
 /** Theme toggle + demo role switcher — shared by sidebar and drawer footers. */
 function ShellFooter({
   dark,
@@ -299,6 +328,7 @@ function ShellFooter({
   const router = useRouter();
   return (
     <div className="space-y-2 border-t border-border p-3">
+      <BookCloudSync />
       <button
         onClick={toggleTheme}
         className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
@@ -462,10 +492,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <span className="text-base font-bold tracking-tight">
-          Tulmin Book
-        </span>
-        <div className="ml-auto"><NotificationBell /></div>
+        <AppSwitcher className="min-w-0 flex-1" />
+        <div className="shrink-0"><NotificationBell /></div>
       </header>
 
       {/* Slide-in drawer (mobile) — the FULL nav, theme + role switcher */}
@@ -478,10 +506,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             transition={{ type: "tween", duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-border bg-card"
           >
-            <div className="flex items-center gap-2 px-5 py-4">
-              <span className="text-lg font-bold tracking-tight">
-                Tulmin Book
-              </span>
+            <div className="flex items-center gap-2 px-3 py-4">
+              <AppSwitcher className="min-w-0 flex-1" />
               <button
                 onClick={() => setMenuOpen(false)}
                 aria-label="Close menu"
@@ -500,11 +526,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <span className="text-lg font-bold tracking-tight">
-            Tulmin Book
-          </span>
-          <div className="ml-auto"><NotificationBell /></div>
+        <div className="flex items-center gap-1 px-3 py-4">
+          <AppSwitcher className="min-w-0 flex-1" />
+          <div className="shrink-0"><NotificationBell /></div>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
           <NavList visible={visible} activePath={activePath} onNavigate={navigateTo} />

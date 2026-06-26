@@ -33,6 +33,7 @@ import {
 } from "@/book/lib/engine";
 import { canDo } from "./rbac";
 import { buildEmptyState } from "./emptyState";
+import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
   AppNotification, BankAccount, CategorizationRule, Claim,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
@@ -169,59 +170,61 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
   const [persistError, setPersistError] = useState(false);
   const stateRef = useRef<V2State | null>(null);
   stateRef.current = state;
+  // Gates cloud writes until we've read the cloud once — so a fresh/empty local
+  // state can never clobber the user's saved server data during hydration.
+  const hydratedRef = useRef(false);
+
+  // Self-heal the order-derived ledger + QC queue (pure fn of orders+events+map).
+  const heal = (s: V2State): V2State => {
+    if (s.orders?.length) {
+      try { const r = rebuildOrderLedger(s); s.ledger = r.ledger; s.returnsQueue = r.returnsQueue; } catch { /* keep as-is */ }
+    }
+    return s;
+  };
 
   useEffect(() => {
-    let loaded: V2State;
+    // 1) Instant first paint from the localStorage cache.
+    let local: V2State;
     try {
       const raw = localStorage.getItem(KEY);
-      // Only fall back to empty when there is genuinely nothing to load. A
-      // parse failure here means the blob is unreadable anyway.
-      loaded = raw ? (JSON.parse(raw) as V2State) : buildEmptyState();
+      local = raw ? (JSON.parse(raw) as V2State) : buildEmptyState();
     } catch {
-      setState(buildEmptyState());
-      return;
+      local = buildEmptyState();
     }
-    // The SKU map is authoritative from its own durable key — so it survives
-    // data deletion AND a prior quota failure on the main blob. Falls back to
-    // whatever the main blob carried.
-    try {
-      const sm = localStorage.getItem(SKUMAP_KEY);
-      if (sm) loaded.skuMap = JSON.parse(sm);
-    } catch { /* keep loaded.skuMap */ }
-    // Self-heal: the order-derived ledger + QC queue are pure functions of
-    // orders + events + skuMap. Rebuild them on load so data imported under
-    // older logic is corrected without a manual re-import — e.g. an
-    // exchange-then-return that previously created one QC entry now correctly
-    // yields two. DONE QC and non-order ledger rows are preserved.
-    // CRITICAL: a rebuild failure must NEVER discard the user's loaded orders/
-    // events — keep the loaded state as-is rather than wiping to empty.
-    if (loaded.orders?.length) {
+    try { const sm = localStorage.getItem(SKUMAP_KEY); if (sm) local.skuMap = JSON.parse(sm); } catch { /* keep */ }
+    setState(heal(local));
+
+    // 2) Hydrate from Supabase (source of truth when signed in); on first
+    //    sign-in with only local data, seed the cloud from it.
+    let cancelled = false;
+    void (async () => {
       try {
-        const rebuilt = rebuildOrderLedger(loaded);
-        loaded.ledger = rebuilt.ledger;
-        loaded.returnsQueue = rebuilt.returnsQueue;
-      } catch {
-        /* keep loaded data unchanged — never nuke real orders on a rebuild error */
-      }
-    }
-    setState(loaded);
+        const remote = await loadBookState();
+        if (cancelled) return;
+        if (remote) {
+          // merge over current defaults so newly-added V2State fields exist
+          setState(heal({ ...buildEmptyState(), ...remote }));
+        } else if (await isBookAuthed()) {
+          void saveBookState(local);
+        }
+      } catch { /* stay on local cache */ }
+      finally { hydratedRef.current = true; }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
+  // Local cache write — instant, offline-safe; surfaces quota failures.
   useEffect(() => {
     if (!state) return;
-    // 1) Persist the SKU map to its own small key FIRST — it's tiny, so it
-    //    practically never hits the quota, keeping mappings durable even when
-    //    the big blob below fails.
     try { localStorage.setItem(SKUMAP_KEY, JSON.stringify(state.skuMap)); } catch { /* unlikely */ }
-    // 2) Persist the full state. If this throws (e.g. QuotaExceededError on a
-    //    large import), SURFACE it — never swallow silently, or the user would
-    //    think data saved when it didn't and lose it on reload.
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-      setPersistError(false);
-    } catch {
-      setPersistError(true);
-    }
+    try { localStorage.setItem(KEY, JSON.stringify(state)); setPersistError(false); } catch { setPersistError(true); }
+  }, [state]);
+
+  // Debounced cloud write — the durable, per-user source of truth.
+  useEffect(() => {
+    if (!state || !hydratedRef.current) return;
+    const t = setTimeout(() => { void saveBookState(state); }, 1200);
+    return () => clearTimeout(t);
   }, [state]);
 
   const value = useMemo(() => {

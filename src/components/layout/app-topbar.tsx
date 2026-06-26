@@ -200,6 +200,14 @@ export function AppTopbar({
             data-tour="login-cloud"
           >
             <Link
+              href="/book/dashboard"
+              prefetch={false}
+              className="motion-lift hidden h-10 items-center gap-1.5 rounded-2xl border border-border/60 bg-card/70 px-3 text-[12px] font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground lg:inline-flex"
+            >
+              <BookOpenText className="size-4" strokeWidth={1.75} aria-hidden />
+              Tulmin Book
+            </Link>
+            <Link
               href={pricingHref}
               prefetch={false}
               className="motion-lift hidden h-10 items-center rounded-2xl border border-border/60 bg-card/70 px-3 text-[12px] font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground md:inline-flex"

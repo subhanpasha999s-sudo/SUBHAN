@@ -144,7 +144,8 @@ function canAutoLaunchTour(pathname: string) {
     p.startsWith("/login") ||
     p.startsWith("/blog") ||
     p.startsWith("/privacy") ||
-    p.startsWith("/terms")
+    p.startsWith("/terms") ||
+    p.startsWith("/book") // Tulmin Book is its own app — never launch the label tour here
   ) {
     return false;
   }
@@ -1088,6 +1089,7 @@ export function AppTourProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!mounted || !authReady || !user) return;
+    if (pathname.startsWith("/book")) return; // Book is its own app — don't run the label signup tour here
     if (!shouldGiveSignupTour(user)) return;
     markSignupTourGiven(user);
     if (shouldRouteToWorkspaceBeforeTour(pathname)) {
