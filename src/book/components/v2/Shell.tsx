@@ -10,7 +10,7 @@ import { flushSync } from "react-dom";
 import { motion } from "framer-motion";
 import { Aurora, PageReveal } from "./motion";
 import {
-  ArrowUpRight, BarChart3, Boxes, ChevronDown, ChevronRight, CircleUserRound, Cloud, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, LogOut, Scissors, Link2,
+  ArrowUpRight, BarChart3, Boxes, ChevronDown, ChevronRight, CircleUserRound, Cloud, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, LogOut, Link2,
   ListOrdered, Menu, Moon, PackageOpen, PanelLeft, PanelLeftClose, Receipt, RotateCcw, Search, Settings, Shuffle,
   ShoppingCart, Store, Sun, Timer, Users, X, BookOpen, Landmark,
 } from "lucide-react";
@@ -80,8 +80,6 @@ const NAV: NavEntry[] = [
   { section: "analytics", href: "/book/analytics", label: "Analytics", icon: BarChart3 },
   { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
   { section: "team", href: "/book/team", label: "Team", icon: Users },
-  // Sibling app — the Label tool, native (not an iframe), at the bottom
-  { section: "tulmin", href: "/export-labels", label: "Filter & auto crop", icon: Scissors },
 ];
 
 const INSTANT_ROUTES: Record<string, React.ComponentType> = {
