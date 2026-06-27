@@ -1,9 +1,9 @@
 "use client";
 /** Dashboard hero: True Net Profit + sparkline + MoM, plus action cards. */
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { AlertTriangle, ArrowRight, CheckCircle2, Landmark, ListOrdered, OctagonAlert, PackageOpen, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, BarChart3, Check, CheckCircle2, Landmark, ListOrdered, OctagonAlert, PackageOpen, Rocket, Sparkles, X } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { bankReconciliation, dashboardData, insightsFeed, orderStatusCounts } from "@/book/lib/v2/derived";
 import { Guard, CountUpINR, PageHeader, fmtDate } from "@/book/components/v2/common";
@@ -31,8 +31,9 @@ export default function DashboardPage() {
       ? ((data.trueNet - data.prevTrueNet) / Math.abs(data.prevTrueNet)) * 100
       : null;
 
-  // First run: no orders, products, or purchases yet → show a guided start.
-  const isFirstRun = state.orders.length === 0 && state.skus.length === 0 && state.purchases.length === 0;
+  // Until the first orders are imported, the dashboard is empty — so we keep it
+  // calm and focused on getting set up instead of a wall of ₹0 cards.
+  const noOrders = state.orders.length === 0;
 
   return (
     <Guard section="dashboard">
@@ -40,7 +41,14 @@ export default function DashboardPage() {
       <Confetti fire={momPct !== null && momPct > 0 && data.trueNet > 0} />
       <PageHeader title="Dashboard" sub={`${state.org.name} · ${data.month}`} />
 
-      {isFirstRun ? <FirstRun /> : <div className="mb-6"><HealthBanner /></div>}
+      {/* Guided setup — progress-aware, persists until done, dismissible */}
+      <SetupGuide />
+
+      {noOrders ? (
+        <NewUserHint />
+      ) : (
+       <>
+      <div className="mb-6"><HealthBanner /></div>
 
       {/* Hero */}
       <Card className="relative overflow-hidden p-6">
@@ -184,41 +192,137 @@ export default function DashboardPage() {
           ))}
         </div>
       </Card>
+       </>
+      )}
     </Guard>
   );
 }
 
-/** First-run guided start — shown until the seller has any data. */
-function FirstRun() {
+const SETUP_DISMISS_KEY = "meeshoprofit:setupDismissed";
+
+/**
+ * Premium guided setup — progress-aware, persists across the journey until every
+ * step is done, and dismissible. New users always know the single next action.
+ */
+function SetupGuide() {
+  const { state } = useV2();
+  // start hidden until we've read storage, so the card never flashes for power users
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(SETUP_DISMISS_KEY) === "1");
+    } catch {
+      setDismissed(false);
+    }
+  }, []);
+
   const steps = [
-    { icon: ListOrdered, title: "Import orders & payouts", desc: "Upload your Meesho order + payment files to see true profit.", href: "/book/integrations", cta: "Import" },
-    { icon: PackageOpen, title: "Add your products", desc: "Set COGS so margins and inventory stay accurate.", href: "/book/inventory", cta: "Add items" },
-    { icon: Landmark, title: "Reconcile your bank", desc: "Import a statement — only bank-confirmed counts as paid.", href: "/book/bank", cta: "Import" },
+    { icon: ListOrdered, title: "Import your Meesho orders", desc: "Upload your order + payment files to see real numbers.", href: "/book/integrations", cta: "Import files", done: state.orders.length > 0 },
+    { icon: PackageOpen, title: "Add product costs", desc: "Set cost price (COGS) so profit & inventory stay accurate.", href: "/book/inventory", cta: "Add products", done: state.skus.length > 0 },
+    { icon: Landmark, title: "Reconcile your bank", desc: "Import a statement — only bank-confirmed money counts as paid.", href: "/book/bank", cta: "Import statement", done: state.bankTxns.length > 0 },
   ];
-  return (
-    <div className="mb-6 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent p-6">
-      <div className="mb-5 flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary"><Sparkles className="size-5" /></span>
-        <div>
-          <h2 className="text-lg font-bold">Welcome to Tulmin Book</h2>
-          <p className="text-sm text-muted-foreground">Three quick steps to your real numbers.</p>
+  const doneCount = steps.filter((s) => s.done).length;
+  const allDone = doneCount === steps.length;
+  const pct = Math.round((doneCount / steps.length) * 100);
+  const nextIdx = steps.findIndex((s) => !s.done);
+
+  if (dismissed) return null;
+
+  const dismiss = () => {
+    try { localStorage.setItem(SETUP_DISMISS_KEY, "1"); } catch {}
+    setDismissed(true);
+  };
+
+  if (allDone) {
+    return (
+      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500"><Rocket className="size-5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold">You&apos;re all set 🎉</p>
+          <p className="text-xs text-muted-foreground">Orders, costs and bank are connected — your numbers below are live.</p>
         </div>
+        <button onClick={dismiss} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">Got it</button>
       </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent p-5 sm:p-6">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"><Sparkles className="size-5" /></span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-bold sm:text-lg">Set up Tulmin Book</h2>
+          <p className="text-xs text-muted-foreground sm:text-sm">Three quick steps to your real numbers — do them in any order.</p>
+        </div>
+        <button onClick={dismiss} aria-label="Dismiss setup" className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-4" /></button>
+      </div>
+
+      {/* progress */}
+      <div className="mb-5 flex items-center gap-3">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{doneCount}/{steps.length} done</span>
+      </div>
+
+      {/* steps */}
       <div className="grid gap-3 sm:grid-cols-3">
-        {steps.map((s, i) => (
-          <Link key={s.title} href={s.href} className="group flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-primary"><s.icon className="size-5" /></span>
-              <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
-            </div>
-            <p className="text-sm font-bold">{s.title}</p>
-            <p className="mt-1 flex-1 text-xs text-muted-foreground">{s.desc}</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              {s.cta} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-        ))}
+        {steps.map((s, i) => {
+          const isNext = i === nextIdx;
+          return (
+            <Link
+              key={s.title}
+              href={s.href}
+              className={cn(
+                "group flex flex-col rounded-xl border p-4 transition-all",
+                s.done
+                  ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+                  : isNext
+                    ? "border-primary/50 bg-card ring-1 ring-primary/20 hover:border-primary"
+                    : "border-border bg-card hover:border-primary/40"
+              )}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className={cn("flex size-9 items-center justify-center rounded-lg", s.done ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-primary")}>
+                  {s.done ? <Check className="size-5" /> : <s.icon className="size-5" />}
+                </span>
+                {s.done ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-500">Done</span>
+                ) : isNext ? (
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">Start here</span>
+                ) : (
+                  <span className="text-[10px] font-semibold text-muted-foreground">Step {i + 1}</span>
+                )}
+              </div>
+              <p className={cn("text-sm font-bold", s.done && "text-muted-foreground")}>{s.title}</p>
+              <p className="mt-1 flex-1 text-xs text-muted-foreground">{s.desc}</p>
+              {!s.done && (
+                <span className={cn("mt-3 inline-flex items-center gap-1 text-xs font-semibold", isNext ? "text-primary" : "text-muted-foreground")}>
+                  {s.cta} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+/** Calm placeholder shown before the first import — no wall of ₹0 cards. */
+function NewUserHint() {
+  return (
+    <Card className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><BarChart3 className="size-6" /></span>
+      <div>
+        <p className="text-base font-bold">Your numbers appear here</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+          Once you import your first Meesho file, this dashboard fills with true profit, bank-confirmed payments, orders, inventory and returns.
+        </p>
+      </div>
+      <Link href="/book/integrations" className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+        Import your first file <ArrowRight className="size-4" />
+      </Link>
+    </Card>
   );
 }
