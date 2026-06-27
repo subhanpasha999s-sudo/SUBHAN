@@ -290,7 +290,7 @@ function BooksScene({ reduce }: { reduce: boolean }) {
               </p>
             </div>
             <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-semibold leading-tight">Know your real profit.</h2>
-            <p className="mt-4 max-w-md text-muted-foreground">Import your <strong className="text-foreground">Meesho</strong> order &amp; payment files, reconcile against your bank, manage inventory and returns/QC, then file P&amp;L + GST — nothing is &ldquo;paid&rdquo; until the statement says so. <strong className="text-foreground">Flipkart support is on the way.</strong></p>
+            <p className="mt-4 max-w-md text-muted-foreground">Import your <strong className="text-foreground">Meesho</strong> order &amp; payment files, reconcile against your bank, run live <strong className="text-foreground">inventory</strong> &amp; returns/QC, and give your team <strong className="text-foreground">role-based access</strong> — then file P&amp;L + GST. Nothing is &ldquo;paid&rdquo; until the statement says so. <strong className="text-foreground">Flipkart support is on the way.</strong></p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               {cards.map((c, i) => (
                 <motion.div

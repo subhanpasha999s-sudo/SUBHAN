@@ -49,7 +49,7 @@ function pageChrome(pathname: string) {
   }
   if (p.startsWith("/blog")) {
     return {
-      title: "Playbooks",
+      title: "Blog",
       subtitle: "",
       ctaHref: "/export-labels",
       ctaLabel: "Try workflow",

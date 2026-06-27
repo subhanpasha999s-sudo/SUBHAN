@@ -12,6 +12,8 @@ export const BLOG_CATEGORIES = [
   "Warehouse Productivity",
   "Shipping Mistakes",
   "Label Cropping",
+  "Inventory & Stock",
+  "Team & Roles",
 ] as const;
 
 export type BlogCategory = (typeof BLOG_CATEGORIES)[number];
@@ -77,6 +79,204 @@ const standardSections = (
 ];
 
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "meesho-inventory-management-stock-reorder-dead-stock",
+    title: "Inventory Management for Meesho Sellers: Stock, Reorder, and Dead Stock",
+    seoTitle: "Meesho Inventory Management: Stock, Reorder & Valuation",
+    description:
+      "Manage Meesho inventory the right way — live stock from your orders, weighted-average cost, reorder alerts, dead-stock detection, and stock valuation.",
+    metaDescription:
+      "A practical inventory management guide for Meesho sellers: track live stock, set reorder levels, find dead stock, value inventory, and adjust stock with reasons in Tulmin Book.",
+    category: "Inventory & Stock",
+    readTime: "8 min read",
+    publishedOn: "2026-06-27",
+    trending: true,
+    featured: true,
+    keywords: [
+      "meesho inventory management",
+      "stock reorder level",
+      "dead stock detection",
+      "inventory valuation",
+      "weighted average cost",
+      "stock management for online sellers",
+    ],
+    sections: [
+      {
+        heading: "Why marketplace inventory is hard to keep accurate",
+        body: "Stock moves every time an order ships, a return comes back, or a purchase arrives. If you only update a spreadsheet now and then, the count drifts — you oversell items you do not have and overstock items that never sell. Accurate inventory is the difference between smooth dispatch and cancelled orders.",
+      },
+      {
+        heading: "Live stock built from your order ledger",
+        body: "Instead of manual counting, Tulmin Book derives stock on hand from an event ledger: every order, return, RTO, and QC decision adjusts the count for that SKU automatically. When you import your Meesho files, your stock updates with them — no separate data entry.",
+      },
+      {
+        heading: "Reorder levels so you never run out",
+        body: "Set a reorder level per SKU. When stock falls to or below that level, the item is flagged as 'needs reorder' so you can raise a purchase before it goes out of stock. This is the simplest way to avoid the lost sales and cancellations that hurt your Meesho rating.",
+      },
+      {
+        heading: "Dead stock and weighted-average cost",
+        body: "Tulmin Book flags dead stock — items that still have units on hand but zero sales in the last 60 days — so capital is not stuck on the shelf. It also keeps a weighted-average COGS per SKU, so your cost of goods stays correct even when you buy the same product at different prices over time.",
+      },
+      {
+        heading: "Valuation and stock adjustments",
+        body: "Inventory valuation (stock × current cost) tells you how much money is sitting in stock right now, per SKU and in total. When you do a physical count, damage write-off, or correction, record a stock adjustment with a mandatory reason so every change is traceable and your books stay audit-ready.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book turns your Meesho order, return, and purchase data into live inventory — stock on hand, reorder alerts, dead-stock flags, weighted-average cost, and total valuation — alongside your profit and bank reconciliation, in one place.",
+      },
+    ],
+    faqs: [
+      { q: "How do I track inventory for my Meesho orders?", a: "Import your Meesho order and purchase files and Tulmin Book derives live stock per SKU from every order, return, RTO, and QC event — no manual counting." },
+      { q: "What is a reorder level and why does it matter?", a: "It is the stock quantity at which you should reorder a SKU. When stock hits that level, the item is flagged so you can buy before you run out and avoid cancellations." },
+      { q: "What is dead stock?", a: "Dead stock is inventory that still has units on hand but has had zero sales in the last 60 days. Spotting it early frees up capital and storage." },
+      { q: "How is the cost of my inventory calculated?", a: "Tulmin Book uses weighted-average cost per SKU, so buying the same product at different prices still gives a correct cost of goods and valuation." },
+    ],
+  },
+  {
+    slug: "tulmin-book-team-roles-and-access",
+    title: "Team Roles and Access in Tulmin Book: Owner, Manager, Accountant, and More",
+    seoTitle: "User Roles in Tulmin Book: Owner, Manager, Accountant, Viewer",
+    description:
+      "Understand the five user roles in Tulmin Book and how role-based access keeps your books, inventory, and returns secure as your team grows.",
+    metaDescription:
+      "A guide to Tulmin Book user roles — Owner, Manager, Returns/QC Manager, Accountant, and Viewer — and exactly what each role can see and do for a growing seller team.",
+    category: "Team & Roles",
+    readTime: "7 min read",
+    publishedOn: "2026-06-27",
+    trending: true,
+    keywords: [
+      "seller team roles",
+      "role based access accounting",
+      "accountant access permissions",
+      "returns manager role",
+      "user permissions software",
+      "team access control",
+    ],
+    sections: [
+      {
+        heading: "Why role-based access matters for sellers",
+        body: "As a seller grows, more people touch the books: a packer handles returns, an accountant files GST, a manager runs uploads. Giving everyone full access is risky — costs get changed, data gets deleted. Role-based access gives each person exactly what they need and nothing more.",
+      },
+      {
+        heading: "The five roles in Tulmin Book",
+        body: "Tulmin Book has five roles: Owner, Manager, Returns/QC Manager, Accountant, and Viewer. Each one unlocks a specific set of screens and actions, so the same workspace works safely for a solo seller or a full dispatch-and-finance team.",
+      },
+      {
+        heading: "Owner and Manager",
+        body: "The Owner has full control: managing the team, overriding cost of goods, and every financial and operational action. The Manager runs day-to-day operations — importing files, editing SKUs, adding purchases, stock adjustments, QC decisions, claims, and expenses — but cannot manage the team or override COGS.",
+      },
+      {
+        heading: "Returns/QC Manager, Accountant, and Viewer",
+        body: "The Returns/QC Manager focuses on returns: QC decisions, raising claims, and printing labels, landing straight on the Returns screen at sign-in. The Accountant works the finance side — expenses, GST, reports, vendors, purchases, and reconciliation — without touching inventory or orders editing. The Viewer gets read-only access across the financial and inventory screens, perfect for an investor or advisor.",
+      },
+      {
+        heading: "How access is enforced and assigned",
+        body: "Roles are enforced in layers: navigation hides screens a role cannot use, and sensitive actions are checked again when performed. The Owner assigns roles from the Team screen, so adding a new accountant or returns staff member takes seconds and keeps the rest of the books protected.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book ships with these roles built in. You invite your team, assign a role to each person, and everyone sees a workspace scoped to their job — secure books, inventory, and returns without sharing one all-powerful login.",
+      },
+    ],
+    faqs: [
+      { q: "What user roles does Tulmin Book support?", a: "Five: Owner, Manager, Returns/QC Manager, Accountant, and Viewer. Each unlocks a specific set of screens and actions." },
+      { q: "Can I give my accountant access without exposing everything?", a: "Yes. The Accountant role sees expenses, GST, reports, vendors, purchases, and reconciliation, but cannot edit inventory or orders or manage the team." },
+      { q: "Who can change product cost (COGS) or manage the team?", a: "Only the Owner can override COGS and manage team roles. Managers handle most other operations." },
+      { q: "Which role is best for returns staff?", a: "The Returns/QC Manager role — it focuses on QC decisions, claims, and label printing, and opens directly on the Returns screen." },
+    ],
+  },
+  {
+    slug: "gst-for-meesho-sellers-common-questions",
+    title: "GST for Meesho Sellers: Common Questions Answered",
+    seoTitle: "GST for Meesho Sellers: Registration, TCS & Filing FAQ",
+    description:
+      "Plain-language answers to common GST questions for Meesho sellers — registration, TCS, the records you need, and how to stay filing-ready.",
+    metaDescription:
+      "Common GST questions for Meesho sellers answered simply: registration, TCS on marketplace sales, the records to keep, and how Tulmin Book keeps you GST-ready. Verify specifics with your CA.",
+    category: "Meesho Workflow",
+    readTime: "7 min read",
+    publishedOn: "2026-06-26",
+    keywords: [
+      "gst for meesho sellers",
+      "meesho gst registration",
+      "tcs on meesho",
+      "gst filing ecommerce sellers",
+      "gst records meesho",
+    ],
+    sections: [
+      {
+        heading: "GST is mostly a record-keeping problem",
+        body: "For most Meesho sellers, the hard part of GST is not the law — it is having clean, complete records when filing time comes. If your sales, returns, fees, and purchases are organised month by month, filing is straightforward. This guide answers the questions sellers ask most. For your specific situation, always confirm with a qualified CA.",
+      },
+      {
+        heading: "Keep these records every month",
+        body: "Maintain your taxable sales, returns and RTO adjustments, marketplace commission and fees, and purchase invoices with GST. Tie each to the right month. Disorganised records are the main reason sellers overpay or scramble before deadlines.",
+      },
+      {
+        heading: "How marketplace deductions affect your numbers",
+        body: "Meesho deducts commission, shipping, and other fees, and returns reverse earlier sales. Your GST view should reflect net taxable activity, not just gross order value — otherwise the picture is wrong before you even start filing.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book organises your Meesho sales, returns, fees, and purchases by month and produces a GST-ready summary, so you and your accountant work from clean numbers instead of raw exports. It supports filing — it does not replace professional tax advice.",
+      },
+    ],
+    faqs: [
+      { q: "Do Meesho sellers need GST registration?", a: "Many marketplace sellers need GST registration to sell, but thresholds and rules vary by state and product. Confirm your exact requirement with a CA before registering." },
+      { q: "What is TCS on Meesho sales?", a: "Marketplaces collect a small percentage as Tax Collected at Source on your sales and deposit it against your GSTIN. You reconcile it when filing. Keep your settlement statements to match TCS." },
+      { q: "What records do I need to file GST as a Meesho seller?", a: "Monthly taxable sales, returns/RTO adjustments, commission and fees, and GST purchase invoices. Tulmin Book keeps these organised by month." },
+      { q: "Does Tulmin Book file GST for me?", a: "No. It produces a GST-ready summary from your data to make filing easier. Filing itself should be done by you or your CA." },
+      { q: "How do returns affect my GST?", a: "Returns and RTO reverse earlier sales, so your net taxable amount drops. Counting them correctly keeps your GST numbers accurate." },
+    ],
+  },
+  {
+    slug: "how-to-price-products-meesho-stay-profitable",
+    title: "How to Price Products on Meesho and Stay Profitable",
+    seoTitle: "Meesho Pricing Strategy to Stay Profitable After Fees",
+    description:
+      "A simple pricing method for Meesho sellers that accounts for product cost, commission, shipping, returns, and GST so your listed price still leaves margin.",
+    metaDescription:
+      "Learn how to price Meesho products to stay profitable after commission, shipping, returns, and GST. A simple margin formula and pricing checklist for Meesho sellers.",
+    category: "Meesho Workflow",
+    readTime: "7 min read",
+    publishedOn: "2026-06-26",
+    trending: true,
+    keywords: [
+      "meesho pricing strategy",
+      "how to price products on meesho",
+      "meesho profit margin",
+      "pricing after returns",
+      "ecommerce pricing calculator",
+    ],
+    sections: [
+      {
+        heading: "Why low prices can still lose money",
+        body: "On Meesho, a low listed price can win the order and still lose money once commission, shipping, returns, and GST are deducted. Pricing without those costs in view is the most common reason sellers grow revenue but not profit.",
+      },
+      {
+        heading: "Start from your true cost, not the market price",
+        body: "Begin with your real cost per unit: product cost (COGS), expected commission, forward and reverse shipping, an allowance for your return rate, and GST. Add your target margin on top of that total. The market price tells you if you are competitive; your cost tells you if you can survive at it.",
+      },
+      {
+        heading: "Build a return allowance into every price",
+        body: "If 1 in 5 orders of a SKU comes back, the four that sell must cover the cost of the fifth. Price each unit with a small buffer for its actual return rate, or high-return SKUs will quietly erase the margin from your good sellers.",
+      },
+      {
+        heading: "Review prices with real numbers, not guesses",
+        body: "Once you can see true net profit per SKU after fees and returns, repricing becomes obvious: raise or drop slow, low-margin items and double down on the SKUs that genuinely earn. Review monthly as fees and return rates shift.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book shows true net profit per order and per SKU after commission, shipping, returns, and GST — so you price from real margins, spot loss-making SKUs, and reprice with confidence instead of guessing.",
+      },
+    ],
+    faqs: [
+      { q: "How do I price a product to stay profitable on Meesho?", a: "Add product cost, commission, forward and reverse shipping, a return allowance, and GST, then add your target margin. Check the result against the competitive market price." },
+      { q: "How do returns change my pricing?", a: "Returns add cost to the orders that do sell. Build a small buffer based on each SKU's return rate so high-return items do not erase your margin." },
+      { q: "How do I know which Meesho products are actually profitable?", a: "Look at true net profit per SKU after fees and returns. Tulmin Book calculates this from your Meesho files so you can reprice or drop loss-making items." },
+    ],
+  },
   {
     slug: "meesho-true-profit-after-returns-and-fees",
     title: "How to Calculate True Meesho Profit After Returns and Fees",
