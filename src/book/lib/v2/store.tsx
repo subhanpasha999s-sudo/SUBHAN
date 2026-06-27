@@ -157,7 +157,10 @@ export interface V2Actions {
   archiveBankAccount(id: string): void;
 }
 
-const Ctx = createContext<{ state: V2State; me: OrgUser; actions: V2Actions; persistError: boolean } | null>(null);
+/** Cloud-sync state for the signed-in user's Supabase book_state row. */
+export type CloudStatus = "off" | "saving" | "saved" | "error";
+
+const Ctx = createContext<{ state: V2State; me: OrgUser; actions: V2Actions; persistError: boolean; cloudStatus: CloudStatus } | null>(null);
 
 export function useV2() {
   const v = useContext(Ctx);
@@ -168,6 +171,7 @@ export function useV2() {
 export function V2Provider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<V2State | null>(null);
   const [persistError, setPersistError] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>("off");
   const stateRef = useRef<V2State | null>(null);
   stateRef.current = state;
   // Gates cloud writes until we've read the cloud once — so a fresh/empty local
@@ -204,8 +208,10 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
         if (remote) {
           // merge over current defaults so newly-added V2State fields exist
           setState(heal({ ...buildEmptyState(), ...remote }));
+          setCloudStatus("saved");
         } else if (await isBookAuthed()) {
-          void saveBookState(local);
+          const res = await saveBookState(local);
+          setCloudStatus(res.ok ? "saved" : "error");
         }
       } catch { /* stay on local cache */ }
       finally { hydratedRef.current = true; }
@@ -220,11 +226,18 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(KEY, JSON.stringify(state)); setPersistError(false); } catch { setPersistError(true); }
   }, [state]);
 
-  // Debounced cloud write — the durable, per-user source of truth.
+  // Debounced cloud write — the durable, per-user source of truth. When signed
+  // in, THIS (not localStorage) is what persists data and syncs it across
+  // devices, so a full local cache is no longer data loss.
   useEffect(() => {
     if (!state || !hydratedRef.current) return;
-    const t = setTimeout(() => { void saveBookState(state); }, 1200);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const res = await saveBookState(state);
+      if (cancelled) return;
+      setCloudStatus(res.ok ? "saved" : res.message === "Not signed in." ? "off" : "error");
+    }, 1200);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [state]);
 
   const value = useMemo(() => {
@@ -829,5 +842,5 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <Ctx.Provider value={{ ...value, persistError }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ...value, persistError, cloudStatus }}>{children}</Ctx.Provider>;
 }

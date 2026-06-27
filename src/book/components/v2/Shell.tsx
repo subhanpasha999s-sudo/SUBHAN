@@ -545,8 +545,50 @@ function InstantRouteContent({ path }: { path: string }) {
   return <Component />;
 }
 
+/**
+ * Storage / cloud-sync banner. When signed in, Supabase (not localStorage) is
+ * the source of truth, so a full local cache is reassurance — not data loss.
+ */
+function PersistBanner() {
+  const { persistError, cloudStatus } = useV2();
+  const { user, authReady } = useAuth();
+  const signedIn = authReady && !!user;
+
+  // Signed-in + cloud save failing — the only genuine error now.
+  if (signedIn && cloudStatus === "error") {
+    return (
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <span aria-hidden>⚠️</span>
+        <p><strong>Couldn&apos;t save to your account.</strong> Check your connection — we&apos;ll keep retrying. Your latest changes stay in this tab until it syncs.</p>
+      </div>
+    );
+  }
+  // Signed-in + local cache full — data is safe in Supabase, so reassure.
+  if (signedIn && persistError) {
+    return (
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <Cloud className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>This browser&apos;s local cache is full, but your data is <strong>saved to your Tulmin account</strong> and syncs across devices. Nothing is lost.</p>
+      </div>
+    );
+  }
+  // Signed-out + local cache full — genuine risk; nudge to sign in for the cloud.
+  if (!signedIn && persistError) {
+    return (
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <span aria-hidden>⚠️</span>
+        <p>
+          <strong>Couldn&apos;t save to browser storage.</strong> Your latest changes are in memory only and may be lost on reload — this browser&apos;s ~5&nbsp;MB limit is full.{" "}
+          <strong>Log in to save to the cloud</strong> (account, bottom-left) so your data is backed up and syncs across devices, or delete an old import (Upload data → trash). Your SKU mappings are stored separately and remain safe.
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const { me, persistError } = useV2();
+  const { me } = useV2();
   const pathname = usePathname();
   const router = useRouter();
   const [dark, setDark] = useState(false);
@@ -710,17 +752,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {/* Main — cinematic page-reveal on route change */}
       <main className={cn("min-w-0 flex-1 px-4 pb-24 pt-[4.25rem] md:px-8 md:pb-10 md:pt-6", sidebarHidden && "md:pl-16")}>
         <PageReveal routeKey={showInstantPreview ? activePath : pathname}>
-          {persistError && (
-            <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              <span aria-hidden>⚠️</span>
-              <p>
-                <strong>Couldn&apos;t save to browser storage.</strong> Your latest import/changes are
-                in memory but may be lost on reload — the dataset likely exceeds this browser&apos;s
-                ~5&nbsp;MB local limit. Delete an old import (Upload data → trash) or export, then retry.
-                Your SKU mappings are stored separately and remain safe.
-              </p>
-            </div>
-          )}
+          <PersistBanner />
           {showInstantPreview ? <InstantRouteContent path={activePath} /> : children}
         </PageReveal>
       </main>
