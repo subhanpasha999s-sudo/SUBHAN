@@ -16,16 +16,49 @@ import {
   type MotionValue,
 } from "framer-motion";
 import {
-  ArrowRight, Boxes, Check, FileDown, Filter, GitCompare,
+  ArrowRight, Boxes, Check, CircleUserRound, FileDown, Filter, GitCompare,
   IndianRupee, Landmark, Receipt, RotateCcw, Scissors, ShieldCheck, Upload,
 } from "lucide-react";
 import { TulminBrand } from "@/components/brand/tulmin-logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/supabase/auth-context";
+import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-// Smooths raw scroll progress with a touch of inertia → buttery scroll-linked motion.
-const SCROLL_SPRING = { stiffness: 120, damping: 30, restDelta: 0.0006 } as const;
+// Tighter, snappier scroll-linked spring — tracks the scroll closely (responsive,
+// "faster") while still smoothing out wheel/trackpad jitter. Overdamped → no overshoot.
+const SCROLL_SPRING = { stiffness: 220, damping: 38, restDelta: 0.0009 } as const;
+
+// ── Account control (top-right) — sign in / sign up, or go to account ────
+function NavAccount() {
+  const { user, authReady } = useAuth();
+  const { openOptionalSignIn } = useValueFirstAuth();
+  if (!authReady) {
+    return <span aria-hidden className="size-10 shrink-0 rounded-full bg-white/[0.04]" />;
+  }
+  if (user) {
+    return (
+      <Link
+        href="/account"
+        aria-label="Tulmin account"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <CircleUserRound className="size-5" strokeWidth={1.6} />
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={openOptionalSignIn}
+      className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <CircleUserRound className="size-4.5" strokeWidth={1.6} />
+      <span className="hidden sm:inline">Log in</span>
+    </button>
+  );
+}
 
 // ── Top nav ────────────────────────────────────────────────────────────
 function Nav() {
@@ -40,9 +73,12 @@ function Nav() {
           <a href="#books" className="hover:text-foreground">Tulmin Book</a>
           <Link href="/pricing?returnTo=/" className="hover:text-foreground">Plans</Link>
         </nav>
-        <Link href="/export-labels" className={cn(buttonVariants({ size: "lg" }), "h-10 gap-1.5 rounded-full px-4 text-sm font-bold")}>
-          Open app <ArrowRight className="size-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/export-labels" className={cn(buttonVariants({ size: "lg" }), "h-10 gap-1.5 rounded-full px-4 text-sm font-bold")}>
+            Open app <ArrowRight className="size-4" />
+          </Link>
+          <NavAccount />
+        </div>
       </div>
     </header>
   );
@@ -60,7 +96,7 @@ function Hero({ reduce }: { reduce: boolean }) {
   const orbB = useTransform(p, [0, 1], [0, reduce ? 0 : -200]);
 
   return (
-    <section ref={ref} className="relative h-[180vh]">
+    <section ref={ref} className="relative h-[140vh]">
       <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden">
         {/* parallax orbs — promoted to their own compositor layer (blur rasterized once, then just translated) */}
         <motion.div style={{ y: orbA, willChange: "transform" }} aria-hidden className="pointer-events-none absolute -left-40 top-10 size-[34rem] rounded-full bg-[radial-gradient(circle,rgba(95,125,255,0.5),transparent_60%)] blur-2xl" />
@@ -154,7 +190,7 @@ function DispatchScene({ reduce }: { reduce: boolean }) {
   ];
 
   return (
-    <section id="dispatch" ref={ref} className="relative h-[300vh]">
+    <section id="dispatch" ref={ref} className="relative h-[220vh]">
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 lg:grid-cols-2 lg:px-8">
           <div>
@@ -227,7 +263,7 @@ function BooksScene({ reduce }: { reduce: boolean }) {
   ];
 
   return (
-    <section id="books" ref={ref} className="relative h-[300vh]">
+    <section id="books" ref={ref} className="relative h-[220vh]">
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-6 lg:grid-cols-2 lg:px-8">
           {/* profit hero */}

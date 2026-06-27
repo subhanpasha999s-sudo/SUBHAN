@@ -10,7 +10,7 @@ import { flushSync } from "react-dom";
 import { motion } from "framer-motion";
 import { Aurora, PageReveal } from "./motion";
 import {
-  BarChart3, Boxes, ChevronDown, Cloud, CloudOff, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, Scissors, Link2,
+  BarChart3, Boxes, ChevronDown, ChevronRight, CircleUserRound, Cloud, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, Scissors, Link2,
   ListOrdered, Menu, Moon, PackageOpen, Receipt, RotateCcw, Search, Settings, Shuffle,
   ShoppingCart, Store, Sun, Timer, Users, X, BookOpen, Landmark,
 } from "lucide-react";
@@ -290,28 +290,80 @@ function NavList({
   );
 }
 
-/** Cloud-sync status — signed-in users sync their Book data; others can sign in. */
-function BookCloudSync() {
+function accountLabel(user: { email?: string | null; phone?: string | null }): string {
+  return user.email ?? user.phone ?? "Signed in";
+}
+function accountInitial(user: { email?: string | null; phone?: string | null }): string {
+  return (user.email ?? user.phone ?? "T").trim().charAt(0).toUpperCase() || "T";
+}
+
+/**
+ * Account control (footer) — same login/sign-up affordance as Filter & auto crop.
+ * Signed in → identity + cloud-sync status, links to the shared /account page.
+ * Signed out → one tap opens the email-code sign in / sign up modal.
+ */
+function AccountBox() {
   const { user, authReady } = useAuth();
   const { openOptionalSignIn } = useValueFirstAuth();
-  if (!authReady) return null;
+  if (!authReady) return <div className="h-[3.25rem] rounded-xl bg-muted/40" />;
   if (user) {
     return (
-      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs">
-        <Cloud className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-        <span className="min-w-0 flex-1 truncate text-emerald-600 dark:text-emerald-400">
-          Synced · {user.email ?? user.phone ?? "signed in"}
+      <Link
+        href="/account"
+        className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-2.5 transition-colors hover:bg-muted"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/15 text-sm font-bold text-emerald-300 ring-1 ring-emerald-400/20">
+          {accountInitial(user)}
         </span>
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{accountLabel(user)}</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <Cloud className="size-3" /> Synced · manage account
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
     );
   }
   return (
     <button
       onClick={openOptionalSignIn}
-      className="flex w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+      className="flex w-full items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-left transition-colors hover:bg-primary/10"
     >
-      <CloudOff className="h-3.5 w-3.5 shrink-0" />
-      <span className="text-left leading-tight">Sign in to sync across devices</span>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <CircleUserRound className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-primary">Log in / Sign up</span>
+        <span className="block text-[11px] text-muted-foreground">Sync your books across devices</span>
+      </span>
+    </button>
+  );
+}
+
+/** Compact account icon for the header rows — mirrors the Filter & auto crop topbar. */
+function AccountIconButton() {
+  const { user, authReady } = useAuth();
+  const { openOptionalSignIn } = useValueFirstAuth();
+  if (!authReady) return null;
+  if (user) {
+    return (
+      <Link
+        href="/account"
+        aria-label="Tulmin account"
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <CircleUserRound className="size-5" strokeWidth={1.6} />
+      </Link>
+    );
+  }
+  return (
+    <button
+      onClick={openOptionalSignIn}
+      aria-label="Log in or sign up"
+      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10"
+    >
+      <CircleUserRound className="size-5" strokeWidth={1.6} />
     </button>
   );
 }
@@ -328,7 +380,7 @@ function ShellFooter({
   const router = useRouter();
   return (
     <div className="space-y-2 border-t border-border p-3">
-      <BookCloudSync />
+      <AccountBox />
       <button
         onClick={toggleTheme}
         className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
@@ -493,6 +545,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <Menu className="h-5 w-5" />
         </button>
         <AppSwitcher className="min-w-0 flex-1" />
+        <AccountIconButton />
         <div className="shrink-0"><NotificationBell /></div>
       </header>
 
@@ -528,6 +581,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
         <div className="flex items-center gap-1 px-3 py-4">
           <AppSwitcher className="min-w-0 flex-1" />
+          <AccountIconButton />
           <div className="shrink-0"><NotificationBell /></div>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
