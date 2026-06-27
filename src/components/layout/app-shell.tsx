@@ -9,10 +9,8 @@ import {
   BadgeCheck,
   ChevronsLeft,
   CircleUserRound,
-  Cloud,
   FileScan,
   Link2,
-  LockKeyhole,
   Settings2,
   Sparkles,
   X,
@@ -430,39 +428,6 @@ function SidebarChrome({
               )}
             </div>
             <AppSwitcher className="w-full" />
-            <button
-              type="button"
-              onClick={() => {
-                if (!user) openOptionalSignIn();
-              }}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border/30 bg-sidebar-foreground/[0.025] px-2.5 py-2 text-left shadow-[inset_0_1px_0_rgb(255_255_255/0.035)]",
-                !user && "transition-colors hover:bg-sidebar-accent/45"
-              )}
-            >
-                <span
-                  className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-lg ring-1",
-                    user
-                      ? "bg-emerald-500/12 text-emerald-700 ring-emerald-500/25 dark:text-emerald-200"
-                      : "bg-amber-500/12 text-amber-700 ring-amber-500/25 dark:text-amber-200"
-                  )}
-                >
-                  {user ? (
-                    <Cloud className="size-4" strokeWidth={1.8} aria-hidden />
-                  ) : (
-                    <LockKeyhole className="size-4" strokeWidth={1.8} aria-hidden />
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11.5px] font-semibold text-sidebar-foreground/88">
-                    {user ? "Cloud sync active" : "Local workspace"}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px] font-medium text-sidebar-foreground/42">
-                    {user ? "Maps backed up" : "Sign in to back up maps"}
-                  </p>
-                </div>
-            </button>
           </>
         )}
       </header>

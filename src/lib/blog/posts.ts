@@ -78,6 +78,178 @@ const standardSections = (
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "meesho-true-profit-after-returns-and-fees",
+    title: "How to Calculate True Meesho Profit After Returns and Fees",
+    seoTitle: "Meesho Profit Calculator: True Net After Returns & Fees",
+    description:
+      "A step-by-step way for Meesho sellers to find real net profit per order after commission, shipping, returns, RTO, and GST.",
+    metaDescription:
+      "Calculate true Meesho profit after returns, RTO, commission, shipping, and GST. A simple monthly reconciliation workflow for Meesho sellers using Tulmin Book.",
+    category: "Meesho Workflow",
+    readTime: "8 min read",
+    publishedOn: "2026-06-26",
+    trending: true,
+    featured: true,
+    keywords: [
+      "meesho profit calculator",
+      "meesho net profit after returns",
+      "meesho seller accounting",
+      "meesho payout reconciliation",
+      "true profit meesho",
+    ],
+    sections: [
+      {
+        heading: "Why the Meesho dashboard number is not your profit",
+        body: "The Meesho dashboard shows order value and an estimated settlement, but that is not money in your bank. Commission, shipping, return shipping, RTO, claims, and GST all change the final number. Many sellers only discover the gap weeks later when the payout is smaller than expected.",
+      },
+      {
+        heading: "The real cost stack on every Meesho order",
+        body: "True profit per order is selling price minus product cost (COGS), minus Meesho commission, minus forward and reverse shipping, minus any return or RTO cost, adjusted for GST. Until you subtract every one of these, a 'profitable' order can actually be a loss — especially low-margin SKUs with high return rates.",
+      },
+      {
+        heading: "Returns and RTO: where margin quietly disappears",
+        body: "A delivered order that comes back as a return or RTO often costs you both shipping legs and sometimes the product itself if it returns damaged. Counting returns correctly — including the exchange-then-return case that creates two customer returns — is the single biggest reason seller spreadsheets disagree with the bank.",
+      },
+      {
+        heading: "A simple monthly reconciliation workflow",
+        body: "Each month, import your Meesho order file and payment/settlement file, map every listing SKU to a master SKU with a known cost, then match the settlement against your actual bank statement. Treat an order as 'paid' only when the bank confirms it — not when Meesho marks it settled. The difference is your true receivable.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book imports your Meesho order and payment files, applies your SKU costs, reconciles payouts against the bank, and reports true net profit per order, per SKU, and per month — with GST and returns handled. Flipkart support is on the way; today it is built for Meesho sellers who want real numbers, not estimates.",
+      },
+    ],
+    faqs: [
+      { q: "How do I find my real Meesho profit per order?", a: "Subtract product cost, commission, forward and reverse shipping, returns/RTO cost, and GST from the selling price. Reconcile the result against your bank statement so you count only money that actually arrived." },
+      { q: "Why is my Meesho payout less than the order value?", a: "Meesho deducts commission, shipping, and any return or claim adjustments before payout. Returns and RTO are usually the largest hidden deductions." },
+      { q: "Can I track Meesho profit after returns automatically?", a: "Yes. Tulmin Book reads your Meesho order and payment files, applies SKU costs, and calculates net profit after returns, RTO, fees, and GST." },
+    ],
+  },
+  {
+    slug: "meesho-payment-reconciliation-bank-statement",
+    title: "Meesho Payment Reconciliation: Match Payouts to Your Bank",
+    seoTitle: "Meesho Payment Reconciliation Guide (Payout vs Bank)",
+    description:
+      "How Meesho sellers can reconcile order payments and payouts against the actual bank statement so nothing counts as paid until the money lands.",
+    metaDescription:
+      "Reconcile Meesho payouts against your bank statement. Find missing payments, track receivables, and confirm settlements with a simple Meesho reconciliation workflow.",
+    category: "Meesho Workflow",
+    readTime: "7 min read",
+    publishedOn: "2026-06-25",
+    trending: true,
+    keywords: [
+      "meesho payment reconciliation",
+      "meesho payout not received",
+      "meesho settlement vs bank",
+      "meesho seller payout tracking",
+      "meesho receivables",
+    ],
+    sections: [
+      {
+        heading: "Settlement reports are a promise, not proof",
+        body: "A Meesho settlement report tells you what should be paid. Your bank statement tells you what was paid. Sellers who trust only the settlement report end up with phantom income — numbers that never actually reached the account.",
+      },
+      {
+        heading: "Why payouts and bank credits rarely line up by eye",
+        body: "Meesho often settles many orders in a single bank credit, nets returns and claims against new sales, and pays on its own cycle. One bank line can cover dozens of orders, so manual matching in a spreadsheet is slow and error-prone.",
+      },
+      {
+        heading: "The bank-confirmed rule",
+        body: "Adopt one rule: an order is 'paid' only when a matching credit appears on the bank statement. Everything else is a receivable you are still owed. This single rule turns a fuzzy estimate into a number you can trust for cash flow and GST.",
+      },
+      {
+        heading: "A repeatable reconciliation workflow",
+        body: "Import the Meesho payment file, import your bank statement, then auto-match settlement batches to bank credits. Whatever does not match becomes your outstanding receivable list — the money to chase. Vendor payments reconcile the same way on the payable side.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book stages your Meesho payouts and bank statement side by side, auto-categorises credits and debits, and shows total received, total receivable, and vendor dues — so you always know exactly what has landed and what is still pending.",
+      },
+    ],
+    faqs: [
+      { q: "Why has my Meesho payout not been received?", a: "It may be inside a future settlement cycle, or netted against returns and claims. Reconciling the settlement file against your bank statement shows exactly which orders are still unpaid." },
+      { q: "How do I reconcile Meesho payments with my bank?", a: "Match each settlement batch to the corresponding bank credit. Tulmin Book does this automatically and lists anything unmatched as a receivable." },
+      { q: "Should I count an order as paid when Meesho settles it?", a: "No. Count it as paid only when the bank confirms the credit. Until then it is a receivable." },
+    ],
+  },
+  {
+    slug: "meesho-returns-rto-qc-tracking",
+    title: "Meesho Returns and RTO: Track QC and Recover Lost Money",
+    seoTitle: "Meesho Returns & RTO Tracking with QC for Sellers",
+    description:
+      "A workflow to track Meesho returns, RTO, and quality checks so sellers catch missing returns, damaged products, and wrong deductions.",
+    metaDescription:
+      "Track Meesho returns and RTO with a QC process. Catch missing or damaged returns, verify deductions, and protect margin with a simple Meesho returns workflow.",
+    category: "Meesho Workflow",
+    readTime: "7 min read",
+    publishedOn: "2026-06-24",
+    keywords: [
+      "meesho returns management",
+      "meesho rto tracking",
+      "meesho qc process",
+      "meesho return claim",
+      "meesho damaged return",
+    ],
+    sections: [
+      {
+        heading: "Returns are a money problem, not just a logistics problem",
+        body: "Every Meesho return and RTO carries a cost: reverse shipping, restocking time, and the risk of receiving the wrong or a damaged product back. If you do not track returns against the original order, those costs silently eat your margin.",
+      },
+      {
+        heading: "Why a QC step matters at intake",
+        body: "When a return arrives, a quick quality check answers three questions: did the right SKU come back, is it resellable, and does the deduction Meesho applied match reality? Without QC at intake, fraudulent or damaged returns get accepted as normal.",
+      },
+      {
+        heading: "The exchange-then-return trap",
+        body: "A delivered order that becomes an exchange and then a return should be counted as two customer returns, not one. Miss this and your return rate and your books both understate the real cost. A correct returns ledger keeps the count honest.",
+      },
+      {
+        heading: "Build a return-to-order trail",
+        body: "Track each return back to its original sub-order: status, QC result, days pending, and financial impact. Aging returns that sit unchecked for 7+ days are where money leaks. A clear queue tells your team exactly what to inspect next.",
+      },
+      {
+        heading: "Where Tulmin Book fits",
+        body: "Tulmin Book builds a returns and QC queue straight from your Meesho order data, flags aging items, counts exchange-then-return correctly, and ties every return to its profit impact — so you recover money instead of writing it off.",
+      },
+    ],
+    faqs: [
+      { q: "How do I track Meesho returns and RTO?", a: "Link every return and RTO to its original sub-order, record a QC result, and track days pending. Tulmin Book builds this queue automatically from your Meesho files." },
+      { q: "Why does my return count look wrong?", a: "A common cause is the exchange-then-return case, which should count as two returns. Counting it as one understates your real return rate and cost." },
+      { q: "Can I verify Meesho return deductions?", a: "Yes. Compare the deduction on the settlement against the QC result for the returned item to catch damaged returns and incorrect charges." },
+    ],
+  },
+  {
+    slug: "marketplace-label-cropping-meesho-flipkart-amazon",
+    title: "One Label Cropping Tool for Meesho, Flipkart, and Amazon",
+    seoTitle: "Crop Meesho, Flipkart & Amazon Labels in One Tool",
+    description:
+      "Auto-crop and filter shipping labels for Meesho, Flipkart, and Amazon from one workflow — by SKU, quantity, courier, and payment mode.",
+    metaDescription:
+      "Crop and filter Meesho, Flipkart, and Amazon shipping labels in one tool. Remove blank space, sort by SKU, quantity, courier, and COD/prepaid for faster dispatch.",
+    category: "Label Cropping",
+    readTime: "6 min read",
+    publishedOn: "2026-06-23",
+    trending: true,
+    keywords: [
+      "marketplace label cropping",
+      "meesho flipkart amazon label crop",
+      "shipping label crop tool",
+      "auto crop shipping labels",
+      "bulk label cropper",
+    ],
+    sections: standardSections(
+      "Sellers who list on more than one marketplace end up with Meesho, Flipkart, and Amazon label PDFs in three different formats, each with its own blank space, invoice pages, and print order. Cropping and sorting them by hand wastes packing time.",
+      "Each marketplace lays out its label differently, so a single manual process never fits all three. Dispatch teams lose time switching between formats and reprinting wrong batches.",
+      "Use one tool that detects the usable label area for each marketplace, auto-crops the clutter, and lets you filter by SKU, quantity, courier, marketplace, and payment mode before exporting clean PDFs or ZIPs.",
+      "Packers get tight, printer-ready labels grouped the way they actually work — fewer pages, less ink, and far fewer wrong shipments across all three marketplaces."
+    ),
+    faqs: [
+      { q: "Can one tool crop Meesho, Flipkart, and Amazon labels?", a: "Yes. Tulmin's Filter & auto crop detects the usable label area per marketplace and removes unnecessary page space for all three." },
+      { q: "Can I filter labels by SKU and courier across marketplaces?", a: "Yes. You can filter by SKU, quantity, courier, marketplace, and payment mode, then export only the rows you need." },
+      { q: "Does cropping work for bulk label PDFs?", a: "Yes. Upload large multi-order PDFs, auto-crop, and export clean batches for fast dispatch." },
+    ],
+  },
+  {
     slug: "wrong-shipment-due-to-sku-mismatch",
     title: "How to Prevent Wrong Shipments Caused by SKU Mismatch",
     seoTitle: "Wrong Shipment Prevention with SKU-wise Label Sorting",

@@ -20,6 +20,7 @@ import { cn } from "@/book/components/ui";
 import { useAuth } from "@/lib/supabase/auth-context";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { AppSwitcher } from "@/components/app-switcher";
+import { TulminBrand } from "@/components/brand/tulmin-logo";
 import NotificationBell from "./NotificationBell";
 import AnalyticsPage from "@/app/book/analytics/page";
 import DashboardPage from "@/app/book/dashboard/page";
@@ -559,8 +560,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             transition={{ type: "tween", duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-border bg-card"
           >
-            <div className="flex items-center gap-2 px-3 py-4">
-              <AppSwitcher className="min-w-0 flex-1" />
+            <div className="flex items-center gap-2 px-3 pb-1 pt-4">
+              <Link href="/" aria-label="Tulmin home" className="flex min-w-0 flex-1 items-center gap-2.5">
+                <TulminBrand markClassName="size-8" titleClassName="text-[15px]" subtitle="Books workspace" subtitleClassName="text-[10.5px] font-medium text-muted-foreground" />
+              </Link>
               <button
                 onClick={() => setMenuOpen(false)}
                 aria-label="Close menu"
@@ -568,6 +571,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               >
                 <X className="h-5 w-5" />
               </button>
+            </div>
+            <div className="px-3 pb-3 pt-1">
+              <AppSwitcher className="w-full" />
             </div>
             <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
               <NavList visible={visible} activePath={activePath} onNavigate={navigateTo} />
@@ -579,7 +585,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
-        <div className="flex items-center gap-1 px-3 py-4">
+        <Link
+          href="/"
+          aria-label="Tulmin home"
+          className="flex items-center gap-2.5 px-3 pb-1 pt-4 transition-opacity hover:opacity-90"
+        >
+          <TulminBrand markClassName="size-8" titleClassName="text-[15px]" subtitle="Books workspace" subtitleClassName="text-[10.5px] font-medium text-muted-foreground" priority />
+        </Link>
+        <div className="flex items-center gap-1 px-3 pb-3 pt-2">
           <AppSwitcher className="min-w-0 flex-1" />
           <AccountIconButton />
           <div className="shrink-0"><NotificationBell /></div>

@@ -71,7 +71,7 @@ function Nav() {
         <nav className="hidden items-center gap-7 text-sm font-semibold text-muted-foreground md:flex">
           <a href="#dispatch" className="hover:text-foreground">Filter &amp; crop</a>
           <a href="#books" className="hover:text-foreground">Tulmin Book</a>
-          <Link href="/blog" className="hover:text-foreground">Playbooks</Link>
+          <Link href="/blog" className="hover:text-foreground">Blog</Link>
           <Link href="/pricing?returnTo=/" className="hover:text-foreground">Plans</Link>
         </nav>
         <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ function Hero({ reduce }: { reduce: boolean }) {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.18 }}
             className="mx-auto mt-6 max-w-xl text-base text-muted-foreground sm:text-lg"
           >
-            Filter &amp; auto-crop your marketplace labels, then run the books — one Tulmin workspace for Meesho, Flipkart &amp; Amazon sellers.
+            Filter &amp; auto-crop labels for Meesho, Flipkart &amp; Amazon — then run your Meesho books, all in one Tulmin workspace.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.28 }}
@@ -281,11 +281,16 @@ function BooksScene({ reduce }: { reduce: boolean }) {
           </div>
 
           <div className="order-1 lg:order-2">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-emerald-400">
-              <IndianRupee className="size-3.5" /> Tulmin Book
-            </p>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-emerald-400">
+                <IndianRupee className="size-3.5" /> Tulmin Book
+              </p>
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-400">
+                Meesho today · Flipkart coming soon
+              </p>
+            </div>
             <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-semibold leading-tight">Know your real profit.</h2>
-            <p className="mt-4 max-w-md text-muted-foreground">Import your <strong className="text-foreground">Meesho</strong> order &amp; payment files, reconcile against your bank, manage inventory and returns/QC, then file P&amp;L + GST — nothing is &ldquo;paid&rdquo; until the statement says so.</p>
+            <p className="mt-4 max-w-md text-muted-foreground">Import your <strong className="text-foreground">Meesho</strong> order &amp; payment files, reconcile against your bank, manage inventory and returns/QC, then file P&amp;L + GST — nothing is &ldquo;paid&rdquo; until the statement says so. <strong className="text-foreground">Flipkart support is on the way.</strong></p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               {cards.map((c, i) => (
                 <motion.div
