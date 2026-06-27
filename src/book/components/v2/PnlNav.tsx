@@ -11,10 +11,10 @@ import { Button, cn } from "@/book/components/ui";
 import { useInstantNavigation } from "./InstantNavigation";
 
 const TABS = [
-  { href: "/pnl/orders", label: "Orders" },
-  { href: "/pnl/products", label: "Products" },
-  { href: "/pnl/summary", label: "Profit/Loss" },
-  { href: "/pnl/payouts", label: "Payouts" },
+  { href: "/book/pnl/orders", label: "Orders" },
+  { href: "/book/pnl/products", label: "Products" },
+  { href: "/book/pnl/summary", label: "Profit/Loss" },
+  { href: "/book/pnl/payouts", label: "Payouts" },
 ];
 
 export interface PnlControls {

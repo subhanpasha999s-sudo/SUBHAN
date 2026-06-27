@@ -19,9 +19,9 @@ export default function HealthBanner() {
   );
 
   const items = [
-    unmapped > 0 && { label: `${unmapped} unmapped SKU${unmapped > 1 ? "s" : ""}`, href: "/mapping" },
-    recon.awaiting > 0 && { label: `${recon.awaiting.toLocaleString("en-IN")} awaiting settlement`, href: "/reconciliation" },
-    recon.unacknowledged.count > 0 && { label: `${recon.unacknowledged.count.toLocaleString("en-IN")} unacknowledged payouts`, href: "/reconciliation" },
+    unmapped > 0 && { label: `${unmapped} unmapped SKU${unmapped > 1 ? "s" : ""}`, href: "/book/mapping" },
+    recon.awaiting > 0 && { label: `${recon.awaiting.toLocaleString("en-IN")} awaiting settlement`, href: "/book/reconciliation" },
+    recon.unacknowledged.count > 0 && { label: `${recon.unacknowledged.count.toLocaleString("en-IN")} unacknowledged payouts`, href: "/book/reconciliation" },
   ].filter(Boolean) as { label: string; href: string }[];
 
   if (items.length === 0) {
