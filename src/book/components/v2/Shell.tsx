@@ -54,7 +54,7 @@ const NAV: NavEntry[] = [
   // Sale dropdown — orders, how they come in, and what comes back
   { label: "Sale", icon: Store, children: [
     { section: "orders", href: "/book/orders", label: "Orders", icon: ListOrdered },
-    { section: "integrations", href: "/book/integrations", label: "Integrations", icon: Link2 },
+    { section: "integrations", href: "/book/integrations", label: "Upload data", icon: Link2 },
     { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
   // Payout & P/L dropdown — the statement plus settlement tracking & reconciliation
@@ -612,7 +612,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <p>
                 <strong>Couldn&apos;t save to browser storage.</strong> Your latest import/changes are
                 in memory but may be lost on reload — the dataset likely exceeds this browser&apos;s
-                ~5&nbsp;MB local limit. Delete an old import (Integrations → trash) or export, then retry.
+                ~5&nbsp;MB local limit. Delete an old import (Upload data → trash) or export, then retry.
                 Your SKU mappings are stored separately and remain safe.
               </p>
             </div>

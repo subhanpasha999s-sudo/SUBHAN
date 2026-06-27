@@ -95,7 +95,7 @@ export default function IntegrationsPage() {
 
   return (
     <Guard section="integrations">
-      <PageHeader title="Integrations" sub="Connect Meesho by forwarding or dropping your reports — we detect the file type and month automatically." />
+      <PageHeader title="Upload data" sub="Connect Meesho by forwarding or dropping your reports — we detect the file type and month automatically." />
 
       {/* Connection status card */}
       <Card className="mb-6 flex flex-wrap items-center gap-4 p-5">
