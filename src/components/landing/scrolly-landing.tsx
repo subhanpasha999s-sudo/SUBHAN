@@ -66,11 +66,12 @@ function Nav() {
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/55 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Tulmin home">
-          <TulminBrand markClassName="size-9" titleClassName="text-[15px]" subtitleClassName="text-[11px] text-muted-foreground" priority />
+          <TulminBrand markClassName="size-9" titleClassName="text-[17px]" showSubtitle={false} priority />
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-muted-foreground md:flex">
           <a href="#dispatch" className="hover:text-foreground">Filter &amp; crop</a>
           <a href="#books" className="hover:text-foreground">Tulmin Book</a>
+          <Link href="/blog" className="hover:text-foreground">Playbooks</Link>
           <Link href="/pricing?returnTo=/" className="hover:text-foreground">Plans</Link>
         </nav>
         <div className="flex items-center gap-2">

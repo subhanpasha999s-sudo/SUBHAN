@@ -7,12 +7,10 @@ import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
-  BookOpenText,
   ChevronsLeft,
   CircleUserRound,
   Cloud,
   FileScan,
-  IndianRupee,
   Link2,
   LockKeyhole,
   Settings2,
@@ -22,6 +20,7 @@ import {
 
 import { TulminLogoMark } from "@/components/brand/tulmin-logo";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
+import { AppSwitcher } from "@/components/app-switcher";
 import { Button } from "@/components/ui/button";
 import { AppFooter } from "@/components/layout/app-footer";
 import { AppTopbar } from "@/components/layout/app-topbar";
@@ -52,18 +51,6 @@ type NavGroup = { id: string; label: string; items: NavDef[] };
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    id: "apps",
-    label: "Apps",
-    items: [
-      {
-        href: "/book/dashboard",
-        label: "Tulmin Book",
-        description: "Accounting & books",
-        icon: IndianRupee,
-      },
-    ],
-  },
-  {
     id: "flow",
     label: "Flow",
     items: [
@@ -80,13 +67,6 @@ const NAV_GROUPS: NavGroup[] = [
         description: "Filter, crop, export",
         icon: FileScan,
         step: "02",
-      },
-      {
-        href: "/blog",
-        label: "Playbooks",
-        description: "Dispatch guides",
-        icon: BookOpenText,
-        step: "03",
       },
     ],
   },
@@ -449,6 +429,7 @@ function SidebarChrome({
                 </Button>
               )}
             </div>
+            <AppSwitcher className="w-full" />
             <button
               type="button"
               onClick={() => {
