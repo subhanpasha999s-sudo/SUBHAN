@@ -5,19 +5,20 @@
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { motion } from "framer-motion";
 import { Aurora, PageReveal } from "./motion";
 import {
-  BarChart3, Boxes, ChevronDown, ChevronRight, CircleUserRound, Cloud, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, Scissors, Link2,
-  ListOrdered, Menu, Moon, PackageOpen, Receipt, RotateCcw, Search, Settings, Shuffle,
+  ArrowUpRight, BarChart3, Boxes, ChevronDown, ChevronRight, CircleUserRound, Cloud, FileSpreadsheet, GitCompare, IndianRupee, LayoutDashboard, LogOut, Scissors, Link2,
+  ListOrdered, Menu, Moon, PackageOpen, PanelLeft, PanelLeftClose, Receipt, RotateCcw, Search, Settings, Shuffle,
   ShoppingCart, Store, Sun, Timer, Users, X, BookOpen, Landmark,
 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { AppSection, canSee, homeFor, ROLE_LABELS } from "@/book/lib/v2/rbac";
 import { cn } from "@/book/components/ui";
 import { useAuth } from "@/lib/supabase/auth-context";
+import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { useValueFirstAuth } from "@/components/auth/value-first-auth-provider";
 import { AppSwitcher } from "@/components/app-switcher";
 import { TulminBrand } from "@/components/brand/tulmin-logo";
@@ -51,6 +52,12 @@ const isGroup = (e: NavEntry): e is NavGroup => "children" in e;
 
 const NAV: NavEntry[] = [
   { section: "dashboard", href: "/book/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  // Purchase dropdown — vendors, bills, expenses
+  { label: "Purchase", icon: ShoppingCart, children: [
+    { section: "vendors", href: "/book/vendors", label: "Vendors", icon: Users },
+    { section: "purchases", href: "/book/purchases", label: "Purchase Bill", icon: Receipt },
+    { section: "expenses", href: "/book/expenses", label: "Expense", icon: Receipt },
+  ] },
   // Sale dropdown — orders, how they come in, and what comes back
   { label: "Sale", icon: Store, children: [
     { section: "orders", href: "/book/orders", label: "Orders", icon: ListOrdered },
@@ -63,19 +70,13 @@ const NAV: NavEntry[] = [
     { section: "settlements", href: "/book/settlements", label: "Settlements", icon: Timer },
     { section: "reconciliation", href: "/book/reconciliation", label: "Reconciliation", icon: GitCompare },
   ] },
-  // Inventory dropdown — items and listing→inventory SKU mapping
+  { section: "bank",    href: "/book/bank",    label: "Bank Import", icon: Landmark },
+  // Inventory dropdown — items and listing→inventory SKU mapping (moved below the core flow)
   { label: "Inventory", icon: Boxes, children: [
     { section: "inventory", href: "/book/inventory", label: "Item", icon: Boxes },
     { section: "mapping", href: "/book/mapping", label: "SKU Mapping", icon: Shuffle },
   ] },
-  // Purchase dropdown — vendors, bills, expenses
-  { label: "Purchase", icon: ShoppingCart, children: [
-    { section: "vendors", href: "/book/vendors", label: "Vendors", icon: Users },
-    { section: "purchases", href: "/book/purchases", label: "Purchase Bill", icon: Receipt },
-    { section: "expenses", href: "/book/expenses", label: "Expense", icon: Receipt },
-  ] },
   { section: "reports", href: "/book/reports", label: "Reports", icon: BookOpen },
-  { section: "bank",    href: "/book/bank",    label: "Bank Import", icon: Landmark },
   { section: "analytics", href: "/book/analytics", label: "Analytics", icon: BarChart3 },
   { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
   { section: "team", href: "/book/team", label: "Team", icon: Users },
@@ -298,20 +299,102 @@ function accountInitial(user: { email?: string | null; phone?: string | null }):
   return (user.email ?? user.phone ?? "T").trim().charAt(0).toUpperCase() || "T";
 }
 
+/** Close-on-outside-click / Escape helper for the account popovers. */
+function useDismissable(onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+  return ref;
+}
+
 /**
- * Account control (footer) — same login/sign-up affordance as Filter & auto crop.
- * Signed in → identity + cloud-sync status, links to the shared /account page.
- * Signed out → one tap opens the email-code sign in / sign up modal.
+ * In-Book account menu content — shows identity + sync, and signs out, all
+ * without leaving Tulmin Book. "Account settings" opens in a new tab so the
+ * Book view is never replaced by the Filter & auto crop app shell.
+ */
+function AccountMenuContent({
+  user, onClose, className,
+}: {
+  user: { email?: string | null; phone?: string | null };
+  onClose: () => void;
+  className?: string;
+}) {
+  const signOut = async () => {
+    onClose();
+    try { await getSupabaseBrowser()?.auth.signOut(); } catch {}
+  };
+  return (
+    <div role="menu" className={cn("z-50 w-60 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-2xl", className)}>
+      <div className="flex items-center gap-2.5 px-2.5 py-2">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/15 text-sm font-bold text-emerald-300 ring-1 ring-emerald-400/20">
+          {accountInitial(user)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{accountLabel(user)}</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <Cloud className="size-3" /> Synced across devices
+          </span>
+        </span>
+      </div>
+      <div className="my-1 h-px bg-border" />
+      <a
+        href="/account"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onClose}
+        className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-muted"
+      >
+        <Settings className="size-4 text-muted-foreground" /> Account settings
+        <ArrowUpRight className="ml-auto size-3.5 text-muted-foreground" />
+      </a>
+      <button
+        onClick={signOut}
+        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-danger transition-colors hover:bg-danger/10"
+      >
+        <LogOut className="size-4" /> Sign out
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Account control (footer). Signed in → opens an in-Book account menu (never
+ * navigates to the Filter app). Signed out → opens the email-code sign in modal.
  */
 function AccountBox() {
   const { user, authReady } = useAuth();
   const { openOptionalSignIn } = useValueFirstAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useDismissable(() => setOpen(false));
   if (!authReady) return <div className="h-[3.25rem] rounded-xl bg-muted/40" />;
-  if (user) {
+  if (!user) {
     return (
-      <Link
-        href="/account"
-        className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-2.5 transition-colors hover:bg-muted"
+      <button
+        onClick={openOptionalSignIn}
+        className="flex w-full items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-left transition-colors hover:bg-primary/10"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <CircleUserRound className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-primary">Log in / Sign up</span>
+          <span className="block text-[11px] text-muted-foreground">Sync your books across devices</span>
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-2.5 text-left transition-colors hover:bg-muted"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/15 text-sm font-bold text-emerald-300 ring-1 ring-emerald-400/20">
           {accountInitial(user)}
@@ -319,53 +402,47 @@ function AccountBox() {
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{accountLabel(user)}</span>
           <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-            <Cloud className="size-3" /> Synced · manage account
+            <Cloud className="size-3" /> Synced
           </span>
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-      </Link>
-    );
-  }
-  return (
-    <button
-      onClick={openOptionalSignIn}
-      className="flex w-full items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-left transition-colors hover:bg-primary/10"
-    >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <CircleUserRound className="size-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-primary">Log in / Sign up</span>
-        <span className="block text-[11px] text-muted-foreground">Sync your books across devices</span>
-      </span>
-    </button>
+        <ChevronRight className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "-rotate-90")} />
+      </button>
+      {open && <AccountMenuContent user={user} onClose={() => setOpen(false)} className="absolute bottom-full left-0 mb-2 w-full" />}
+    </div>
   );
 }
 
-/** Compact account icon for the header rows — mirrors the Filter & auto crop topbar. */
+/** Compact account icon for the header rows — opens the same in-Book menu. */
 function AccountIconButton() {
   const { user, authReady } = useAuth();
   const { openOptionalSignIn } = useValueFirstAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useDismissable(() => setOpen(false));
   if (!authReady) return null;
-  if (user) {
+  if (!user) {
     return (
-      <Link
-        href="/account"
-        aria-label="Tulmin account"
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      <button
+        onClick={openOptionalSignIn}
+        aria-label="Log in or sign up"
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10"
       >
         <CircleUserRound className="size-5" strokeWidth={1.6} />
-      </Link>
+      </button>
     );
   }
   return (
-    <button
-      onClick={openOptionalSignIn}
-      aria-label="Log in or sign up"
-      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10"
-    >
-      <CircleUserRound className="size-5" strokeWidth={1.6} />
-    </button>
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Tulmin account"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <CircleUserRound className="size-5" strokeWidth={1.6} />
+      </button>
+      {open && <AccountMenuContent user={user} onClose={() => setOpen(false)} className="absolute right-0 top-full mt-2" />}
+    </div>
   );
 }
 
@@ -477,10 +554,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [dark, setDark] = useState(false);
   const [activePath, setActivePath] = useState(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
 
   useEffect(() => {
     setDark(document.documentElement.classList.contains("dark"));
+    try { setSidebarHidden(localStorage.getItem("meeshoprofit:sidebarHidden") === "1"); } catch {}
   }, []);
+
+  function setSidebar(hidden: boolean) {
+    setSidebarHidden(hidden);
+    try { localStorage.setItem("meeshoprofit:sidebarHidden", hidden ? "1" : "0"); } catch {}
+  }
 
   useEffect(() => {
     setActivePath(pathname);
@@ -584,14 +668,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
-        <Link
-          href="/"
-          aria-label="Tulmin home"
-          className="flex items-center gap-2.5 px-3 pb-1 pt-4 transition-opacity hover:opacity-90"
-        >
-          <TulminBrand markClassName="size-8" titleClassName="text-[15px]" subtitle="Books workspace" subtitleClassName="text-[10.5px] font-medium text-muted-foreground" priority />
-        </Link>
+      <aside className={cn("sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card", sidebarHidden ? "md:hidden" : "md:flex")}>
+        <div className="flex items-center gap-2.5 px-3 pb-1 pt-4">
+          <Link
+            href="/"
+            aria-label="Tulmin home"
+            className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-90"
+          >
+            <TulminBrand markClassName="size-8" titleClassName="text-[15px]" subtitle="Books workspace" subtitleClassName="text-[10.5px] font-medium text-muted-foreground" priority />
+          </Link>
+          <button
+            onClick={() => setSidebar(true)}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+            className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <PanelLeftClose className="size-4" />
+          </button>
+        </div>
         <div className="flex items-center gap-1 px-3 pb-3 pt-2">
           <AppSwitcher className="min-w-0 flex-1" />
           <AccountIconButton />
@@ -603,8 +697,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <ShellFooter dark={dark} toggleTheme={toggleTheme} />
       </aside>
 
+      {/* Floating reveal button — desktop only, shown when the sidebar is hidden */}
+      {sidebarHidden && (
+        <button
+          onClick={() => setSidebar(false)}
+          aria-label="Show sidebar"
+          title="Show sidebar"
+          className="fixed left-3 top-3 z-40 hidden size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-foreground md:flex"
+        >
+          <PanelLeft className="size-4" />
+        </button>
+      )}
+
       {/* Main — cinematic page-reveal on route change */}
-      <main className="min-w-0 flex-1 px-4 pb-24 pt-[4.25rem] md:px-8 md:pb-10 md:pt-6">
+      <main className={cn("min-w-0 flex-1 px-4 pb-24 pt-[4.25rem] md:px-8 md:pb-10 md:pt-6", sidebarHidden && "md:pl-16")}>
         <PageReveal routeKey={showInstantPreview ? activePath : pathname}>
           {persistError && (
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
