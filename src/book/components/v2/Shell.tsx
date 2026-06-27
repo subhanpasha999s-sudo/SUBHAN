@@ -204,23 +204,27 @@ function CommandK() {
   );
 }
 
-/** Collapsible sidebar group (Sale / Purchase). Auto-opens on active child. */
+/** Collapsible sidebar group (Sale / Purchase) — controlled by NavList so only
+ *  one group is open at a time (accordion). */
 function NavGroupItem({
   group,
   activePath,
+  open,
+  onToggle,
   onNavigate,
 }: {
   group: NavGroup;
   activePath: string;
+  open: boolean;
+  onToggle: () => void;
   onNavigate: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   const active = group.children.some((c) => activePath.startsWith(c.href));
-  const [open, setOpen] = useState(active);
-  useEffect(() => { if (active) setOpen(true); }, [active]);
   return (
     <div>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
+        aria-expanded={open}
         className={cn(
           "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
           active ? "text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -253,7 +257,8 @@ function NavGroupItem({
   );
 }
 
-/** Shared nav body — rendered in the desktop sidebar AND the mobile drawer. */
+/** Shared nav body — rendered in the desktop sidebar AND the mobile drawer.
+ *  Owns the accordion state: at most one group open at a time. */
 function NavList({
   visible,
   activePath,
@@ -263,11 +268,32 @@ function NavList({
   activePath: string;
   onNavigate: (event: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
+  // The group that owns the current route — opened by default and on navigation.
+  const activeGroupLabel = useMemo(() => {
+    for (const e of visible) {
+      if (isGroup(e) && e.children.some((c) => activePath.startsWith(c.href))) return e.label;
+    }
+    return null;
+  }, [visible, activePath]);
+
+  const [openLabel, setOpenLabel] = useState<string | null>(activeGroupLabel);
+  // Navigating into a group's child auto-opens it (and closes the others).
+  useEffect(() => {
+    if (activeGroupLabel) setOpenLabel(activeGroupLabel);
+  }, [activeGroupLabel]);
+
   return (
     <>
       {visible.map((e) =>
         isGroup(e) ? (
-          <NavGroupItem key={e.label} group={e} activePath={activePath} onNavigate={onNavigate} />
+          <NavGroupItem
+            key={e.label}
+            group={e}
+            activePath={activePath}
+            open={openLabel === e.label}
+            onToggle={() => setOpenLabel((cur) => (cur === e.label ? null : e.label))}
+            onNavigate={onNavigate}
+          />
         ) : (
           <Link
             key={e.href}
