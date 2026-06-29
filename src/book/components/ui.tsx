@@ -11,12 +11,11 @@ export function cn(...inputs: (string | undefined | false | null)[]) {
 export function Card({
   className,
   children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
+  ...rest
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      {...rest}
       className={cn(
         "rounded-2xl border border-border bg-card text-card-foreground shadow-card",
         className
@@ -32,14 +31,39 @@ export function StatCard({
   value,
   sub,
   tone = "default",
+  onClick,
+  active = false,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "default" | "success" | "danger" | "warning";
+  onClick?: () => void;
+  active?: boolean;
 }) {
+  const interactive = Boolean(onClick);
   return (
-    <Card className="p-5">
+    <Card
+      onClick={onClick}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "p-5",
+        interactive &&
+          "cursor-pointer transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        active && "border-primary ring-2 ring-primary"
+      )}
+    >
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>

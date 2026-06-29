@@ -52,6 +52,25 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
     return { subTotal, disc, gst, total };
   }, [lines, discountPct]);
 
+  // Lifetime weighted-average purchase rate per SKU, from all past bills.
+  // Lets the user see what they've historically paid before keying a new rate.
+  const lifetimeAvg = useMemo(() => {
+    const agg: Record<string, { qty: number; cost: number; buys: number }> = {};
+    for (const p of state.purchases) {
+      for (const it of p.items) {
+        const a = (agg[it.skuCode] ??= { qty: 0, cost: 0, buys: 0 });
+        a.qty += it.quantity;
+        a.cost += it.quantity * it.unitCost;
+        a.buys += 1;
+      }
+    }
+    const out: Record<string, { avg: number; qty: number; buys: number }> = {};
+    for (const [code, a] of Object.entries(agg)) {
+      out[code] = { avg: a.qty > 0 ? a.cost / a.qty : 0, qty: a.qty, buys: a.buys };
+    }
+    return out;
+  }, [state.purchases]);
+
   const valid = Boolean(vendorId && billNo.trim() && billDate &&
     lines.some((l) => l.skuCode && (parseFloat(l.quantity) || 0) > 0));
 
@@ -85,24 +104,25 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
   const input = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-        className="mx-auto my-6 w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        className="my-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
           <Receipt className="h-5 w-5" />
           <h2 className="text-xl font-semibold">New Bill</h2>
-          <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
 
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto">
         {/* Vendor banner */}
         <div className="bg-muted/50 px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1.5 text-sm font-medium text-danger">
-              Vendor Name<span>*</span>
-              <span className="h-2 w-2 rounded-full bg-primary" />
+            <label className="flex items-center gap-1 text-sm font-medium">
+              Vendor Name<span className="text-danger">*</span>
             </label>
             <div className="flex min-w-[280px] flex-1 max-w-xl">
               <select value={vendorId} onChange={(e) => setVendorId(e.target.value)}
@@ -120,7 +140,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
         <div className="grid gap-x-10 gap-y-4 px-6 py-5 md:grid-cols-2">
           <div className="space-y-4">
             <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm font-medium text-danger">Bill#*</label>
+              <label className="text-sm font-medium">Bill#<span className="text-danger">*</span></label>
               <input className={input} value={billNo} onChange={(e) => setBillNo(e.target.value)} />
             </div>
             <div className="grid grid-cols-[120px_1fr] items-center gap-3">
@@ -128,7 +148,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
               <input className={input} value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
             </div>
             <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm font-medium text-danger">Bill Date*</label>
+              <label className="text-sm font-medium">Bill Date<span className="text-danger">*</span></label>
               <input type="date" className={input} value={billDate} onChange={(e) => setBillDate(e.target.value)} />
             </div>
             <div className="grid grid-cols-[120px_1fr] items-center gap-3">
@@ -190,12 +210,42 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
                           <div className="flex items-start gap-2">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
                             <div className="relative flex-1">
-                              {l.skuCode ? (
-                                <button onClick={() => { patch(l.id, { skuCode: "" }); setSkuQuery((s) => ({ ...s, [l.id]: "" })); }}
-                                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-left text-sm hover:bg-muted">
-                                  {l.skuCode}
-                                </button>
-                              ) : (
+                              {l.skuCode ? (() => {
+                                const sku = state.skus.find((s) => s.skuCode === l.skuCode);
+                                const hist = lifetimeAvg[l.skuCode];
+                                const curQty = parseFloat(l.quantity) || 0;
+                                const curRate = parseFloat(l.rate) || 0;
+                                const projAvg = hist && curRate > 0 && curQty > 0
+                                  ? (hist.avg * hist.qty + curRate * curQty) / (hist.qty + curQty)
+                                  : null;
+                                return (
+                                  <div className="space-y-1">
+                                    <button onClick={() => { patch(l.id, { skuCode: "" }); setSkuQuery((s) => ({ ...s, [l.id]: "" })); }}
+                                      className="block w-full rounded-md border border-border bg-background px-2 py-1.5 text-left text-sm hover:bg-muted">
+                                      <span className="font-mono text-xs">{l.skuCode}</span>
+                                      {sku?.productName && sku.productName !== l.skuCode && (
+                                        <span className="ml-2 truncate text-xs text-muted-foreground">{sku.productName}</span>
+                                      )}
+                                    </button>
+                                    {hist ? (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Lifetime avg <span className="font-medium text-foreground tabular-nums">{formatINR(hist.avg)}</span>
+                                        <span className="text-muted-foreground"> · {hist.buys} buy{hist.buys === 1 ? "" : "s"}</span>
+                                        {projAvg !== null && Math.abs(projAvg - hist.avg) >= 0.01 && (
+                                          <span className={projAvg > hist.avg ? "text-danger" : "text-success"}>
+                                            {" → with this bill "}<span className="font-medium tabular-nums">{formatINR(projAvg)}</span>
+                                          </span>
+                                        )}
+                                      </p>
+                                    ) : (sku && sku.currentCogs > 0) ? (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Avg cost <span className="font-medium text-foreground tabular-nums">{formatINR(sku.currentCogs)}</span>
+                                        <span className="text-muted-foreground"> · first purchase</span>
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                );
+                              })() : (
                                 <>
                                   <input className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
                                     placeholder="Type or click to select an item." value={q}
@@ -272,9 +322,10 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
+        </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-2 border-t border-border px-6 py-4">
+        <div className="flex shrink-0 items-center gap-2 border-t border-border px-6 py-4">
           <Button variant="secondary" onClick={() => save("pending")} disabled={!valid}>Save as Draft</Button>
           <Button onClick={() => save("pending")} disabled={!valid}>Save as Open</Button>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

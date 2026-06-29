@@ -22,6 +22,7 @@ export default function SettlementsPage() {
   const unmatched = useMemo(() => unmatchedPayouts(state), [state]);
 
   const [tab, setTab] = useState<"orders" | "unmatched">("orders");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PAID" | "UNPAID">("ALL");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
 
@@ -38,9 +39,10 @@ export default function SettlementsPage() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return views
+      .filter((v) => statusFilter === "ALL" || v.settlementStatus === statusFilter)
       .filter((v) => !needle || v.subOrderNo.toLowerCase().includes(needle) || (v.inventorySku ?? "").toLowerCase().includes(needle))
       .sort((a, b) => (a.settlementStatus === "UNPAID" ? -1 : 1) - (b.settlementStatus === "UNPAID" ? -1 : 1));
-  }, [views, q]);
+  }, [views, q, statusFilter]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const rows = filtered.slice(page * PAGE, (page + 1) * PAGE);
 
@@ -50,11 +52,19 @@ export default function SettlementsPage() {
 
       {/* Summary cards */}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total quantity" value={cards.totalQty.toLocaleString("en-IN")} />
-        <StatCard label="Total paid" value={formatINR(cards.totalPaid, true)} tone="success" />
-        <StatCard label="Unpaid orders" value={String(cards.unpaidOrders)} tone={cards.unpaidOrders > 0 ? "warning" : "success"} />
+        <StatCard label="Total quantity" value={cards.totalQty.toLocaleString("en-IN")}
+          active={tab === "orders" && statusFilter === "ALL"}
+          onClick={() => { setTab("orders"); setStatusFilter("ALL"); setPage(0); }} />
+        <StatCard label="Total paid" value={formatINR(cards.totalPaid, true)} tone="success"
+          active={tab === "orders" && statusFilter === "PAID"}
+          onClick={() => { setTab("orders"); setStatusFilter("PAID"); setPage(0); }} />
+        <StatCard label="Unpaid orders" value={String(cards.unpaidOrders)} tone={cards.unpaidOrders > 0 ? "warning" : "success"}
+          active={tab === "orders" && statusFilter === "UNPAID"}
+          onClick={() => { setTab("orders"); setStatusFilter("UNPAID"); setPage(0); }} />
         <StatCard label="Unacknowledged payout" value={formatINR(unmatched.total, true)}
-          sub={`${unmatched.rows.length} rows with no order`} tone={unmatched.total < 0 ? "danger" : "default"} />
+          sub={`${unmatched.rows.length} rows with no order`} tone={unmatched.total < 0 ? "danger" : "default"}
+          active={tab === "unmatched"}
+          onClick={() => setTab("unmatched")} />
       </div>
 
       <div className="mb-4 flex gap-2">
