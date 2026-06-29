@@ -104,10 +104,10 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
   const input = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-        className="my-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18 }}
+        className="flex h-full w-full flex-col overflow-hidden bg-card"
       >
         {/* Header */}
         <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
@@ -118,6 +118,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-5xl">
         {/* Vendor banner */}
         <div className="bg-muted/50 px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -323,13 +324,16 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         </div>
+        </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center gap-2 border-t border-border px-6 py-4">
-          <Button variant="secondary" onClick={() => save("pending")} disabled={!valid}>Save as Draft</Button>
-          <Button onClick={() => save("pending")} disabled={!valid}>Save as Open</Button>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <span className="ml-auto text-xs text-muted-foreground">Saving updates weighted-average COGS</span>
+        <div className="shrink-0 border-t border-border px-6 py-4">
+          <div className="mx-auto flex w-full max-w-5xl items-center gap-2">
+            <Button variant="secondary" onClick={() => save("pending")} disabled={!valid}>Save as Draft</Button>
+            <Button onClick={() => save("pending")} disabled={!valid}>Save as Open</Button>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <span className="ml-auto text-xs text-muted-foreground">Saving updates weighted-average COGS</span>
+          </div>
         </div>
       </motion.div>
     </div>
