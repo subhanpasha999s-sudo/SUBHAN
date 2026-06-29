@@ -5,7 +5,7 @@
  * GST per line, totals box with discount, and Draft/Open/Cancel footer.
  * Saving creates PURCHASE_IN ledger rows + updates weighted-average COGS.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   GripVertical, ImageIcon, Plus, Receipt, Search, Trash2, X,
@@ -35,6 +35,13 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
   const [skuQuery, setSkuQuery] = useState<Record<string, string>>({});
 
   const vendor = state.vendors.find((v) => v.id === vendorId);
+
+  // Close on Escape — expected for a full-screen modal with no clickable backdrop.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   function patch(id: string, p: Partial<Line>) {
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)));
@@ -84,6 +91,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
       supplierName: vendor?.name ?? "",
       invoiceNo: billNo.trim(),
       invoiceDate: billDate,
+      dueDate: dueDate || undefined,
       totalAmount: Math.round(totals.total * 100) / 100,
       gstAmount: Math.round(totals.gst * 100) / 100,
       paymentStatus: status,
@@ -252,7 +260,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
                                     placeholder="Type or click to select an item." value={q}
                                     onChange={(e) => setSkuQuery((s) => ({ ...s, [l.id]: e.target.value }))} />
                                   {q && (
-                                    <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-card shadow-lg">
+                                    <div className="mt-1 w-full overflow-hidden rounded-md border border-border bg-card shadow-lg">
                                       {matches.map((s) => (
                                         <button key={s.skuCode} onClick={() => { patch(l.id, { skuCode: s.skuCode, rate: l.rate || String(s.currentCogs || ""), gstRate: String(s.gstRate) }); setSkuQuery((sq) => ({ ...sq, [l.id]: "" })); }}
                                           className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted">
