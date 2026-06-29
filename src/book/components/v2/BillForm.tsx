@@ -5,7 +5,7 @@
  * GST per line, totals box with discount, and Draft/Open/Cancel footer.
  * Saving creates PURCHASE_IN ledger rows + updates weighted-average COGS.
  */
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   GripVertical, ImageIcon, Plus, Receipt, Search, Trash2, X,
@@ -19,6 +19,20 @@ const GST_RATES = [0, 5, 12, 18, 28];
 const newLine = (): Line => ({ id: Math.random().toString(36).slice(2), skuCode: "", quantity: "1", rate: "", gstRate: "5" });
 
 const TERMS = ["Due on Receipt", "Net 15", "Net 30", "Net 45", "Net 60"];
+
+/** Shared field shell — label stacked above its control, consistent spacing. */
+function Field({ label, required, className = "", children }: {
+  label: string; required?: boolean; className?: string; children: ReactNode;
+}) {
+  return (
+    <div className={`space-y-2 ${className}`}>
+      <label className="block text-sm font-medium text-foreground/90">
+        {label}{required && <span className="ml-0.5 text-danger">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
 
 export default function BillForm({ onClose }: { onClose: () => void }) {
   const { state, actions } = useV2();
@@ -35,13 +49,33 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
   const [skuQuery, setSkuQuery] = useState<Record<string, string>>({});
 
   const vendor = state.vendors.find((v) => v.id === vendorId);
+  const [open, setOpen] = useState(true);
 
-  // Close on Escape — expected for a full-screen modal with no clickable backdrop.
+  // Anything the user has touched that would be lost on an accidental dismiss.
+  const isDirty = Boolean(
+    vendorId || billNo.trim() || orderNo.trim() || billDate || subject.trim() ||
+    reverseCharge || terms !== TERMS[0] || discountPct !== "0" ||
+    lines.length > 1 || lines.some((l) => l.skuCode || l.rate || l.quantity !== "1"),
+  );
+
+  // Play the exit animation, then unmount. force=true skips the unsaved-changes guard.
+  const close = useCallback((force = false) => {
+    if (!force && isDirty && !window.confirm("Discard this bill? Your unsaved changes will be lost.")) return;
+    setOpen(false);
+    window.setTimeout(onClose, 180);
+  }, [isDirty, onClose]);
+
+  // Esc to close + lock background scroll while the modal is mounted.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [close]);
 
   function patch(id: string, p: Partial<Line>) {
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)));
@@ -98,7 +132,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
       notes: [orderNo && `Order ${orderNo}`, `Terms: ${terms}`, reverseCharge && "Reverse charge", subject].filter(Boolean).join(" · "),
       items,
     });
-    onClose();
+    close(true);
   }
 
   function quickCreate(lineId: string, code: string) {
@@ -109,91 +143,87 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
     setSkuQuery((q) => ({ ...q, [lineId]: "" }));
   }
 
-  const input = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
+  const input = "h-11 w-full rounded-lg border border-border bg-background px-3.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm">
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: open ? 1 : 0 }} transition={{ duration: 0.18 }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4 md:p-6"
+    >
       <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18 }}
-        className="flex h-full w-full flex-col overflow-hidden bg-card"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: open ? 1 : 0, scale: open ? 1 : 0.96 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="flex h-full w-full flex-col overflow-hidden border-border bg-card shadow-2xl sm:h-[92vh] sm:w-[92vw] sm:max-w-[1400px] sm:rounded-2xl sm:border"
       >
-        {/* Header */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
-          <Receipt className="h-5 w-5" />
-          <h2 className="text-xl font-semibold">New Bill</h2>
-          <button onClick={onClose} className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        {/* Header (sticky) */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4 md:px-8">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Receipt className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold leading-tight">New Bill</h2>
+            <p className="truncate text-xs text-muted-foreground">Record a purchase bill — updates weighted-average cost</p>
+          </div>
+          <button onClick={() => close()} aria-label="Close" className="ml-auto rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
 
-        {/* Scrollable body */}
+        {/* Content (scrollable) */}
         <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl">
-        {/* Vendor banner */}
-        <div className="bg-muted/50 px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1 text-sm font-medium">
-              Vendor Name<span className="text-danger">*</span>
-            </label>
-            <div className="flex min-w-[280px] flex-1 max-w-xl">
-              <select value={vendorId} onChange={(e) => setVendorId(e.target.value)}
-                className="w-full rounded-l-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary">
-                <option value="">Select a Vendor</option>
-                {state.vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-              </select>
-              <span className="flex items-center rounded-r-md bg-primary px-3 text-primary-foreground"><Search className="h-4 w-4" /></span>
-            </div>
-            {state.vendors.length === 0 && <span className="text-xs text-muted-foreground">No vendors yet — add one in Purchase → Vendors.</span>}
-          </div>
-        </div>
+          <div className="mx-auto w-full max-w-6xl space-y-8 px-6 py-8 md:px-8">
 
-        {/* Bill meta */}
-        <div className="grid gap-x-10 gap-y-4 px-6 py-5 md:grid-cols-2">
-          <div className="space-y-4">
-            <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm font-medium">Bill#<span className="text-danger">*</span></label>
-              <input className={input} value={billNo} onChange={(e) => setBillNo(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm">Order Number</label>
-              <input className={input} value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm font-medium">Bill Date<span className="text-danger">*</span></label>
-              <input type="date" className={input} value={billDate} onChange={(e) => setBillDate(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-[120px_1fr] items-center gap-3">
-              <label className="text-sm">Due Date</label>
-              <input type="date" className={input} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-[140px_1fr] items-center gap-3">
-              <label className="text-sm">Payment Terms</label>
-              <select className={input} value={terms} onChange={(e) => setTerms(e.target.value)}>
-                {TERMS.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={reverseCharge} onChange={(e) => setReverseCharge(e.target.checked)} className="h-4 w-4 accent-[var(--primary)]" />
-              This transaction is applicable for reverse charge
-            </label>
-          </div>
-        </div>
+            {/* Vendor */}
+            <Field label="Vendor Name" required>
+              <div className="flex gap-2">
+                <select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className={`${input} max-w-2xl`}>
+                  <option value="">Select a Vendor</option>
+                  {state.vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+                <button type="button" aria-label="Search vendors" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90"><Search className="h-4 w-4" /></button>
+              </div>
+              {state.vendors.length === 0 && <p className="text-xs text-muted-foreground">No vendors yet — add one in Purchase → Vendors.</p>}
+            </Field>
 
-        <div className="border-t border-border" />
+            <div className="h-px bg-border" />
 
-        {/* Subject */}
-        <div className="grid grid-cols-[120px_1fr] items-start gap-3 px-6 py-5 md:max-w-2xl">
-          <label className="pt-2 text-sm">Subject</label>
-          <textarea rows={2} className={input} placeholder="Enter a subject within 250 characters" maxLength={250}
-            value={subject} onChange={(e) => setSubject(e.target.value)} />
-        </div>
-
-        {/* Item table */}
-        <div className="px-6 pb-2">
-          <div className="overflow-hidden rounded-xl border border-border">
-            <div className="flex items-center bg-muted/60 px-4 py-2.5">
-              <span className="text-sm font-semibold">Item Table</span>
+            {/* Bill details */}
+            <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+              <Field label="Bill#" required>
+                <input className={input} value={billNo} onChange={(e) => setBillNo(e.target.value)} placeholder="e.g. INV-2026-001" />
+              </Field>
+              <Field label="Payment Terms">
+                <select className={input} value={terms} onChange={(e) => setTerms(e.target.value)}>
+                  {TERMS.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </Field>
+              <Field label="Bill Date" required>
+                <input type="date" className={input} value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+              </Field>
+              <Field label="Due Date">
+                <input type="date" className={input} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </Field>
+              <Field label="Order Number">
+                <input className={input} value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
+              </Field>
+              <label className="flex items-center gap-2.5 text-sm text-foreground/90 md:pt-9">
+                <input type="checkbox" checked={reverseCharge} onChange={(e) => setReverseCharge(e.target.checked)} className="h-4 w-4 rounded accent-[var(--primary)]" />
+                This transaction is applicable for reverse charge
+              </label>
             </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Subject */}
+            <Field label="Subject" className="max-w-3xl">
+              <textarea rows={3} className="min-h-[96px] w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                placeholder="Enter a subject within 250 characters" maxLength={250}
+                value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </Field>
+
+            {/* Items */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground/90">Items</h3>
+              <div className="overflow-hidden rounded-xl border border-border">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
@@ -334,16 +364,16 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
         </div>
         </div>
 
-        {/* Footer */}
-        <div className="shrink-0 border-t border-border px-6 py-4">
-          <div className="mx-auto flex w-full max-w-5xl items-center gap-2">
+        {/* Footer (sticky) */}
+        <div className="shrink-0 border-t border-border bg-card px-6 py-4 md:px-8">
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3">
             <Button variant="secondary" onClick={() => save("pending")} disabled={!valid}>Save as Draft</Button>
             <Button onClick={() => save("pending")} disabled={!valid}>Save as Open</Button>
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" onClick={() => close()}>Cancel</Button>
             <span className="ml-auto text-xs text-muted-foreground">Saving updates weighted-average COGS</span>
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
