@@ -62,7 +62,8 @@ export default function AnalyticsPage() {
   const trends = useMemo(() => monthlyTrends(state), [state]);
   const health = useMemo(() => healthCard(state), [state]);
 
-  const label = (a: { skuCode: string; productName: string }) => a.productName?.trim() || a.skuCode;
+  // Show the SKU code (not the product title) in every ranking row.
+  const label = (a: { skuCode: string; productName: string }) => a.skuCode;
 
   // ranked, pre-sliced views for the bar lists
   const lists = useMemo(() => {
