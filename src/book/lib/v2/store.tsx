@@ -35,7 +35,7 @@ import { canDo } from "./rbac";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
-  AppNotification, BankAccount, CategorizationRule, Claim,
+  AppNotification, BankAccount, CategorizationRule, Claim, Customer, Invoice,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -121,6 +121,10 @@ export interface V2Actions {
   upsertProduct(sku: Sku, originalCode?: string): void;
   /** V4 §6b — add a vendor to the master. */
   addVendor(v: Omit<Vendor, "id" | "createdAt">): void;
+  /** Phase 3 — sales/AR. */
+  addCustomer(c: Omit<Customer, "id" | "createdAt">): string;
+  addInvoice(i: Omit<Invoice, "id" | "amountPaid" | "status">): string;
+  recordInvoiceReceipt(invoiceId: string, amount: number): void;
   addExpense(e: Omit<StoredExpense, "id" | "createdBy">): void;
   deleteExpense(id: string): void;
   importBankTxns(txns: Omit<StoredBankTxn, "id" | "status">[]): void;
@@ -527,6 +531,42 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
           ...cur,
           vendors: [...cur.vendors, { ...v, id: uid("ven"), createdAt: new Date().toISOString() }],
           audit: [...cur.audit, audit("VENDOR_ADD", "vendor", v.name)],
+        });
+      },
+
+      addCustomer: (c) => {
+        guard("manage_invoices");
+        const id = uid("cus");
+        setState((cur) => cur && {
+          ...cur,
+          customers: [...cur.customers, { ...c, id, createdAt: new Date().toISOString() }],
+          audit: [...cur.audit, audit("CUSTOMER_ADD", "customer", c.name)],
+        });
+        return id;
+      },
+
+      addInvoice: (i) => {
+        guard("manage_invoices");
+        const id = uid("inv");
+        setState((cur) => cur && {
+          ...cur,
+          invoices: [...cur.invoices, { ...i, id, amountPaid: 0, status: "open" }],
+          audit: [...cur.audit, audit("INVOICE_ADD", "invoice", i.number || id)],
+        });
+        return id;
+      },
+
+      recordInvoiceReceipt: (invoiceId, amount) => {
+        guard("manage_invoices");
+        setState((cur) => {
+          if (!cur) return cur;
+          const invoices = cur.invoices.map((inv) => {
+            if (inv.id !== invoiceId) return inv;
+            const paid = Math.min(inv.amount, Math.round((inv.amountPaid + amount) * 100) / 100);
+            const status: Invoice["status"] = paid >= inv.amount - 0.005 ? "paid" : paid > 0 ? "partial" : "open";
+            return { ...inv, amountPaid: paid, status };
+          });
+          return { ...cur, invoices, audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(amount))] };
         });
       },
 

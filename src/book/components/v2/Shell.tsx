@@ -61,6 +61,7 @@ const NAV: NavEntry[] = [
   // Sale dropdown — orders, how they come in, and what comes back
   { label: "Sale", icon: Store, children: [
     { section: "orders", href: "/book/orders", label: "Orders", icon: ListOrdered },
+    { section: "invoices", href: "/book/invoices", label: "Invoices", icon: Receipt },
     { section: "integrations", href: "/book/integrations", label: "Upload data", icon: Link2 },
     { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
