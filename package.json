@@ -15,7 +15,9 @@
     "preview": "npx serve@14 out -l 3000",
     "start": "npx serve@14 out -l 3000",
     "lint": "eslint .",
-    "postinstall": "patch-package && (cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || true) && (mkdir -p public/ocr/tesseract-core && cp node_modules/tesseract.js/dist/worker.min.js public/ocr/worker.min.js && cp node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz public/ocr/eng.traineddata.gz && cp node_modules/tesseract.js-core/tesseract-core*.js node_modules/tesseract.js-core/tesseract-core*.wasm public/ocr/tesseract-core/ || true)"
+    "postinstall": "patch-package && (cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || true) && (mkdir -p public/ocr/tesseract-core && cp node_modules/tesseract.js/dist/worker.min.js public/ocr/worker.min.js && cp node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz public/ocr/eng.traineddata.gz && cp node_modules/tesseract.js-core/tesseract-core*.js node_modules/tesseract.js-core/tesseract-core*.wasm public/ocr/tesseract-core/ || true)",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -55,14 +57,17 @@
     "@capacitor/core": "^7.6.2",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "eslint": "9.29.0",
     "eslint-config-next": "16.2.4",
     "patch-package": "^8.0.1",
+    "pg": "^8.22.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.6"
   }
 }
