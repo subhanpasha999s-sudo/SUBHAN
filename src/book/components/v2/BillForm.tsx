@@ -9,7 +9,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
-  GripVertical, ImageIcon, Plus, Receipt, Search, Trash2, X,
+  GripVertical, ImageIcon, Plus, Receipt, Trash2, X,
 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Button } from "@/book/components/ui";
@@ -48,13 +48,15 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [discountPct, setDiscountPct] = useState("0");
   const [skuQuery, setSkuQuery] = useState<Record<string, string>>({});
+  // Supplier can be an existing vendor OR a name typed inline (auto-created on save).
+  const [supplierName, setSupplierName] = useState("");
+  const [newVendorMode, setNewVendorMode] = useState(state.vendors.length === 0);
 
-  const vendor = state.vendors.find((v) => v.id === vendorId);
   const [open, setOpen] = useState(true);
 
   // Anything the user has touched that would be lost on an accidental dismiss.
   const isDirty = Boolean(
-    vendorId || billNo.trim() || orderNo.trim() || billDate || subject.trim() ||
+    vendorId || supplierName.trim() || billNo.trim() || orderNo.trim() || billDate || subject.trim() ||
     reverseCharge || terms !== TERMS[0] || discountPct !== "0" ||
     lines.length > 1 || lines.some((l) => l.skuCode || l.rate || l.quantity !== "1"),
   );
@@ -113,17 +115,22 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
     return out;
   }, [state.purchases]);
 
-  const valid = Boolean(vendorId && billNo.trim() && billDate &&
+  const valid = Boolean(supplierName.trim() && billNo.trim() && billDate &&
     lines.some((l) => l.skuCode && (parseFloat(l.quantity) || 0) > 0));
 
   function save(status: "pending" | "paid") {
     if (!valid) return;
+    // Persist a new vendor to the master when the name was typed inline.
+    const name = supplierName.trim();
+    if (!vendorId && name && !state.vendors.some((v) => v.name.toLowerCase() === name.toLowerCase())) {
+      actions.addVendor({ name, gstin: "", address: "", contact: "" });
+    }
     const items = lines
       .filter((l) => l.skuCode && (parseFloat(l.quantity) || 0) > 0)
       .map((l) => ({ skuCode: l.skuCode, quantity: parseInt(l.quantity, 10) || 0, unitCost: parseFloat(l.rate) || 0, gstRate: parseFloat(l.gstRate) || 0 }));
     actions.addPurchase({
-      vendorId,
-      supplierName: vendor?.name ?? "",
+      vendorId: vendorId || undefined,
+      supplierName: name,
       invoiceNo: billNo.trim(),
       invoiceDate: billDate,
       dueDate: dueDate || undefined,
@@ -179,14 +186,34 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
 
             {/* Vendor */}
             <Field label="Vendor Name" required>
-              <div className="flex gap-2">
-                <select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className={`${input} max-w-2xl`}>
-                  <option value="">Select a Vendor</option>
-                  {state.vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-                <button type="button" aria-label="Search vendors" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90"><Search className="h-4 w-4" /></button>
-              </div>
-              {state.vendors.length === 0 && <p className="text-xs text-muted-foreground">No vendors yet — add one in Purchase → Vendors.</p>}
+              {newVendorMode ? (
+                <div className="flex max-w-2xl gap-2">
+                  <input className={input} placeholder="Type vendor / supplier name"
+                    value={supplierName} onChange={(e) => { setSupplierName(e.target.value); setVendorId(""); }} />
+                  {state.vendors.length > 0 && (
+                    <button type="button" onClick={() => { setNewVendorMode(false); setSupplierName(""); }}
+                      className="h-11 shrink-0 whitespace-nowrap rounded-lg border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted">
+                      Pick existing
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex max-w-2xl gap-2">
+                  <select value={vendorId}
+                    onChange={(e) => { const v = state.vendors.find((x) => x.id === e.target.value); setVendorId(e.target.value); setSupplierName(v?.name ?? ""); }}
+                    className={input}>
+                    <option value="">Select a Vendor</option>
+                    {state.vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => { setNewVendorMode(true); setVendorId(""); setSupplierName(""); }}
+                    className="flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border px-3 text-sm transition-colors hover:bg-muted">
+                    <Plus className="h-4 w-4 text-primary" /> New
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {newVendorMode ? "A new vendor will be added to your master on save." : "Choose a vendor, or add a new one."}
+              </p>
             </Field>
 
             <div className="h-px bg-border" />
