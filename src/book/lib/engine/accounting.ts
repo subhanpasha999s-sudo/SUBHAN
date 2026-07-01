@@ -27,8 +27,10 @@ export const COA = {
   TCS_REC:      { code: "1400", name: "TCS Receivable",             type: "asset",     creditNormal: false },
   // LIABILITIES (2xxx) — credit-normal
   AP:           { code: "2000", name: "Accounts Payable",           type: "liability", creditNormal: true  },
+  GST_PAYABLE:  { code: "2100", name: "GST Payable",                type: "liability", creditNormal: true  },
   // EQUITY (3xxx) — credit-normal
   RETAINED:     { code: "3000", name: "Retained Earnings",          type: "equity",    creditNormal: true  },
+  OWNER_EQUITY: { code: "3100", name: "Owner Equity",               type: "equity",    creditNormal: true  },
   // REVENUE (4xxx) — credit-normal
   SALES:        { code: "4000", name: "Sales Revenue",              type: "revenue",   creditNormal: true  },
   EXCHANGE_REV: { code: "4100", name: "Exchange Income",            type: "revenue",   creditNormal: true  },
