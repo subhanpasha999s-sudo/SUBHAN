@@ -29,6 +29,18 @@ describe("documentPostings", () => {
     expect(entries[0].lines.find((l) => (l.debit ?? 0) > 0)!.accountCode).toBe("1100"); // AR
   });
 
+  it("posts receipts as DR Cash / CR AR, idempotent per receipt", () => {
+    const withReceipts: V2State = { ...s, receipts: [
+      { id: "RC1", invoiceId: "INV1", amount: 400, date: "2026-06-10" },
+    ] };
+    const entries = collectDocumentPostings(withReceipts);
+    const receipt = entries.find((e) => e.externalId === "receipt:RC1")!;
+    expect(receipt).toBeTruthy();
+    expect(receipt.lines.find((l) => (l.debit ?? 0) > 0)!.accountCode).toBe("1000"); // Cash
+    expect(receipt.lines.find((l) => (l.credit ?? 0) > 0)!.accountCode).toBe("1100"); // AR
+    expect(() => assertValidEntry(receipt)).not.toThrow();
+  });
+
   it("AR aging uses outstanding (amount − paid)", () => {
     const rows = arAgingFromState(s, "2026-08-01");
     // INV1 outstanding 600, INV2 outstanding 500 => total 1100

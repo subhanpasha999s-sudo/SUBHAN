@@ -200,6 +200,15 @@ export interface Invoice {
   notes?: string;
 }
 
+/** A payment received against an invoice (discrete, so it posts idempotently). */
+export interface Receipt {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  date: string;
+  reference?: string;
+}
+
 /** One statement import run (§3 ImportBatch). */
 export interface ImportBatch {
   id: string;
@@ -304,6 +313,7 @@ export interface V2State {
   bankAccounts: BankAccount[];
   customers: Customer[];
   invoices: Invoice[];
+  receipts: Receipt[];
   importBatches: ImportBatch[];
 }
 

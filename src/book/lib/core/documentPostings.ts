@@ -7,16 +7,21 @@
  * stored ledger is complete; AR/AP aging read straight from state.
  */
 import type { V2State } from "../v2/types";
-import { invoicePosting } from "./postings";
+import { invoicePosting, receiptPosting } from "./postings";
 import { aging, type AgingRow } from "./aging";
 import type { JournalEntryInput } from "./journal";
 
-/** Postings for documents not covered by the derived GL (currently: invoices). */
+/** Postings for documents not covered by the derived GL: invoices (AR) + receipts. */
 export function collectDocumentPostings(state: V2State): JournalEntryInput[] {
   const out: JournalEntryInput[] = [];
   for (const inv of state.invoices) {
     if (inv.amount > 0.005) {
       out.push(invoicePosting({ id: inv.id, date: inv.invoiceDate, total: inv.amount, number: inv.number }));
+    }
+  }
+  for (const r of state.receipts ?? []) {
+    if (r.amount > 0.005) {
+      out.push(receiptPosting({ id: r.id, date: r.date, amount: r.amount, reference: r.reference }));
     }
   }
   return out;

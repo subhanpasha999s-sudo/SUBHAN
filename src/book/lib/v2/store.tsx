@@ -35,7 +35,7 @@ import { canDo } from "./rbac";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
-  AppNotification, BankAccount, CategorizationRule, Claim, Customer, Invoice,
+  AppNotification, BankAccount, CategorizationRule, Claim, Customer, Invoice, Receipt,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -560,13 +560,23 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
         guard("manage_invoices");
         setState((cur) => {
           if (!cur) return cur;
+          const target = cur.invoices.find((i) => i.id === invoiceId);
+          if (!target) return cur;
+          // clamp the receipt to the outstanding balance
+          const applied = Math.min(Math.round(amount * 100) / 100, Math.round((target.amount - target.amountPaid) * 100) / 100);
+          if (applied <= 0) return cur;
           const invoices = cur.invoices.map((inv) => {
             if (inv.id !== invoiceId) return inv;
-            const paid = Math.min(inv.amount, Math.round((inv.amountPaid + amount) * 100) / 100);
+            const paid = Math.round((inv.amountPaid + applied) * 100) / 100;
             const status: Invoice["status"] = paid >= inv.amount - 0.005 ? "paid" : paid > 0 ? "partial" : "open";
             return { ...inv, amountPaid: paid, status };
           });
-          return { ...cur, invoices, audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(amount))] };
+          const receipt: Receipt = { id: uid("rcpt"), invoiceId, amount: applied, date: todayIso().slice(0, 10) };
+          return {
+            ...cur, invoices,
+            receipts: [...(cur.receipts ?? []), receipt],
+            audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(applied))],
+          };
         });
       },
 
