@@ -6,6 +6,7 @@
  * Saving creates PURCHASE_IN ledger rows + updates weighted-average COGS.
  */
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   GripVertical, ImageIcon, Plus, Receipt, Search, Trash2, X,
@@ -145,7 +146,11 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
 
   const input = "h-11 w-full rounded-lg border border-border bg-background px-3.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
-  return (
+  // Portal to <body> so the fixed overlay is sized to the viewport, not a
+  // transformed ancestor (framer-motion page wrapper) that would clip it.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: open ? 1 : 0 }} transition={{ duration: 0.18 }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
@@ -374,6 +379,7 @@ export default function BillForm({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
