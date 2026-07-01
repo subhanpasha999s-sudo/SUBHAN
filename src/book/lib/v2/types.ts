@@ -209,6 +209,15 @@ export interface Receipt {
   reference?: string;
 }
 
+/** A payment made against a purchase bill (discrete, posts DR AP / CR Cash). */
+export interface BillPayment {
+  id: string;
+  purchaseId: string;
+  amount: number;
+  date: string;
+  reference?: string;
+}
+
 /** One statement import run (§3 ImportBatch). */
 export interface ImportBatch {
   id: string;
@@ -314,6 +323,7 @@ export interface V2State {
   customers: Customer[];
   invoices: Invoice[];
   receipts: Receipt[];
+  billPayments: BillPayment[];
   importBatches: ImportBatch[];
 }
 

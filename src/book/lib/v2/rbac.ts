@@ -51,6 +51,7 @@ export const CAN_DO: Record<string, Role[]> = {
   print_labels: ["owner", "manager", "returns_manager"],
   add_expense: ["owner", "manager", "accountant"],
   manage_invoices: ["owner", "manager", "accountant"],
+  record_payment: ["owner", "manager", "accountant"],
   manage_team: ["owner"],
   mark_disputed: ["owner", "manager"],
   export_reports: ["owner", "manager", "accountant"],

@@ -56,7 +56,10 @@ export type GlSourceType =
   | "expense"
   | "cogs"
   | "adjustment"
-  | "bank_import";
+  | "bank_import"
+  | "payment"
+  | "invoice"
+  | "bill";
 
 export interface GlEntry {
   id: string;

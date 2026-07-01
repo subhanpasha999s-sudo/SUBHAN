@@ -108,3 +108,30 @@ describe("reconciliation → GL characterization", () => {
     }
   });
 });
+
+describe("AP: bill -> payment posting", () => {
+  const bal = (st: V2State, code: string) => trialBalance(glEntries(st)).find((r) => r.account.code === code)!.balance;
+
+  it("a paid bill nets Inventory up / Cash down / AP zero", () => {
+    const st = buildEmptyState();
+    st.purchases = [{ id: "PP", supplierName: "Acme", invoiceNo: "B", invoiceDate: "2026-06-01", totalAmount: 1000, gstAmount: 0, paymentStatus: "paid", notes: "", items: [] }];
+    expect(bal(st, "1200")).toBeCloseTo(1000, 2); // Inventory
+    expect(bal(st, "1000")).toBeCloseTo(-1000, 2); // Cash out
+    expect(bal(st, "2000")).toBeCloseTo(0, 2);     // AP settled
+  });
+
+  it("a pending bill leaves the amount in AP", () => {
+    const st = buildEmptyState();
+    st.purchases = [{ id: "PP", supplierName: "Acme", invoiceNo: "B", invoiceDate: "2026-06-01", totalAmount: 1000, gstAmount: 0, paymentStatus: "pending", notes: "", items: [] }];
+    expect(bal(st, "2000")).toBeCloseTo(1000, 2); // AP outstanding
+    expect(bal(st, "1000")).toBeCloseTo(0, 2);    // no cash moved
+  });
+
+  it("a discrete partial payment reduces AP by that amount", () => {
+    const st = buildEmptyState();
+    st.purchases = [{ id: "PP", supplierName: "Acme", invoiceNo: "B", invoiceDate: "2026-06-01", totalAmount: 1000, gstAmount: 0, paymentStatus: "partial", notes: "", items: [] }];
+    st.billPayments = [{ id: "BP1", purchaseId: "PP", amount: 600, date: "2026-06-20" }];
+    expect(bal(st, "2000")).toBeCloseTo(400, 2);  // 1000 bill - 600 paid
+    expect(bal(st, "1000")).toBeCloseTo(-600, 2); // cash out
+  });
+});

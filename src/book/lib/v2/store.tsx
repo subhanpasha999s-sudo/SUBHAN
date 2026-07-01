@@ -35,7 +35,7 @@ import { canDo } from "./rbac";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
-  AppNotification, BankAccount, CategorizationRule, Claim, Customer, Invoice, Receipt,
+  AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, Customer, Invoice, Receipt,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -125,6 +125,8 @@ export interface V2Actions {
   addCustomer(c: Omit<Customer, "id" | "createdAt">): string;
   addInvoice(i: Omit<Invoice, "id" | "amountPaid" | "status">): string;
   recordInvoiceReceipt(invoiceId: string, amount: number): void;
+  /** Phase 4 — record a payment against a purchase bill (DR AP / CR Cash). */
+  recordBillPayment(purchaseId: string, amount: number): void;
   addExpense(e: Omit<StoredExpense, "id" | "createdBy">): void;
   deleteExpense(id: string): void;
   importBankTxns(txns: Omit<StoredBankTxn, "id" | "status">[]): void;
@@ -576,6 +578,30 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
             ...cur, invoices,
             receipts: [...(cur.receipts ?? []), receipt],
             audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(applied))],
+          };
+        });
+      },
+
+      recordBillPayment: (purchaseId, amount) => {
+        guard("record_payment");
+        setState((cur) => {
+          if (!cur) return cur;
+          const target = cur.purchases.find((p) => p.id === purchaseId);
+          if (!target) return cur;
+          const alreadyPaid = target.amountPaid ?? 0;
+          const applied = Math.min(Math.round(amount * 100) / 100, Math.round((target.totalAmount - alreadyPaid) * 100) / 100);
+          if (applied <= 0) return cur;
+          const purchases = cur.purchases.map((p) => {
+            if (p.id !== purchaseId) return p;
+            const paid = Math.round((alreadyPaid + applied) * 100) / 100;
+            const paymentStatus: Purchase["paymentStatus"] = paid >= p.totalAmount - 0.005 ? "paid" : "partial";
+            return { ...p, amountPaid: paid, paymentStatus };
+          });
+          const payment: BillPayment = { id: uid("bpay"), purchaseId, amount: applied, date: todayIso().slice(0, 10) };
+          return {
+            ...cur, purchases,
+            billPayments: [...(cur.billPayments ?? []), payment],
+            audit: [...cur.audit, audit("BILL_PAYMENT", "purchase", purchaseId, String(applied))],
           };
         });
       },

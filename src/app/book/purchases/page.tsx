@@ -10,8 +10,13 @@ import { formatINR, formatNum } from "@/book/lib/engine";
 import BillForm from "@/book/components/v2/BillForm";
 
 export default function PurchasesPage() {
-  const { state, me } = useV2();
+  const { state, me, actions } = useV2();
   const [adding, setAdding] = useState(false);
+  const canPay = canDo(me.role, "record_payment");
+  const apOutstanding = useMemo(
+    () => state.purchases.reduce((s, p) => s + (p.paymentStatus === "paid" ? 0 : p.totalAmount - (p.amountPaid ?? 0)), 0),
+    [state.purchases],
+  );
 
   const suppliers = useMemo(() => {
     const map = new Map<string, { total: number; count: number; pending: number }>();
@@ -40,9 +45,15 @@ export default function PurchasesPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="overflow-hidden lg:col-span-2">
-          <div className="border-b border-border px-4 py-3 font-semibold">Purchase history</div>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="font-semibold">Purchase history</span>
+            <span className="text-xs text-muted-foreground">AP outstanding <span className="font-semibold tabular-nums text-foreground">{formatINR(apOutstanding, true)}</span></span>
+          </div>
           <div className="divide-y divide-border text-sm">
-            {[...state.purchases].reverse().map((p) => (
+            {[...state.purchases].reverse().map((p) => {
+              const paid = p.amountPaid ?? (p.paymentStatus === "paid" ? p.totalAmount : 0);
+              const outstanding = Math.max(0, Math.round((p.totalAmount - paid) * 100) / 100);
+              return (
               <div key={p.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{p.supplierName}</span>
@@ -50,13 +61,26 @@ export default function PurchasesPage() {
                     {p.paymentStatus}
                   </Badge>
                   <span className="ml-auto tabular-nums font-medium">{formatINR(p.totalAmount, true)}</span>
+                  {canPay && outstanding > 0.005 && (
+                    <button
+                      onClick={() => {
+                        const raw = window.prompt(`Record payment to ${p.supplierName} (outstanding ${formatINR(outstanding)})`, String(outstanding));
+                        const amt = raw ? parseFloat(raw) : NaN;
+                        if (amt > 0) actions.recordBillPayment(p.id, amt);
+                      }}
+                      className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                      Pay
+                    </button>
+                  )}
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {p.invoiceNo && `${p.invoiceNo} · `}{fmtDate(p.invoiceDate)} ·{" "}
+                  {p.invoiceNo && `${p.invoiceNo} · `}{fmtDate(p.invoiceDate)}
+                  {paid > 0.005 && ` · paid ${formatINR(paid)}${outstanding > 0.005 ? ` · due ${formatINR(outstanding)}` : ""}`} ·{" "}
                   {p.items.map((i) => `${i.skuCode}×${formatNum(i.quantity)}`).join(", ")}
                 </p>
               </div>
-            ))}
+              );
+            })}
             {state.purchases.length === 0 && (
               <p className="px-4 py-8 text-center text-muted-foreground">No purchases yet.</p>
             )}

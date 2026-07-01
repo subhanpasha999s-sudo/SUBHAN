@@ -147,23 +147,53 @@ export function buildGlEntries(
   }
 
   // ── 2. Purchases ─────────────────────────────────────────────────
+  // A bill always posts DR Inventory / CR AP. The paid portion posts a separate
+  // DR AP / CR Cash payment — from discrete BillPayment records if present, else
+  // an implicit payment for a bill entered as paid/partial. This keeps AP
+  // accurate and supports partial payments (net economics are unchanged).
   for (const p of state.purchases) {
     const date = (p.invoiceDate || "").slice(0, 10);
     const amount = p.totalAmount;
     if (amount <= 0) continue;
-    // Paid purchase: DR Inventory, CR Cash
-    // Pending/partial: DR Inventory, CR AP
-    const creditCode = p.paymentStatus === "paid" ? COA.CASH.code : COA.AP.code;
     entries.push({
       id: `purchase:${p.id}`,
       date,
       debitCode: COA.INVENTORY.code,
-      creditCode,
+      creditCode: COA.AP.code,
       amount,
       description: `Purchase ${p.supplierName}${p.invoiceNo ? ` — ${p.invoiceNo}` : ""} (${p.paymentStatus})`,
       sourceType: "purchase",
       sourceId: p.id,
     });
+    const discrete = (state.billPayments ?? []).filter((bp) => bp.purchaseId === p.id && bp.amount > 0.005);
+    if (discrete.length > 0) {
+      for (const bp of discrete) {
+        entries.push({
+          id: `billpay:${bp.id}`,
+          date: (bp.date || date).slice(0, 10),
+          debitCode: COA.AP.code,
+          creditCode: COA.CASH.code,
+          amount: bp.amount,
+          description: `Payment — ${p.supplierName}`,
+          sourceType: "payment",
+          sourceId: p.id,
+        });
+      }
+    } else {
+      const paid = p.paymentStatus === "paid" ? amount : (p.amountPaid ?? 0);
+      if (paid > 0.005) {
+        entries.push({
+          id: `billpaid:${p.id}`,
+          date,
+          debitCode: COA.AP.code,
+          creditCode: COA.CASH.code,
+          amount: paid,
+          description: `Payment — ${p.supplierName}`,
+          sourceType: "payment",
+          sourceId: p.id,
+        });
+      }
+    }
   }
 
   // ── 3. Expenses ──────────────────────────────────────────────────
