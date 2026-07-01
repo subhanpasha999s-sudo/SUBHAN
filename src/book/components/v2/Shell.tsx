@@ -77,6 +77,7 @@ const NAV: NavEntry[] = [
     { section: "mapping", href: "/book/mapping", label: "SKU Mapping", icon: Shuffle },
   ] },
   { section: "reports", href: "/book/reports", label: "Reports", icon: BookOpen },
+  { section: "ledger", href: "/book/ledger", label: "Ledger", icon: BookOpen },
   { section: "analytics", href: "/book/analytics", label: "Analytics", icon: BarChart3 },
   { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
   { section: "team", href: "/book/team", label: "Team", icon: Users },
