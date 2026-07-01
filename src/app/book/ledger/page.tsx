@@ -16,8 +16,11 @@ import { Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
 import { COA_LIST, trialBalance } from "@/book/lib/engine/accounting";
 import { glEntries } from "@/book/lib/v2/reportDerived";
+import { glEntryToJournal } from "@/book/lib/core/journal";
+import { collectDocumentPostings, arAgingFromState, apAgingFromState } from "@/book/lib/core/documentPostings";
+import { agingTotal } from "@/book/lib/core/aging";
 import {
-  ensureOrg, syncDerivedLedger, fetchStoredTrialBalance, postJournalEntry,
+  ensureOrg, postJournalBatch, fetchStoredTrialBalance, postJournalEntry,
   isLedgerAuthed, type StoredTrialBalanceRow,
 } from "@/book/lib/core/ledgerRemote";
 
@@ -50,10 +53,17 @@ export default function LedgerPage() {
     })();
   }, [state.org?.name, refresh]);
 
+  const aging = useMemo(() => {
+    const asOf = new Date().toISOString().slice(0, 10);
+    return { ar: arAgingFromState(state, asOf), ap: apAgingFromState(state, asOf) };
+  }, [state]);
+
   async function onSync() {
     if (!orgId) return;
     setBusy(true); setMsg(null);
-    const res = await syncDerivedLedger(orgId, derivedGl);
+    // e-commerce + purchases/expenses/bank (derived GL) + sales AR (documents)
+    const entries = [...derivedGl.map(glEntryToJournal), ...collectDocumentPostings(state)];
+    const res = await postJournalBatch(orgId, entries);
     await refresh(orgId);
     setMsg(res.failed ? `Synced ${res.posted}, ${res.failed} failed${res.firstError ? ` — ${res.firstError}` : ""}` : `Synced ${res.posted} entries.`);
     setBusy(false);
@@ -142,6 +152,29 @@ export default function LedgerPage() {
               </table>
             </div>
           </Card>
+
+          {/* AR / AP aging */}
+          <div className="mb-6 grid gap-4 md:grid-cols-2">
+            {([["Receivables (AR)", aging.ar], ["Payables (AP)", aging.ap]] as const).map(([title, rows]) => (
+              <Card key={title} className="overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <span className="font-semibold">{title} aging</span>
+                  <span className="tabular-nums font-medium">{formatINR(agingTotal(rows))}</span>
+                </div>
+                <table className="w-full text-sm">
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.bucket} className="border-b border-border last:border-0">
+                        <td className="px-4 py-1.5 text-muted-foreground">{r.bucket === "current" ? "Current" : `${r.bucket} days`}</td>
+                        <td className="px-4 py-1.5 text-right text-xs text-muted-foreground">{r.count}</td>
+                        <td className="px-4 py-1.5 text-right tabular-nums">{formatINR(r.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            ))}
+          </div>
 
           <ManualEntry orgId={orgId} onPosted={() => orgId && refresh(orgId)} />
         </>

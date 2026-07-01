@@ -55,6 +55,21 @@ export async function postJournalEntry(
   return error ? { ok: false, message: error.message } : { ok: true, id: data as string };
 }
 
+/** Post a batch of already-built journal entries (idempotent). */
+export async function postJournalBatch(
+  orgId: string,
+  entries: JournalEntryInput[],
+): Promise<{ posted: number; failed: number; firstError?: string }> {
+  let posted = 0, failed = 0;
+  let firstError: string | undefined;
+  for (const e of entries) {
+    const r = await postJournalEntry(orgId, e);
+    if (r.ok) posted++;
+    else { failed++; firstError ??= r.message; }
+  }
+  return { posted, failed, firstError };
+}
+
 /**
  * Port today's derived GL into the stored ledger (idempotent — safe to re-run).
  * Returns counts so the UI can report progress.
@@ -63,14 +78,7 @@ export async function syncDerivedLedger(
   orgId: string,
   gl: GlEntry[],
 ): Promise<{ posted: number; failed: number; firstError?: string }> {
-  let posted = 0, failed = 0;
-  let firstError: string | undefined;
-  for (const g of gl) {
-    const r = await postJournalEntry(orgId, glEntryToJournal(g));
-    if (r.ok) posted++;
-    else { failed++; firstError ??= r.message; }
-  }
-  return { posted, failed, firstError };
+  return postJournalBatch(orgId, gl.map(glEntryToJournal));
 }
 
 export interface StoredTrialBalanceRow {
