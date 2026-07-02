@@ -26,5 +26,11 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   months/batches, exchange-then-return double-QC, sub-order-no normalization)
   + existing `core/reconciliation.characterization.test.ts` golden master.
   Suite: **56 tests green**.
-- Open: operator answers to Phase 0 questions (GST/composition, data sources +
-  formats, next marketplaces + gateways).
+- **Operator answers (2026-07-02):**
+  (a) Tax pack: **India GST, regular scheme only** (composition deferred).
+  (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
+  (supplier-panel exports — exactly what the current parsers handle).
+  (c) Marketplace packs: **Meesho now; plan Flipkart next, then Amazon** —
+  design the pack interface around these three settlement models.
+- STOPPED for operator review of Phase 0 before starting Phase 1
+  (Org & COA management UI per the adjusted phase order in GAP_ANALYSIS.md).
