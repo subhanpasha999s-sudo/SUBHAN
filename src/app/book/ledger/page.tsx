@@ -23,6 +23,8 @@ import {
   ensureOrg, postJournalBatch, fetchStoredTrialBalance, postJournalEntry,
   isLedgerAuthed, type StoredTrialBalanceRow,
 } from "@/book/lib/core/ledgerRemote";
+import AccountingSetup from "@/book/components/v2/AccountingSetup";
+import { flags } from "@/book/lib/flags";
 
 interface FormLine { id: string; accountCode: string; side: "debit" | "credit"; amount: string }
 const newFormLine = (): FormLine => ({ id: Math.random().toString(36).slice(2), accountCode: "", side: "debit", amount: "" });
@@ -177,6 +179,10 @@ export default function LedgerPage() {
           </div>
 
           <ManualEntry orgId={orgId} onPosted={() => orgId && refresh(orgId)} />
+
+          {flags.accountingSetup && orgId && (
+            <AccountingSetup orgId={orgId} onLedgerChanged={() => refresh(orgId)} />
+          )}
         </>
       )}
     </Guard>

@@ -32,5 +32,25 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   (supplier-panel exports — exactly what the current parsers handle).
   (c) Marketplace packs: **Meesho now; plan Flipkart next, then Amazon** —
   design the pack interface around these three settlement models.
-- STOPPED for operator review of Phase 0 before starting Phase 1
-  (Org & COA management UI per the adjusted phase order in GAP_ANALYSIS.md).
+- Operator reviewed and approved ("Go") → Phase 1 started.
+
+## Phase 1 — Org & COA management on the live core (2026-07-02) ✅
+- **Migration 020 (applied + probe-verified live):** posting into a CLOSED
+  accounting period is rejected by a DB trigger (every write path, not just
+  UI); `post_journal_entry` refuses archived accounts; system accounts cannot
+  be archived. Probes: closed-period post rejected with clear message, open
+  period posts, custom account posts then rejects after archive, 1000 Cash
+  archive blocked — all rolled back.
+- **Opening-balance builder** (`core/postings.ts:openingBalanceEntry`):
+  balanced single entry with automatic Owner Equity (3100) plug on the correct
+  side, zero-row filtering, idempotent externalId `opening-balance`; 4 tests.
+- **Remote layer** (`core/ledgerRemote.ts`): fetch/add/archive accounts,
+  fetch periods, generate Indian FY (Apr–Mar, duplicate-safe), close/reopen.
+- **UI** (`components/v2/AccountingSetup.tsx`, mounted on /book/ledger behind
+  `flags.accountingSetup`): COA manager (custom accounts, archive/restore,
+  system badge), periods card (generate FY, lock/unlock with DB note),
+  opening-balances wizard (natural-side inputs, live equity-plug preview).
+- Suite: **60 tests green**; tsc clean; /book/ledger renders with signed-out
+  gate, no console errors. Authed flows ride the probe-verified DB layer.
+- Known limit: period close/reopen + account archive are RLS-scoped to org
+  members but not yet role-gated server-side (UI-level only) — hardening item.

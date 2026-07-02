@@ -131,6 +131,57 @@ export function stockAdjustmentPosting(a: StockAdjustmentDoc): JournalEntryInput
   };
 }
 
+// ── Phase 1 (upgrade spec) — Opening balances ─────────────────────────
+export interface OpeningBalanceLine {
+  accountCode: string;
+  amount: number;
+  side: "debit" | "credit";
+}
+
+export class EmptyOpeningBalanceError extends Error {}
+
+/**
+ * Opening-balances wizard entry: one balanced journal entry dated at the start
+ * of books. The user enters each account's balance on its natural side; the
+ * difference is plugged to Owner Equity (3100) so the entry always balances —
+ * the standard opening-equity treatment. Idempotent via a fixed externalId
+ * (re-running the wizard is a no-op; corrections go through reversal).
+ */
+export function openingBalanceEntry(
+  lines: OpeningBalanceLine[],
+  entryDate: string,
+  equityCode: string = COA.OWNER_EQUITY.code,
+): JournalEntryInput {
+  const real = lines
+    .map((l) => ({ ...l, amount: round2(l.amount) }))
+    .filter((l) => l.amount > 0 && l.accountCode && l.accountCode !== equityCode);
+  if (real.length === 0) throw new EmptyOpeningBalanceError("enter at least one opening balance");
+
+  const debit = round2(real.filter((l) => l.side === "debit").reduce((s, l) => s + l.amount, 0));
+  const credit = round2(real.filter((l) => l.side === "credit").reduce((s, l) => s + l.amount, 0));
+  const plug = round2(debit - credit); // >0 ⇒ equity credit balances it; <0 ⇒ equity debit
+
+  const entryLines = real.map((l) => ({
+    accountCode: l.accountCode,
+    debit: l.side === "debit" ? l.amount : 0,
+    credit: l.side === "credit" ? l.amount : 0,
+  }));
+  if (Math.abs(plug) >= 0.005) {
+    entryLines.push({
+      accountCode: equityCode,
+      debit: plug < 0 ? -plug : 0,
+      credit: plug > 0 ? plug : 0,
+    });
+  }
+  return {
+    entryDate,
+    memo: "Opening balances",
+    sourceType: "opening_balance",
+    externalId: "opening-balance",
+    lines: entryLines,
+  };
+}
+
 // ── Phase 6 — Banking ─────────────────────────────────────────────────
 export interface BankTxnDoc {
   id: string; date: string; debit: number; credit: number;

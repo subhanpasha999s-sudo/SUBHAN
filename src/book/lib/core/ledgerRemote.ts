@@ -81,6 +81,118 @@ export async function syncDerivedLedger(
   return postJournalBatch(orgId, gl.map(glEntryToJournal));
 }
 
+// ── Phase 1: COA + accounting periods management ──────────────────────
+
+export interface OrgAccount {
+  id: string;
+  code: string;
+  name: string;
+  type: CoaType;
+  creditNormal: boolean;
+  isSystem: boolean;
+  archived: boolean;
+}
+
+export async function fetchAccounts(orgId: string): Promise<OrgAccount[]> {
+  const sb = await authed();
+  if (!sb) return [];
+  const { data } = await sb
+    .from("accounts")
+    .select("id,code,name,type,credit_normal,is_system,archived")
+    .eq("org_id", orgId)
+    .order("code");
+  return ((data ?? []) as Array<{ id: string; code: string; name: string; type: CoaType; credit_normal: boolean; is_system: boolean; archived: boolean }>)
+    .map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, creditNormal: a.credit_normal, isSystem: a.is_system, archived: a.archived }));
+}
+
+const CREDIT_NORMAL_TYPES: CoaType[] = ["liability", "equity", "revenue"];
+
+export async function addAccount(
+  orgId: string,
+  acc: { code: string; name: string; type: CoaType },
+): Promise<{ ok: boolean; message?: string }> {
+  const sb = await authed();
+  if (!sb) return { ok: false, message: "Not signed in." };
+  const { error } = await sb.from("accounts").insert({
+    org_id: orgId,
+    code: acc.code.trim(),
+    name: acc.name.trim(),
+    type: acc.type,
+    credit_normal: CREDIT_NORMAL_TYPES.includes(acc.type),
+  });
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
+export async function setAccountArchived(
+  orgId: string,
+  accountId: string,
+  archived: boolean,
+): Promise<{ ok: boolean; message?: string }> {
+  const sb = await authed();
+  if (!sb) return { ok: false, message: "Not signed in." };
+  const { error } = await sb.from("accounts").update({ archived }).eq("org_id", orgId).eq("id", accountId);
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
+export interface OrgPeriod {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: "open" | "closed";
+}
+
+export async function fetchPeriods(orgId: string): Promise<OrgPeriod[]> {
+  const sb = await authed();
+  if (!sb) return [];
+  const { data } = await sb
+    .from("accounting_periods")
+    .select("id,name,start_date,end_date,status")
+    .eq("org_id", orgId)
+    .order("start_date");
+  return ((data ?? []) as Array<{ id: string; name: string; start_date: string; end_date: string; status: "open" | "closed" }>)
+    .map((p) => ({ id: p.id, name: p.name, startDate: p.start_date, endDate: p.end_date, status: p.status }));
+}
+
+/** Generate 12 monthly periods for an Indian fiscal year (Apr → Mar). */
+export async function generateFiscalYear(
+  orgId: string,
+  startYear: number,
+): Promise<{ ok: boolean; created: number; message?: string }> {
+  const sb = await authed();
+  if (!sb) return { ok: false, created: 0, message: "Not signed in." };
+  const existing = new Set((await fetchPeriods(orgId)).map((p) => p.name));
+  const rows = [];
+  for (let m = 0; m < 12; m++) {
+    const date = new Date(Date.UTC(startYear, 3 + m, 1)); // April = month index 3
+    const y = date.getUTCFullYear();
+    const mo = date.getUTCMonth();
+    const name = `FY${startYear}-${String(y).slice(2)}·${date.toLocaleString("en", { month: "short", timeZone: "UTC" })}`;
+    if (existing.has(name)) continue;
+    const start = new Date(Date.UTC(y, mo, 1)).toISOString().slice(0, 10);
+    const end = new Date(Date.UTC(y, mo + 1, 0)).toISOString().slice(0, 10);
+    rows.push({ org_id: orgId, name, start_date: start, end_date: end });
+  }
+  if (rows.length === 0) return { ok: true, created: 0 };
+  const { error } = await sb.from("accounting_periods").insert(rows);
+  return error ? { ok: false, created: 0, message: error.message } : { ok: true, created: rows.length };
+}
+
+export async function setPeriodStatus(
+  orgId: string,
+  periodId: string,
+  status: "open" | "closed",
+): Promise<{ ok: boolean; message?: string }> {
+  const sb = await authed();
+  if (!sb) return { ok: false, message: "Not signed in." };
+  const { data: session } = await sb.auth.getSession();
+  const patch = status === "closed"
+    ? { status, closed_at: new Date().toISOString(), closed_by: session.session?.user?.id ?? null }
+    : { status, closed_at: null, closed_by: null };
+  const { error } = await sb.from("accounting_periods").update(patch).eq("org_id", orgId).eq("id", periodId);
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
 export interface StoredTrialBalanceRow {
   code: string;
   name: string;
