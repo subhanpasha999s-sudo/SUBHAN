@@ -33,10 +33,12 @@ import {
 } from "@/book/lib/engine";
 import { canDo } from "./rbac";
 import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/lib/core/contacts";
+import { computeDueRuns, firstRunDate } from "@/book/lib/core/salesDocs";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
-  AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Invoice, Receipt,
+  AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Estimate, Invoice,
+  Receipt, RecurringInvoice,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -128,6 +130,14 @@ export interface V2Actions {
   recordInvoiceReceipt(invoiceId: string, amount: number): void;
   /** Phase 3 — credit note against an invoice (clamped to outstanding, auto-applied). */
   addCreditNote(invoiceId: string, amount: number, reason?: string): { ok: boolean; message?: string };
+  /** Phase 3 — estimates (quotes) and recurring invoices. */
+  addEstimate(e: { customerId: string; amount: number; date: string; expiryDate?: string; notes?: string }): string;
+  setEstimateStatus(id: string, status: "accepted" | "declined"): void;
+  convertEstimateToInvoice(id: string): { ok: boolean; message?: string; invoiceId?: string };
+  addRecurringInvoice(r: { customerId: string; amount: number; dayOfMonth: number; notes?: string }): string;
+  toggleRecurringInvoice(id: string, active: boolean): void;
+  /** Materialize all due recurring invoices (client-side scheduler; idempotent). */
+  runRecurringInvoices(): { created: number };
   /** Phase 2 (upgrade spec §5.2) — contacts management. */
   updateCustomer(id: string, patch: Partial<Omit<Customer, "id" | "createdAt">>): void;
   mergeCustomers(keepId: string, mergedId: string): { ok: boolean; message?: string };
@@ -620,6 +630,140 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
           audit: [...s.audit, audit("CREDIT_NOTE", "invoice", invoiceId, `${cn.number} ₹${applied}${reason ? ` — ${reason}` : ""}`)],
         });
         return { ok: true };
+      },
+
+      addEstimate: (e) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const id = uid("est");
+        const est: Estimate = {
+          id, customerId: e.customerId,
+          number: `EST-${String((cur.estimates ?? []).length + 1).padStart(4, "0")}`,
+          amount: Math.round(e.amount * 100) / 100, date: e.date,
+          expiryDate: e.expiryDate, notes: e.notes, status: "open",
+        };
+        setState((s) => s && {
+          ...s, estimates: [...(s.estimates ?? []), est],
+          audit: [...s.audit, audit("ESTIMATE_ADD", "estimate", est.number)],
+        });
+        return id;
+      },
+
+      setEstimateStatus: (id, status) => {
+        guard("manage_invoices");
+        setState((s) => s && {
+          ...s,
+          estimates: (s.estimates ?? []).map((e) =>
+            e.id === id && (e.status === "open" || e.status === "accepted") ? { ...e, status } : e),
+          audit: [...s.audit, audit("ESTIMATE_STATUS", "estimate", id, status)],
+        });
+      },
+
+      convertEstimateToInvoice: (id) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const est = (cur.estimates ?? []).find((e) => e.id === id);
+        if (!est) return { ok: false, message: "Estimate not found." };
+        if (est.status === "invoiced") return { ok: false, message: "Already converted." };
+        if (est.status === "declined") return { ok: false, message: "Estimate was declined." };
+        const invoiceId = uid("inv");
+        const today = todayIso().slice(0, 10);
+        const due = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+        setState((s) => s && {
+          ...s,
+          invoices: [...s.invoices, {
+            id: invoiceId, customerId: est.customerId,
+            number: `INV-${String(s.invoices.length + 1).padStart(4, "0")}`,
+            amount: est.amount, amountPaid: 0, invoiceDate: today, dueDate: due,
+            status: "open", notes: est.notes ? `From ${est.number} — ${est.notes}` : `From ${est.number}`,
+          }],
+          estimates: (s.estimates ?? []).map((e) => (e.id === id ? { ...e, status: "invoiced", invoiceId } : e)),
+          audit: [...s.audit, audit("ESTIMATE_CONVERT", "estimate", est.number, `→ invoice ${invoiceId}`)],
+        });
+        return { ok: true, invoiceId };
+      },
+
+      addRecurringInvoice: (r) => {
+        guard("manage_invoices");
+        const id = uid("rec");
+        const today = todayIso().slice(0, 10);
+        const day = Math.max(1, Math.min(31, Math.round(r.dayOfMonth)));
+        let rec: RecurringInvoice = {
+          id, customerId: r.customerId, amount: Math.round(r.amount * 100) / 100,
+          cadence: "monthly", dayOfMonth: day,
+          nextRunDate: firstRunDate(today, day),
+          active: true, notes: r.notes,
+        };
+        // A schedule whose first occurrence is today bills immediately — done
+        // HERE, in the same setState, so it can't race a follow-up action call
+        // reading a stale stateRef.
+        const { runs, nextRunDate } = computeDueRuns(rec.nextRunDate, today, day);
+        if (runs.length > 0) rec = { ...rec, nextRunDate, lastRunDate: runs[runs.length - 1] };
+        setState((s) => {
+          if (!s) return s;
+          const firstInvoices: Invoice[] = runs.map((runDate, i) => ({
+            id: uid("inv"), customerId: rec.customerId,
+            number: `INV-${String(s.invoices.length + i + 1).padStart(4, "0")}`,
+            amount: rec.amount, amountPaid: 0, invoiceDate: runDate,
+            dueDate: new Date(new Date(`${runDate}T00:00:00Z`).getTime() + 15 * 86400000).toISOString().slice(0, 10),
+            status: "open", notes: rec.notes ? `Recurring — ${rec.notes}` : "Recurring",
+          }));
+          return {
+            ...s,
+            invoices: [...s.invoices, ...firstInvoices],
+            recurringInvoices: [...(s.recurringInvoices ?? []), rec],
+            audit: [...s.audit, audit("RECURRING_ADD", "recurring_invoice", id,
+              `₹${rec.amount} monthly day ${day}${runs.length ? ` (billed ${runs.length} immediately)` : ""}`)],
+          };
+        });
+        return id;
+      },
+
+      toggleRecurringInvoice: (id, active) => {
+        guard("manage_invoices");
+        setState((s) => s && {
+          ...s,
+          recurringInvoices: (s.recurringInvoices ?? []).map((r) => (r.id === id ? { ...r, active } : r)),
+          audit: [...s.audit, audit("RECURRING_TOGGLE", "recurring_invoice", id, active ? "on" : "off")],
+        });
+      },
+
+      runRecurringInvoices: () => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const today = todayIso().slice(0, 10);
+        let created = 0;
+        const newInvoices: Invoice[] = [];
+        const updated = (cur.recurringInvoices ?? []).map((r) => {
+          if (!r.active) return r;
+          const { runs, nextRunDate } = computeDueRuns(r.nextRunDate, today, r.dayOfMonth);
+          if (runs.length === 0) return r;
+          for (const runDate of runs) {
+            newInvoices.push({
+              id: uid("inv"), customerId: r.customerId,
+              number: `INV-${String(cur.invoices.length + newInvoices.length + 1).padStart(4, "0")}`,
+              amount: r.amount, amountPaid: 0, invoiceDate: runDate,
+              dueDate: new Date(new Date(`${runDate}T00:00:00Z`).getTime() + 15 * 86400000).toISOString().slice(0, 10),
+              status: "open", notes: r.notes ? `Recurring — ${r.notes}` : "Recurring",
+            });
+            created++;
+          }
+          return { ...r, nextRunDate, lastRunDate: runs[runs.length - 1] };
+        });
+        if (created > 0) {
+          setState((s) => s && {
+            ...s,
+            invoices: [...s.invoices, ...newInvoices],
+            recurringInvoices: updated,
+            notifications: [...s.notifications, {
+              id: uid("n"), at: new Date().toISOString(), kind: "info" as const,
+              title: `${created} recurring invoice${created === 1 ? "" : "s"} created`,
+              body: "Due recurring schedules were materialized.", read: false,
+            }],
+            audit: [...s.audit, audit("RECURRING_RUN", "recurring_invoice", "all", `${created} invoices created`)],
+          });
+        }
+        return { created };
       },
 
       updateCustomer: (id, patch) => {

@@ -4,8 +4,8 @@
  * paid/partial/open status, and record receipts. Each invoice posts DR AR /
  * CR Sales into the stored ledger on the next Ledger sync (collectDocumentPostings).
  */
-import { useMemo, useState } from "react";
-import { Plus, IndianRupee } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, IndianRupee, Repeat, FileText } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card, cn } from "@/book/components/ui";
@@ -18,6 +18,15 @@ export default function InvoicesPage() {
   const { state, actions, me } = useV2();
   const canManage = canDo(me.role, "manage_invoices");
   const [adding, setAdding] = useState(false);
+
+  // Client-side scheduler: materialize due recurring invoices once per visit.
+  const ranRef = useRef(false);
+  useEffect(() => {
+    if (ranRef.current || !canManage) return;
+    ranRef.current = true;
+    actions.runRecurringInvoices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManage]);
 
   const customerName = (id: string) => state.customers.find((c) => c.id === id)?.name ?? "—";
   const outstanding = useMemo(() => agingTotal(arAgingFromState(state, new Date().toISOString().slice(0, 10))), [state]);
@@ -114,7 +123,125 @@ export default function InvoicesPage() {
           </table>
         </div>
       </Card>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <EstimatesCard canManage={canManage} />
+        <RecurringCard canManage={canManage} />
+      </div>
     </Guard>
+  );
+}
+
+/** Estimates (quotes): non-financial; convert to invoice when won. */
+function EstimatesCard({ canManage }: { canManage: boolean }) {
+  const { state, actions } = useV2();
+  const [adding, setAdding] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const customerName = (id: string) => state.customers.find((c) => c.id === id)?.name ?? "—";
+  const estimates = useMemo(() => [...(state.estimates ?? [])].reverse(), [state.estimates]);
+  const input = "h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+  const valid = customerId && (parseFloat(amount) || 0) > 0;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <span className="inline-flex items-center gap-2 font-semibold"><FileText className="h-4 w-4 text-primary" /> Estimates</span>
+        {canManage && <Button variant="secondary" onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> New estimate</Button>}
+      </div>
+      {adding && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 p-3">
+          <select className={cn(input, "min-w-[160px] flex-1")} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+            <option value="">Customer…</option>
+            {state.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input className={cn(input, "w-28 text-right")} inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input type="date" className={cn(input, "w-40")} title="Expiry (optional)" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+          <Button disabled={!valid} onClick={() => {
+            actions.addEstimate({ customerId, amount: parseFloat(amount), date: new Date().toISOString().slice(0, 10), expiryDate: expiry || undefined });
+            setAdding(false); setCustomerId(""); setAmount(""); setExpiry("");
+          }}>Save</Button>
+        </div>
+      )}
+      <div className="divide-y divide-border text-sm">
+        {estimates.map((e) => (
+          <div key={e.id} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+            <span className="font-mono text-xs">{e.number}</span>
+            <span className="truncate">{customerName(e.customerId)}</span>
+            <span className="ml-auto tabular-nums font-medium">{formatINR(e.amount)}</span>
+            <Badge tone={e.status === "invoiced" ? "success" : e.status === "accepted" ? "info" : e.status === "declined" ? "danger" : "default"}>{e.status}</Badge>
+            {canManage && e.status === "open" && (
+              <span className="flex gap-1">
+                <button onClick={() => actions.setEstimateStatus(e.id, "accepted")} className="rounded-md border border-border px-2 py-0.5 text-xs hover:bg-muted">Accept</button>
+                <button onClick={() => actions.setEstimateStatus(e.id, "declined")} className="rounded-md border border-border px-2 py-0.5 text-xs hover:bg-muted">Decline</button>
+              </span>
+            )}
+            {canManage && (e.status === "open" || e.status === "accepted") && (
+              <button onClick={() => { const r = actions.convertEstimateToInvoice(e.id); if (!r.ok && r.message) window.alert(r.message); }}
+                className="rounded-md border border-border px-2 py-0.5 text-xs text-primary hover:bg-muted">→ Invoice</button>
+            )}
+          </div>
+        ))}
+        {estimates.length === 0 && <p className="px-4 py-6 text-center text-muted-foreground">No estimates yet.</p>}
+      </div>
+    </Card>
+  );
+}
+
+/** Recurring invoices: monthly schedules materialized on page load. */
+function RecurringCard({ canManage }: { canManage: boolean }) {
+  const { state, actions } = useV2();
+  const [adding, setAdding] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [day, setDay] = useState("1");
+  const customerName = (id: string) => state.customers.find((c) => c.id === id)?.name ?? "—";
+  const recs = state.recurringInvoices ?? [];
+  const input = "h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+  const valid = customerId && (parseFloat(amount) || 0) > 0 && (parseInt(day, 10) || 0) >= 1;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <span className="inline-flex items-center gap-2 font-semibold"><Repeat className="h-4 w-4 text-primary" /> Recurring invoices</span>
+        {canManage && <Button variant="secondary" onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> New schedule</Button>}
+      </div>
+      {adding && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 p-3">
+          <select className={cn(input, "min-w-[160px] flex-1")} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+            <option value="">Customer…</option>
+            {state.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input className={cn(input, "w-28 text-right")} inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">day
+            <input className={cn(input, "w-16 text-right")} inputMode="numeric" value={day} onChange={(e) => setDay(e.target.value)} />
+          </label>
+          <Button disabled={!valid} onClick={() => {
+            // due-today billing happens atomically inside addRecurringInvoice
+            actions.addRecurringInvoice({ customerId, amount: parseFloat(amount), dayOfMonth: parseInt(day, 10) });
+            setAdding(false); setCustomerId(""); setAmount(""); setDay("1");
+          }}>Save</Button>
+        </div>
+      )}
+      <div className="divide-y divide-border text-sm">
+        {recs.map((r) => (
+          <div key={r.id} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+            <span className="truncate">{customerName(r.customerId)}</span>
+            <span className="text-xs text-muted-foreground">monthly · day {r.dayOfMonth}</span>
+            <span className="ml-auto tabular-nums font-medium">{formatINR(r.amount)}</span>
+            <span className="text-xs text-muted-foreground">next {r.nextRunDate}</span>
+            {canManage && (
+              <button onClick={() => actions.toggleRecurringInvoice(r.id, !r.active)}
+                className={cn("rounded-md border border-border px-2 py-0.5 text-xs hover:bg-muted", r.active ? "text-success" : "text-muted-foreground")}>
+                {r.active ? "Active" : "Paused"}
+              </button>
+            )}
+          </div>
+        ))}
+        {recs.length === 0 && <p className="px-4 py-6 text-center text-muted-foreground">No recurring schedules.</p>}
+      </div>
+    </Card>
   );
 }
 

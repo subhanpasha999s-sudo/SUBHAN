@@ -230,6 +230,40 @@ export interface CreditNote {
   status: "applied";
 }
 
+/**
+ * Phase 3 — estimate/quote. Non-financial document (never posts to the
+ * ledger); converts into an invoice which then posts AR as usual.
+ */
+export interface Estimate {
+  id: string;
+  customerId: string;
+  number: string;        // EST-0001
+  amount: number;
+  date: string;
+  expiryDate?: string;
+  status: "open" | "accepted" | "declined" | "invoiced";
+  notes?: string;
+  invoiceId?: string;    // set on conversion
+}
+
+/**
+ * Phase 3 — recurring invoice schedule. No server jobs exist (STACK.md), so
+ * due schedules are materialized client-side when the invoices screen loads
+ * (same catch-up pattern as ADS_AUTO). Advancing nextRunDate makes it
+ * idempotent: each due occurrence creates exactly one invoice.
+ */
+export interface RecurringInvoice {
+  id: string;
+  customerId: string;
+  amount: number;
+  cadence: "monthly";
+  dayOfMonth: number;    // 1–28 recommended; >28 clamps to month end
+  nextRunDate: string;   // YYYY-MM-DD of the next due occurrence
+  active: boolean;
+  notes?: string;
+  lastRunDate?: string;
+}
+
 /** A payment received against an invoice (discrete, so it posts idempotently). */
 export interface Receipt {
   id: string;
@@ -354,6 +388,8 @@ export interface V2State {
   invoices: Invoice[];
   receipts: Receipt[];
   creditNotes: CreditNote[];
+  estimates: Estimate[];
+  recurringInvoices: RecurringInvoice[];
   billPayments: BillPayment[];
   importBatches: ImportBatch[];
 }

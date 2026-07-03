@@ -74,6 +74,24 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Suite: 68 tests green. Remaining Phase 3: estimates→invoice, recurring
   invoices, payment reminders, PDF templates.
 
+## Phase 3 (slice 2) — Estimates + recurring invoices (2026-07-03) ✅
+- Estimate document (EST-#### numbering; open → accepted/declined → invoiced;
+  non-financial — never posts to the ledger; conversion creates a normal
+  invoice that posts AR, with a "From EST-x" note + invoiceId back-link).
+- RecurringInvoice schedules (monthly, day-of-month with short-month clamping)
+  materialized client-side: `core/salesDocs.ts` pure date math (+8 tests:
+  advanceMonthly Jan-31→Feb-28→Mar-31, firstRunDate, computeDueRuns catch-up +
+  cap), catch-up on invoices-page load (ADS_AUTO pattern), and due-today
+  billing done atomically inside addRecurringInvoice — a stale-stateRef race
+  between back-to-back action calls was found in browser testing and fixed.
+- UI: Estimates + Recurring cards on /book/invoices (create, accept/decline,
+  → Invoice, pause/resume, next-run display).
+- Browser-verified: EST-0001 → accept → convert → INV-0002 (AR 750);
+  reload materialized INV-0003 ₹250 (next 2026-08-03); post-fix schedule
+  billed INV-0004 ₹99 in the same click (audit "billed 1 immediately"),
+  AR ₹1,099. Suite: 76 tests green.
+- Remaining Phase 3: payment reminders, PDF templates.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
