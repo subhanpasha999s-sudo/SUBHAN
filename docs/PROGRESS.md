@@ -153,6 +153,27 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Deferred: split transactions, account transfers (transferPairId exists),
   editing the 1473-line bank import page — kept matching self-contained.
 
+## Phase 6 — Reporting framework: General Ledger + drill-down (2026-07-03) ✅
+- core/generalLedger.ts (posting-based, 6 tests): LedgerPosting model;
+  postingsFromGl (each GlEntry → debit+credit posting) + postingsFromJournal
+  (each document line → posting) so the GL view reflects the COMPLETE ledger
+  (derived GL + invoices/receipts/credit notes), matching what sync writes to
+  the stored ledger. accountLedger (opening/closing + running natural-sign
+  balance, date range), activeAccountCodes, compareAccountMovements (two-range
+  net-movement comparison).
+- /book/gl "General Ledger" page (section "gl", nav): account picker (flags
+  no-activity accounts), from/to range, opening→rows→closing with running
+  balance and totals footer, per-row drill link to the source document
+  (orders/purchases/invoices/matching), and a this-month-vs-last-month
+  comparison table (click a row to jump to that account).
+- Browser-verified: AR account now shows invoices/receipts/credit-note
+  postings with running balance (closing ₹1,249); Cash drill links resolve to
+  /book/orders/REC_* and /book/invoices; compare-months table renders.
+  Existing P&L/Balance Sheet/Cash Flow/Trial Balance reports unchanged.
+  Suite: 99 tests green.
+- Deferred: scheduled email delivery, saved report customizations, accrual/cash
+  toggle on every report.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
