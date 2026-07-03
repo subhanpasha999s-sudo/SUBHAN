@@ -160,6 +160,11 @@ export interface V2Actions {
   deleteExpense(id: string): void;
   importBankTxns(txns: Omit<StoredBankTxn, "id" | "status">[]): void;
   categorizeBankTxn(id: string, category: string | null): void; // null = ignore
+  /** Phase 5 — bank matching (reconcile a line without double-booking cash). */
+  matchBankToInvoice(txnId: string, invoiceId: string): { ok: boolean; message?: string };
+  matchBankToBill(txnId: string, purchaseId: string): { ok: boolean; message?: string };
+  matchDepositToPayout(txnId: string, batchId: string): { ok: boolean; message?: string };
+  unmatchBankTxn(txnId: string): void;
   addClaim(c: Omit<Claim, "id">): void;
   updateClaim(id: string, patch: Partial<Claim>): void;
   markDisputed(subOrderNo: string, disputed: boolean): void;
@@ -1050,6 +1055,79 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
               ? cur.categoryHints
               : [...cur.categoryHints, hint],
           };
+        });
+      },
+
+      // Phase 5 — matching. The bank line becomes EXCLUDED (skipped by the GL
+      // builder) and the receipt/payment is the single cash-posting source, so
+      // cash is never double-booked.
+      matchBankToInvoice: (txnId, invoiceId) => {
+        guard("add_expense");
+        const cur = stateRef.current!;
+        const txn = cur.bankTxns.find((t) => t.id === txnId);
+        if (!txn) return { ok: false, message: "Bank transaction not found." };
+        if (txn.credit <= 0) return { ok: false, message: "Only incoming (credit) lines match invoices." };
+        const inv = cur.invoices.find((i) => i.id === invoiceId);
+        if (!inv) return { ok: false, message: "Invoice not found." };
+        actions.recordInvoiceReceipt(invoiceId, txn.credit); // posts DR Cash / CR AR
+        setState((s) => s && {
+          ...s,
+          bankTxns: s.bankTxns.map((t) => (t.id === txnId
+            ? { ...t, status: "EXCLUDED", category: `Matched: ${inv.number || inv.id}`, matchedInvoiceId: invoiceId }
+            : t)),
+          audit: [...s.audit, audit("BANK_MATCH", "bank_txn", txnId, `→ invoice ${inv.number || invoiceId}`)],
+        });
+        return { ok: true };
+      },
+
+      matchBankToBill: (txnId, purchaseId) => {
+        guard("record_payment");
+        const cur = stateRef.current!;
+        const txn = cur.bankTxns.find((t) => t.id === txnId);
+        if (!txn) return { ok: false, message: "Bank transaction not found." };
+        if (txn.debit <= 0) return { ok: false, message: "Only outgoing (debit) lines match bills." };
+        const bill = cur.purchases.find((p) => p.id === purchaseId);
+        if (!bill) return { ok: false, message: "Bill not found." };
+        actions.recordBillPayment(purchaseId, txn.debit); // posts DR AP / CR Cash
+        setState((s) => s && {
+          ...s,
+          bankTxns: s.bankTxns.map((t) => (t.id === txnId
+            ? { ...t, status: "EXCLUDED", category: `Matched: ${bill.invoiceNo || bill.id}`, matchedBillId: purchaseId }
+            : t)),
+          audit: [...s.audit, audit("BANK_MATCH", "bank_txn", txnId, `→ bill ${bill.invoiceNo || purchaseId}`)],
+        });
+        return { ok: true };
+      },
+
+      matchDepositToPayout: (txnId, batchId) => {
+        guard("add_expense");
+        const cur = stateRef.current!;
+        const txn = cur.bankTxns.find((t) => t.id === txnId);
+        if (!txn) return { ok: false, message: "Bank transaction not found." };
+        // The settlement already posted DR Cash at reconciliation time, so this
+        // deposit is already in the books — reconcile it, never re-book income.
+        setState((s) => s && {
+          ...s,
+          bankTxns: s.bankTxns.map((t) => (t.id === txnId
+            ? { ...t, status: "EXCLUDED", category: `Meesho payout ${batchId}`, matchedBatchId: batchId }
+            : t)),
+          audit: [...s.audit, audit("BANK_MATCH", "bank_txn", txnId, `→ payout batch ${batchId} (booked at settlement)`)],
+        });
+        return { ok: true };
+      },
+
+      unmatchBankTxn: (txnId) => {
+        guard("add_expense");
+        // Payout matches have no posting to undo, so they revert cleanly.
+        // Doc matches recorded a receipt/payment (append-only correction
+        // philosophy): the line reopens but that posting stays — reverse it
+        // manually if needed.
+        setState((s) => s && {
+          ...s,
+          bankTxns: s.bankTxns.map((t) => (t.id === txnId
+            ? { ...t, status: "PENDING", category: undefined, matchedInvoiceId: undefined, matchedBillId: undefined, matchedBatchId: undefined }
+            : t)),
+          audit: [...s.audit, audit("BANK_UNMATCH", "bank_txn", txnId)],
         });
       },
 

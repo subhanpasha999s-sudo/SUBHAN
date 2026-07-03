@@ -128,6 +128,31 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Deferred: recurring bills (same pattern as recurring invoices — small
   follow-up), vendor advances.
 
+## Phase 5 — Banking: matching + payout tie-out (2026-07-03) ✅
+- core/bankMatch.ts (pure, 7 tests): payoutBatches (net per Meesho Transaction
+  ID = payout batch), suggestPayoutMatches (deposit↔batch, ₹1/1% tolerance,
+  greedy one-batch-per-deposit), suggestDocMatches (credit↔open invoice,
+  debit↔open bill by outstanding), bankBalanceSummary (running statement
+  balance + cleared/uncleared).
+- Single-source cash (no double-count): matching a bank line records the
+  receipt/bill-payment (the GL cash source) and marks the bank line EXCLUDED
+  so the GL builder skips it; a Meesho deposit matched to a payout batch is
+  only reconciled (settlement already posted DR Cash) — never re-booked.
+- Store: matchBankToInvoice / matchBankToBill / matchDepositToPayout /
+  unmatchBankTxn (payout unmatch reverts cleanly; doc unmatch reopens the line
+  but the receipt/payment stays — append-only correction). matchedBatchId
+  added to StoredBankTxn.
+- New /book/matching page (section "matching", nav "Bank Match"): summary
+  cards, auto-suggested one-click matches + manual picker, matched list w/
+  unmatch.
+- Browser-verified (injected fixtures): 3 lines → payout 350 / invoice
+  INV-0003 250 / bill PO-0001 500 all auto-suggested with exact ✓; applying
+  set invoice open→paid (receipt created), bill partial→paid (bill-payment
+  created), all three bank lines EXCLUDED, unmatched 0; unmatch reverted the
+  payout line to PENDING and the suggestion reappeared. Suite: 93 tests green.
+- Deferred: split transactions, account transfers (transferPairId exists),
+  editing the 1473-line bank import page — kept matching self-contained.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

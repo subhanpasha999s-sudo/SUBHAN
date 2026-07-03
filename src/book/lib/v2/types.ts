@@ -221,6 +221,7 @@ export interface StoredBankTxn {
   splits?: TransactionSplit[]; // present when the txn is split across categories
   matchedBillId?: string;    // linked Purchase (AP)
   matchedInvoiceId?: string; // linked Invoice (AR)
+  matchedBatchId?: string;   // Phase 5 — linked Meesho payout batch (Transaction ID)
   transferPairId?: string;   // linked counterpart txn when this is a transfer
   bankTxnId?: string;        // OFX FITID / CAMT ref — used for dedup
   sourceFile?: string;       // original file name for audit trail

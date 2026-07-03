@@ -73,6 +73,7 @@ const NAV: NavEntry[] = [
     { section: "reconciliation", href: "/book/reconciliation", label: "Reconciliation", icon: GitCompare },
   ] },
   { section: "bank",    href: "/book/bank",    label: "Bank Import", icon: Landmark },
+  { section: "matching", href: "/book/matching", label: "Bank Match", icon: GitCompare },
   // Inventory dropdown — items and listing→inventory SKU mapping (moved below the core flow)
   { label: "Inventory", icon: Boxes, children: [
     { section: "inventory", href: "/book/inventory", label: "Item", icon: Boxes },
