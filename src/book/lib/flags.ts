@@ -6,4 +6,6 @@
 export const flags = {
   /** Phase 1: COA management, accounting periods, opening balances on /book/ledger. */
   accountingSetup: true,
+  /** Phase 2: contact editing/merge/CSV + stock-adjustment reason codes. */
+  contactsPlus: true,
 } as const;

@@ -10,6 +10,8 @@ import { Badge, Button, Card, cn } from "@/book/components/ui";
 import { canDo } from "@/book/lib/v2/rbac";
 import { formatINR, formatNum, stockIntelligence } from "@/book/lib/engine";
 import ProductForm from "@/book/components/v2/ProductForm";
+import { flags } from "@/book/lib/flags";
+import { ADJUSTMENT_REASONS, formatAdjustmentReason, type AdjustmentReasonCode } from "@/book/lib/core/contacts";
 import type { Sku } from "@/book/lib/v2/types";
 
 export default function InventoryPage() {
@@ -20,6 +22,8 @@ export default function InventoryPage() {
   const [adjusting, setAdjusting] = useState<string | null>(null);
   const [adjQty, setAdjQty] = useState("");
   const [adjReason, setAdjReason] = useState("");
+  const [adjCode, setAdjCode] = useState<AdjustmentReasonCode | "">("");
+  const [adjNote, setAdjNote] = useState("");
   const [editing, setEditing] = useState<Sku | "new" | null>(null);
   const canEdit = canDo(me.role, "edit_skus");
 
@@ -39,13 +43,21 @@ export default function InventoryPage() {
       .sort((a, b) => Number(b.needsReorder) - Number(a.needsReorder) || a.skuCode.localeCompare(b.skuCode));
   }, [intel.rows, q]);
 
+  // Reason-coded adjustments (Phase 2). The stored reason string stays
+  // human-readable ("CODE — note") so old free-text entries coexist fine.
+  const adjReasonFinal = flags.contactsPlus
+    ? (adjCode && (adjCode !== "OTHER" || adjNote.trim()) ? formatAdjustmentReason(adjCode, adjNote) : "")
+    : adjReason.trim();
+
   function submitAdjustment(skuCode: string) {
     const delta = parseInt(adjQty, 10);
-    if (!Number.isFinite(delta) || delta === 0 || !adjReason.trim()) return;
-    actions.stockAdjustment(skuCode, delta, adjReason.trim());
+    if (!Number.isFinite(delta) || delta === 0 || !adjReasonFinal) return;
+    actions.stockAdjustment(skuCode, delta, adjReasonFinal);
     setAdjusting(null);
     setAdjQty("");
     setAdjReason("");
+    setAdjCode("");
+    setAdjNote("");
   }
 
   if (state.skus.length === 0) {
@@ -161,13 +173,32 @@ export default function InventoryPage() {
                           placeholder="+5 or -3"
                           className="w-24 rounded-xl border border-border bg-card px-3 py-1.5 text-sm tabular-nums"
                         />
-                        <input
-                          value={adjReason}
-                          onChange={(e) => setAdjReason(e.target.value)}
-                          placeholder="Reason (mandatory)"
-                          className="min-w-[220px] flex-1 rounded-xl border border-border bg-card px-3 py-1.5 text-sm"
-                        />
-                        <Button onClick={() => submitAdjustment(r.skuCode)} disabled={!adjReason.trim() || !parseInt(adjQty, 10)}>
+                        {flags.contactsPlus ? (
+                          <>
+                            <select
+                              value={adjCode}
+                              onChange={(e) => setAdjCode(e.target.value as AdjustmentReasonCode | "")}
+                              className="rounded-xl border border-border bg-card px-3 py-1.5 text-sm"
+                            >
+                              <option value="">Reason…</option>
+                              {ADJUSTMENT_REASONS.map((r2) => <option key={r2.code} value={r2.code}>{r2.label}</option>)}
+                            </select>
+                            <input
+                              value={adjNote}
+                              onChange={(e) => setAdjNote(e.target.value)}
+                              placeholder={adjCode === "OTHER" ? "Note (mandatory)" : "Note (optional)"}
+                              className="min-w-[180px] flex-1 rounded-xl border border-border bg-card px-3 py-1.5 text-sm"
+                            />
+                          </>
+                        ) : (
+                          <input
+                            value={adjReason}
+                            onChange={(e) => setAdjReason(e.target.value)}
+                            placeholder="Reason (mandatory)"
+                            className="min-w-[220px] flex-1 rounded-xl border border-border bg-card px-3 py-1.5 text-sm"
+                          />
+                        )}
+                        <Button onClick={() => submitAdjustment(r.skuCode)} disabled={!adjReasonFinal || !parseInt(adjQty, 10)}>
                           Apply
                         </Button>
                       </div>

@@ -26,6 +26,36 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   months/batches, exchange-then-return double-QC, sub-order-no normalization)
   + existing `core/reconciliation.characterization.test.ts` golden master.
   Suite: **56 tests green**.
+## Phase 1 — Org & COA management on the live core (2026-07-02) ✅
+- Migration 020 (applied + probe-verified): closed accounting periods reject
+  postings via trigger; post_journal_entry refuses archived accounts; system
+  accounts cannot be archived.
+- `core/postings.ts openingBalanceEntry`: opening-balances wizard entry with
+  automatic Owner Equity plug, idempotent externalId (4 new tests).
+- `ledgerRemote`: accounts CRUD (add custom, archive/restore), periods
+  (fetch, generate Indian FY Apr–Mar, close/reopen).
+- Feature flag module `src/book/lib/flags.ts` (spec §3.10).
+
+## Phase 2 — Contacts + items polish (2026-07-03) ✅
+- Customer/Vendor types enriched (GSTIN, state, phone, email, address, notes —
+  all optional, blob-compatible).
+- `core/contacts.ts` (+7 tests): RFC-4180 CSV export, fuzzy-header import
+  mapping, case/space-insensitive dedupe, mergeCustomerRecords (reassign
+  invoices, fill-empty-fields-only, remove duplicate), stock-adjustment
+  reason codes.
+- Store actions: updateCustomer, mergeCustomers, importCustomers,
+  updateVendor, importVendors (guarded, audited).
+- UI: customers page — Export/Import CSV, inline contact editor, duplicate
+  merge; vendors page — Export/Import CSV; inventory — reason-code select
+  (+ mandatory note for OTHER) behind flags.contactsPlus.
+- Browser-verified: CSV import (fuzzy headers, in-file dup skipped), edit
+  persistence, merge (count 3→2, kept fields preserved, empty email filled
+  from duplicate, audit trail CUSTOMER_IMPORT/EDIT/MERGE); vendors import
+  round-trip. Inventory reason select is unit-tested + typechecked (not
+  click-tested — needs a product in the fresh preview profile).
+- Suite: 67 tests green. Deliberate cut: committed-vs-available stock deferred
+  (Book doesn't track dispatch state; noted in GAP_ANALYSIS).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

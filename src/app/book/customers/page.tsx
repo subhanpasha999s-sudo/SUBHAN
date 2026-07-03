@@ -4,13 +4,26 @@
  * a per-customer statement: invoices (debits) and receipts (credits) in date
  * order with a running balance — the classic ledger-style account statement.
  */
-import { useMemo, useState } from "react";
-import { Plus, FileText } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, FileText, Download, Upload, Pencil } from "lucide-react";
+import Papa from "papaparse";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
 import { canDo } from "@/book/lib/v2/rbac";
+import { flags } from "@/book/lib/flags";
+import { customersToCsv, recordsToContactRows } from "@/book/lib/core/contacts";
+import type { Customer } from "@/book/lib/v2/types";
+
+function downloadCsv(filename: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 interface CustomerRow {
   id: string;
@@ -36,6 +49,23 @@ export default function CustomersPage() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function onImportFile(file: File) {
+    Papa.parse<Record<string, unknown>>(file, {
+      header: true,
+      skipEmptyLines: "greedy",
+      complete: (res) => {
+        const rows = recordsToContactRows(res.data);
+        if (rows.length === 0) { setImportMsg("No rows with a name column found."); return; }
+        const r = actions.importCustomers(rows);
+        setImportMsg(`Imported ${r.added} customer${r.added === 1 ? "" : "s"} (${r.skipped} duplicates skipped).`);
+      },
+      error: () => setImportMsg("Couldn't read that CSV file."),
+    });
+  }
 
   const rows = useMemo<CustomerRow[]>(() => {
     return state.customers.map((c) => {
@@ -94,8 +124,30 @@ export default function CustomersPage() {
       <PageHeader
         title="Customers"
         sub="Customer master, balances & statements"
-        right={canManage ? <Button onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> New customer</Button> : undefined}
+        right={
+          <div className="flex flex-wrap gap-2">
+            {flags.contactsPlus && (
+              <>
+                <Button variant="secondary" onClick={() => downloadCsv("customers.csv", customersToCsv(state.customers))}>
+                  <Download className="h-4 w-4" /> Export
+                </Button>
+                {canManage && (
+                  <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+                    <Upload className="h-4 w-4" /> Import
+                  </Button>
+                )}
+                <input ref={fileRef} type="file" accept=".csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportFile(f); e.target.value = ""; }} />
+              </>
+            )}
+            {canManage && <Button onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> New customer</Button>}
+          </div>
+        }
       />
+
+      {importMsg && (
+        <Card className="mb-4 px-4 py-2.5 text-sm text-muted-foreground">{importMsg}</Card>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="p-5"><p className="text-xs uppercase tracking-wide text-muted-foreground">Customers</p><p className="mt-2 text-2xl font-semibold tabular-nums">{rows.length}</p></Card>
@@ -161,10 +213,32 @@ export default function CustomersPage() {
         <Card className="mt-6 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <span className="font-semibold">Statement — {selected.name}</span>
-            <Badge tone={selected.outstanding > 0.005 ? "warning" : "success"}>
-              {selected.outstanding > 0.005 ? `Owes ${formatINR(selected.outstanding)}` : "Settled"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {flags.contactsPlus && canManage && (
+                <button onClick={() => setEditingId((v) => (v === selected.id ? null : selected.id))}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                  <Pencil className="h-3 w-3" /> Edit details
+                </button>
+              )}
+              <Badge tone={selected.outstanding > 0.005 ? "warning" : "success"}>
+                {selected.outstanding > 0.005 ? `Owes ${formatINR(selected.outstanding)}` : "Settled"}
+              </Badge>
+            </div>
           </div>
+          {flags.contactsPlus && canManage && editingId === selected.id && (
+            <CustomerEditor
+              customer={state.customers.find((c) => c.id === selected.id)!}
+              others={state.customers.filter((c) => c.id !== selected.id)}
+              onSave={(patch) => { actions.updateCustomer(selected.id, patch); setEditingId(null); }}
+              onMerge={(dupId) => {
+                const dup = state.customers.find((c) => c.id === dupId);
+                if (!dup) return;
+                if (!window.confirm(`Merge "${dup.name}" into "${selected.name}"? Its invoices move here and the duplicate is removed.`)) return;
+                const r = actions.mergeCustomers(selected.id, dupId);
+                if (!r.ok && r.message) window.alert(r.message);
+              }}
+            />
+          )}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
@@ -201,5 +275,67 @@ export default function CustomersPage() {
         </Card>
       )}
     </Guard>
+  );
+}
+
+/** Inline contact editor + duplicate merge (Phase 2, spec §5.2). */
+function CustomerEditor({ customer, others, onSave, onMerge }: {
+  customer: Customer;
+  others: Customer[];
+  onSave: (patch: Partial<Omit<Customer, "id" | "createdAt">>) => void;
+  onMerge: (duplicateId: string) => void;
+}) {
+  const [form, setForm] = useState({
+    name: customer.name, gstin: customer.gstin ?? "", state: customer.state ?? "",
+    phone: customer.phone ?? "", email: customer.email ?? "",
+    address: customer.address ?? "", notes: customer.notes ?? "",
+  });
+  const [mergeId, setMergeId] = useState("");
+  const input = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <div className="border-b border-border bg-muted/40 p-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">Name</span>
+          <input className={input} value={form.name} onChange={set("name")} /></label>
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">GSTIN</span>
+          <input className={input} value={form.gstin} onChange={set("gstin")} /></label>
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">State (place of supply)</span>
+          <input className={input} value={form.state} onChange={set("state")} /></label>
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">Phone</span>
+          <input className={input} value={form.phone} onChange={set("phone")} /></label>
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">Email</span>
+          <input className={input} value={form.email} onChange={set("email")} /></label>
+        <label className="space-y-1 text-xs"><span className="text-muted-foreground">Address</span>
+          <input className={input} value={form.address} onChange={set("address")} /></label>
+        <label className="space-y-1 text-xs md:col-span-3"><span className="text-muted-foreground">Notes</span>
+          <input className={input} value={form.notes} onChange={set("notes")} /></label>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button onClick={() => onSave({
+          name: form.name.trim() || customer.name,
+          gstin: form.gstin.trim() || undefined,
+          state: form.state.trim() || undefined,
+          phone: form.phone.trim() || undefined,
+          email: form.email.trim() || undefined,
+          address: form.address.trim() || undefined,
+          notes: form.notes.trim() || undefined,
+        })}>Save details</Button>
+        {others.length > 0 && (
+          <span className="ml-auto flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Merge duplicate:</span>
+            <select className="h-9 rounded-lg border border-border bg-background px-2 text-xs" value={mergeId} onChange={(e) => setMergeId(e.target.value)}>
+              <option value="">Select customer…</option>
+              {others.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <Button variant="secondary" disabled={!mergeId} onClick={() => { onMerge(mergeId); setMergeId(""); }}>
+              Merge into “{customer.name}”
+            </Button>
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

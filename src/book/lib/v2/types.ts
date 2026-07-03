@@ -54,6 +54,10 @@ export interface Vendor {
   gstin: string;
   address: string;
   contact: string;
+  /** Phase 2 (upgrade spec §5.2) — optional contact enrichment. */
+  state?: string;
+  email?: string;
+  notes?: string;
   createdAt: string;
 }
 
@@ -183,6 +187,13 @@ export interface StoredBankTxn {
 export interface Customer {
   id: string;
   name: string;
+  /** Phase 2 (upgrade spec §5.2) — optional contact enrichment. */
+  gstin?: string;
+  state?: string;   // GST place-of-supply state
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
   defaultCoaCode?: string;
   createdFromTxnId?: string;
   createdAt: string;

@@ -32,6 +32,7 @@ import {
   currentStock,
 } from "@/book/lib/engine";
 import { canDo } from "./rbac";
+import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/lib/core/contacts";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
@@ -125,6 +126,12 @@ export interface V2Actions {
   addCustomer(c: Omit<Customer, "id" | "createdAt">): string;
   addInvoice(i: Omit<Invoice, "id" | "amountPaid" | "status">): string;
   recordInvoiceReceipt(invoiceId: string, amount: number): void;
+  /** Phase 2 (upgrade spec §5.2) — contacts management. */
+  updateCustomer(id: string, patch: Partial<Omit<Customer, "id" | "createdAt">>): void;
+  mergeCustomers(keepId: string, mergedId: string): { ok: boolean; message?: string };
+  importCustomers(rows: ContactCsvRow[]): { added: number; skipped: number };
+  updateVendor(id: string, patch: Partial<Omit<Vendor, "id" | "createdAt">>): void;
+  importVendors(rows: ContactCsvRow[]): { added: number; skipped: number };
   /** Phase 4 — record a payment against a purchase bill (DR AP / CR Cash). */
   recordBillPayment(purchaseId: string, amount: number): void;
   addExpense(e: Omit<StoredExpense, "id" | "createdBy">): void;
@@ -580,6 +587,72 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
             audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(applied))],
           };
         });
+      },
+
+      updateCustomer: (id, patch) => {
+        guard("manage_invoices");
+        setState((cur) => cur && {
+          ...cur,
+          customers: cur.customers.map((c) => (c.id === id ? { ...c, ...patch, id: c.id, createdAt: c.createdAt } : c)),
+          audit: [...cur.audit, audit("CUSTOMER_EDIT", "customer", id)],
+        });
+      },
+
+      mergeCustomers: (keepId, mergedId) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const r = mergeCustomerRecords(cur.customers, cur.invoices, keepId, mergedId);
+        if (!r.ok) return { ok: false, message: r.message };
+        setState((s) => s && {
+          ...s,
+          customers: r.customers,
+          invoices: r.invoices,
+          audit: [...s.audit, audit("CUSTOMER_MERGE", "customer", keepId, `merged ${mergedId} into ${keepId}`)],
+        });
+        return { ok: true };
+      },
+
+      importCustomers: (rows) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const { fresh, skippedDuplicates } = dedupeByName(cur.customers, rows);
+        if (fresh.length) {
+          const now = new Date().toISOString();
+          setState((s) => s && {
+            ...s,
+            customers: [...s.customers, ...fresh.map((r) => ({ ...r, id: uid("cus"), createdAt: now }))],
+            audit: [...s.audit, audit("CUSTOMER_IMPORT", "customer", "csv", `${fresh.length} added, ${skippedDuplicates} duplicates skipped`)],
+          });
+        }
+        return { added: fresh.length, skipped: skippedDuplicates };
+      },
+
+      updateVendor: (id, patch) => {
+        guard("add_purchase");
+        setState((cur) => cur && {
+          ...cur,
+          vendors: cur.vendors.map((v) => (v.id === id ? { ...v, ...patch, id: v.id, createdAt: v.createdAt } : v)),
+          audit: [...cur.audit, audit("VENDOR_EDIT", "vendor", id)],
+        });
+      },
+
+      importVendors: (rows) => {
+        guard("add_purchase");
+        const cur = stateRef.current!;
+        const { fresh, skippedDuplicates } = dedupeByName(cur.vendors, rows);
+        if (fresh.length) {
+          const now = new Date().toISOString();
+          setState((s) => s && {
+            ...s,
+            vendors: [...s.vendors, ...fresh.map((r) => ({
+              name: r.name, gstin: r.gstin ?? "", address: r.address ?? "", contact: r.phone ?? "",
+              state: r.state, email: r.email, notes: r.notes,
+              id: uid("ven"), createdAt: now,
+            }))],
+            audit: [...s.audit, audit("VENDOR_IMPORT", "vendor", "csv", `${fresh.length} added, ${skippedDuplicates} duplicates skipped`)],
+          });
+        }
+        return { added: fresh.length, skipped: skippedDuplicates };
       },
 
       recordBillPayment: (purchaseId, amount) => {

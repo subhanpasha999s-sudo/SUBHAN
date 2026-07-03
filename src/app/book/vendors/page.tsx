@@ -1,16 +1,44 @@
 "use client";
 /** Vendors (V4 §6b) — manage vendor master for reuse on purchase bills. */
-import { useMemo, useState } from "react";
-import { Plus, Store } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, Store, Download, Upload } from "lucide-react";
+import Papa from "papaparse";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, EmptyState, PageHeader } from "@/book/components/v2/common";
 import { Button, Card } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
+import { flags } from "@/book/lib/flags";
+import { vendorsToCsv, recordsToContactRows } from "@/book/lib/core/contacts";
+
+function downloadCsv(filename: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function VendorsPage() {
   const { state, actions } = useV2();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", gstin: "", address: "", contact: "" });
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function onImportFile(file: File) {
+    Papa.parse<Record<string, unknown>>(file, {
+      header: true,
+      skipEmptyLines: "greedy",
+      complete: (res) => {
+        const rows = recordsToContactRows(res.data);
+        if (rows.length === 0) { setImportMsg("No rows with a name column found."); return; }
+        const r = actions.importVendors(rows);
+        setImportMsg(`Imported ${r.added} vendor${r.added === 1 ? "" : "s"} (${r.skipped} duplicates skipped).`);
+      },
+      error: () => setImportMsg("Couldn't read that CSV file."),
+    });
+  }
 
   const stats = useMemo(() => {
     const m = new Map<string, { total: number; bills: number }>();
@@ -35,7 +63,25 @@ export default function VendorsPage() {
   return (
     <Guard section="vendors">
       <PageHeader title="Vendors" sub="Saved suppliers — reused on purchase bills to speed up data entry"
-        right={<Button onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> Add vendor</Button>} />
+        right={
+          <div className="flex flex-wrap gap-2">
+            {flags.contactsPlus && (
+              <>
+                <Button variant="secondary" onClick={() => downloadCsv("vendors.csv", vendorsToCsv(state.vendors))}>
+                  <Download className="h-4 w-4" /> Export
+                </Button>
+                <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+                  <Upload className="h-4 w-4" /> Import
+                </Button>
+                <input ref={fileRef} type="file" accept=".csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportFile(f); e.target.value = ""; }} />
+              </>
+            )}
+            <Button onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> Add vendor</Button>
+          </div>
+        } />
+
+      {importMsg && <Card className="mb-4 px-4 py-2.5 text-sm text-muted-foreground">{importMsg}</Card>}
 
       {adding && (
         <Card className="mb-6 p-5">
