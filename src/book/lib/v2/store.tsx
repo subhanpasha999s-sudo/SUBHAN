@@ -33,7 +33,7 @@ import {
 } from "@/book/lib/engine";
 import { canDo } from "./rbac";
 import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/lib/core/contacts";
-import { computeDueRuns, firstRunDate } from "@/book/lib/core/salesDocs";
+import { computeDueRuns, firstRunDate, daysOverdue, invoiceOutstanding, shouldRemind } from "@/book/lib/core/salesDocs";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
@@ -138,6 +138,10 @@ export interface V2Actions {
   toggleRecurringInvoice(id: string, active: boolean): void;
   /** Materialize all due recurring invoices (client-side scheduler; idempotent). */
   runRecurringInvoices(): { created: number };
+  /** Raise overdue-invoice reminders (throttled to once per 7 days per invoice). */
+  runPaymentReminders(): { reminded: number };
+  /** Manual nudge for one invoice (resets its reminder clock). */
+  remindInvoice(id: string): void;
   /** Phase 2 (upgrade spec §5.2) — contacts management. */
   updateCustomer(id: string, patch: Partial<Omit<Customer, "id" | "createdAt">>): void;
   mergeCustomers(keepId: string, mergedId: string): { ok: boolean; message?: string };
@@ -764,6 +768,47 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
           });
         }
         return { created };
+      },
+
+      runPaymentReminders: () => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const today = todayIso().slice(0, 10);
+        const due = cur.invoices.filter((i) => shouldRemind(i, today));
+        if (due.length === 0) return { reminded: 0 };
+        const name = (id: string) => cur.customers.find((c) => c.id === id)?.name ?? "customer";
+        setState((s) => s && {
+          ...s,
+          invoices: s.invoices.map((i) => (due.some((d) => d.id === i.id) ? { ...i, lastReminderAt: today } : i)),
+          notifications: [...s.notifications, ...due.map((i) => ({
+            id: uid("n"), at: new Date().toISOString(), kind: "unpaid_aging" as const,
+            title: `${i.number || i.id} is ${daysOverdue(i, today)} days overdue`,
+            body: `${name(i.customerId)} owes ${invoiceOutstanding(i).toLocaleString("en-IN")} — follow up.`,
+            read: false,
+          }))],
+          audit: [...s.audit, audit("PAYMENT_REMINDERS", "invoice", "auto", `${due.length} overdue reminder(s)`)],
+        });
+        return { reminded: due.length };
+      },
+
+      remindInvoice: (id) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const today = todayIso().slice(0, 10);
+        const inv = cur.invoices.find((i) => i.id === id);
+        if (!inv) return;
+        const name = cur.customers.find((c) => c.id === inv.customerId)?.name ?? "customer";
+        setState((s) => s && {
+          ...s,
+          invoices: s.invoices.map((i) => (i.id === id ? { ...i, lastReminderAt: today } : i)),
+          notifications: [...s.notifications, {
+            id: uid("n"), at: new Date().toISOString(), kind: "unpaid_aging" as const,
+            title: `Reminder — ${inv.number || inv.id}`,
+            body: `${name} owes ${invoiceOutstanding(inv).toLocaleString("en-IN")} (due ${inv.dueDate}).`,
+            read: false,
+          }],
+          audit: [...s.audit, audit("PAYMENT_REMIND", "invoice", id)],
+        });
       },
 
       updateCustomer: (id, patch) => {

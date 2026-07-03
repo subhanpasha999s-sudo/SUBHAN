@@ -211,6 +211,8 @@ export interface Invoice {
   dueDate: string;
   status: "open" | "partial" | "paid";
   notes?: string;
+  /** Phase 3 — when the last overdue reminder was raised (throttles nudges). */
+  lastReminderAt?: string;
 }
 
 /**

@@ -92,6 +92,22 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   AR ₹1,099. Suite: 76 tests green.
 - Remaining Phase 3: payment reminders, PDF templates.
 
+## Phase 3 (slice 3 — final) — Payment reminders + invoice PDFs (2026-07-03) ✅
+- Reminders: pure overdue/throttle logic in core/salesDocs (isOverdue counts
+  credits; shouldRemind once per 7 days; +2 test blocks). Store actions
+  runPaymentReminders (page-load, batched notification per overdue invoice,
+  sets lastReminderAt) + remindInvoice (manual nudge). Invoices UI: red ⚠ due
+  dates, Remind button on overdue rows.
+- Invoice PDF: core/invoicePdf.ts via pdf-lib (A4, org/GSTIN header, bill-to
+  block, amount + received/credited/balance summary, status; "Rs" because
+  WinAnsi fonts can't encode ₹; 2 tests incl. re-parse). PDF button per row
+  (lazy-imported).
+- Browser-verified: overdue INV-0005 → reload raised exactly one notification
+  ("INV-0005 is 32 days overdue · Bharat Traders owes 400"), second reload
+  raised none (throttle), PDF click produced a 1.7 KB application/pdf blob.
+- Suite: 80 tests green. **Phase 3 complete** (credit notes, back-fill,
+  estimates→invoice, recurring, reminders, PDFs).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

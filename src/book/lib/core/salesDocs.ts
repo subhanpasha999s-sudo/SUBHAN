@@ -24,6 +24,47 @@ export function firstRunDate(todayIso: string, dayOfMonth: number): string {
   return thisMonth >= todayIso ? thisMonth : advanceMonthly(thisMonth, dayOfMonth);
 }
 
+// ── Payment reminders ─────────────────────────────────────────────────
+
+export const REMINDER_INTERVAL_DAYS = 7;
+
+export interface ReminderInvoice {
+  status: "open" | "partial" | "paid";
+  dueDate: string;
+  amount: number;
+  amountPaid: number;
+  amountCredited?: number;
+  lastReminderAt?: string;
+}
+
+export function invoiceOutstanding(i: ReminderInvoice): number {
+  return Math.round((i.amount - i.amountPaid - (i.amountCredited ?? 0)) * 100) / 100;
+}
+
+export function daysOverdue(i: ReminderInvoice, todayIso: string): number {
+  const ms = new Date(`${todayIso}T00:00:00Z`).getTime() - new Date(`${i.dueDate}T00:00:00Z`).getTime();
+  return Math.floor(ms / 86_400_000);
+}
+
+export function isOverdue(i: ReminderInvoice, todayIso: string): boolean {
+  return i.status !== "paid" && invoiceOutstanding(i) > 0.005 && daysOverdue(i, todayIso) > 0;
+}
+
+/**
+ * Raise a reminder for an overdue invoice at most once per interval —
+ * repeated page loads never spam the notification feed.
+ */
+export function shouldRemind(
+  i: ReminderInvoice,
+  todayIso: string,
+  intervalDays = REMINDER_INTERVAL_DAYS,
+): boolean {
+  if (!isOverdue(i, todayIso)) return false;
+  if (!i.lastReminderAt) return true;
+  const since = (new Date(`${todayIso}T00:00:00Z`).getTime() - new Date(`${i.lastReminderAt}T00:00:00Z`).getTime()) / 86_400_000;
+  return since >= intervalDays;
+}
+
 /**
  * All due run dates from nextRunDate through today (inclusive), plus the new
  * nextRunDate. Capped so a corrupt date can't loop forever; each returned run

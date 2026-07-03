@@ -19,14 +19,32 @@ export default function InvoicesPage() {
   const canManage = canDo(me.role, "manage_invoices");
   const [adding, setAdding] = useState(false);
 
-  // Client-side scheduler: materialize due recurring invoices once per visit.
+  // Client-side scheduler: materialize due recurring invoices + raise
+  // overdue reminders (throttled in the store) once per visit.
   const ranRef = useRef(false);
   useEffect(() => {
     if (ranRef.current || !canManage) return;
     ranRef.current = true;
     actions.runRecurringInvoices();
+    actions.runPaymentReminders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage]);
+
+  async function downloadPdf(inv: (typeof state.invoices)[number]) {
+    const { buildInvoicePdf } = await import("@/book/lib/core/invoicePdf");
+    const bytes = await buildInvoicePdf({
+      org: state.org,
+      invoice: inv,
+      customer: state.customers.find((c) => c.id === inv.customerId),
+    });
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${inv.number || inv.id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  const today = new Date().toISOString().slice(0, 10);
 
   const customerName = (id: string) => state.customers.find((c) => c.id === id)?.name ?? "—";
   const outstanding = useMemo(() => agingTotal(arAgingFromState(state, new Date().toISOString().slice(0, 10))), [state]);
@@ -71,7 +89,9 @@ export default function InvoicesPage() {
                   <td className="px-3 py-2 font-mono text-xs">{inv.number || inv.id}</td>
                   <td className="px-3 py-2">{customerName(inv.customerId)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{fmtDate(inv.invoiceDate)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-xs">{fmtDate(inv.dueDate)}</td>
+                  <td className={cn("whitespace-nowrap px-3 py-2 text-xs", inv.status !== "paid" && inv.dueDate < today && "font-medium text-danger")}>
+                    {fmtDate(inv.dueDate)}{inv.status !== "paid" && inv.dueDate < today && " ⚠"}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatINR(inv.amount)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                     {formatINR(inv.amountPaid)}
@@ -84,6 +104,12 @@ export default function InvoicesPage() {
                   </td>
                   {canManage && (
                     <td className="px-3 py-2 text-right">
+                      <button onClick={() => downloadPdf(inv)} title="Download PDF"
+                        className="mr-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">PDF</button>
+                      {inv.status !== "paid" && inv.dueDate < today && (
+                        <button onClick={() => actions.remindInvoice(inv.id)} title="Log a payment reminder"
+                          className="mr-1.5 rounded-md border border-border px-2 py-1 text-xs text-warning hover:bg-muted">Remind</button>
+                      )}
                       {inv.status !== "paid" && (() => {
                         const outstanding = Math.round((inv.amount - inv.amountPaid - (inv.amountCredited ?? 0)) * 100) / 100;
                         return (

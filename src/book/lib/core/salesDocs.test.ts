@@ -1,5 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { advanceMonthly, firstRunDate, computeDueRuns } from "./salesDocs";
+import {
+  advanceMonthly, firstRunDate, computeDueRuns,
+  isOverdue, shouldRemind, daysOverdue, invoiceOutstanding,
+} from "./salesDocs";
+
+const inv = (over: Partial<Parameters<typeof isOverdue>[0]> = {}) => ({
+  status: "open" as const, dueDate: "2026-06-20", amount: 1000, amountPaid: 0, ...over,
+});
+
+describe("payment reminders", () => {
+  const today = "2026-07-03";
+
+  it("overdue = past due, unpaid, with outstanding (credits count)", () => {
+    expect(isOverdue(inv(), today)).toBe(true);
+    expect(daysOverdue(inv(), today)).toBe(13);
+    expect(isOverdue(inv({ status: "paid" }), today)).toBe(false);
+    expect(isOverdue(inv({ dueDate: "2026-07-10" }), today)).toBe(false);       // not yet due
+    expect(isOverdue(inv({ dueDate: today }), today)).toBe(false);              // due today ≠ overdue
+    expect(isOverdue(inv({ amountPaid: 600, amountCredited: 400 }), today)).toBe(false); // settled
+    expect(invoiceOutstanding(inv({ amountPaid: 300, amountCredited: 200 }))).toBe(500);
+  });
+
+  it("reminds once per interval, not on every page load", () => {
+    expect(shouldRemind(inv(), today)).toBe(true);                                // never reminded
+    expect(shouldRemind(inv({ lastReminderAt: "2026-07-01" }), today)).toBe(false); // 2 days ago
+    expect(shouldRemind(inv({ lastReminderAt: "2026-06-26" }), today)).toBe(true);  // 7 days ago
+    expect(shouldRemind(inv({ status: "paid", lastReminderAt: undefined }), today)).toBe(false);
+  });
+});
 
 describe("advanceMonthly", () => {
   it("advances to the same day next month", () => {
