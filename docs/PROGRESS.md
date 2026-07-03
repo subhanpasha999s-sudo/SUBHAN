@@ -108,6 +108,26 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Suite: 80 tests green. **Phase 3 complete** (credit notes, back-fill,
   estimates→invoice, recurring, reminders, PDFs).
 
+## Phase 4 — Purchases completion (2026-07-03) ✅
+- PurchaseOrder document (PO-####; open/received/cancelled; non-financial
+  until received). Receive → bill via the existing addPurchase path (stock IN
+  + weighted-avg COGS + AP posting untouched), quick-creating unknown SKUs.
+- Landed-cost allocation: core/purchaseDocs.ts (by value|quantity, remainder-
+  to-last-line so totals are exact, degenerate-weight fallbacks; GST on goods
+  only, landed added net; 5 tests). Unit costs grossed up before receive so
+  weighted-avg COGS absorbs freight with zero engine changes.
+- VendorCredit (VC-####, bill-linked, clamped): posts DR AP / CR Inventory in
+  the derived GL; AP outstanding/aging/status and payment clamp are credit-
+  aware. Characterization: bill 1000 − credit 300 → AP 700 / Inventory 700.
+- UI: Purchase-orders card (form with line items + landed cost + live totals,
+  Receive → bill, Cancel) + Credit action per bill, behind flags.purchasing.
+- Browser-verified: PO-0001 (10×50 @5% GST + ₹100 landed = ₹625) → receive
+  created pending bill ₹625, SKU auto-created with COGS 60 (=50+100/10),
+  stock +10, PO received+linked; VC-0001 ₹125 "short shipment" → AP ₹500,
+  bill partial. Suite: 86 tests green.
+- Deferred: recurring bills (same pattern as recurring invoices — small
+  follow-up), vendor advances.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

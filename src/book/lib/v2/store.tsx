@@ -34,11 +34,12 @@ import {
 import { canDo } from "./rbac";
 import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/lib/core/contacts";
 import { computeDueRuns, firstRunDate, daysOverdue, invoiceOutstanding, shouldRemind } from "@/book/lib/core/salesDocs";
+import { allocateLandedCost, receivedBillTotals } from "@/book/lib/core/purchaseDocs";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
   AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Estimate, Invoice,
-  Receipt, RecurringInvoice,
+  Receipt, RecurringInvoice, PurchaseOrder, VendorCredit,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -117,7 +118,12 @@ export interface V2Actions {
   ingestOrderFile(args: { fileName: string; fileHash: string; orderRows: OrderRow[] }):
     { newOrders: number; rawRows: number; uniqueOrders: number; merged: number } | { error: string };
   qcDecision(itemId: string, result: QcResult, notes?: string): void;
-  addPurchase(p: Omit<Purchase, "id">): void;
+  addPurchase(p: Omit<Purchase, "id">): string;
+  /** Phase 4 — purchase orders + vendor credits. */
+  addPurchaseOrder(po: Omit<PurchaseOrder, "id" | "number" | "status" | "date"> & { date?: string }): string;
+  cancelPurchaseOrder(id: string): void;
+  receivePurchaseOrder(id: string): { ok: boolean; message?: string; purchaseId?: string };
+  addVendorCredit(purchaseId: string, amount: number, reason?: string): { ok: boolean; message?: string };
   overrideCogs(skuCode: string, newCogs: number): void;
   updateSku(skuCode: string, patch: Partial<Sku>): void;
   /** V4 §6a — create or fully edit a product. */
@@ -474,9 +480,9 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
 
       addPurchase: (p) => {
         guard("add_purchase");
+        const id = uid("pur"); // hoisted so callers (PO receive) get the bill id
         setState((cur) => {
           if (!cur) return cur;
-          const id = uid("pur");
           const stock = currentStock(cur.ledger);
           const skus = [...cur.skus];
           const cogsHistory = [...cur.cogsHistory];
@@ -501,6 +507,99 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
             audit: [...cur.audit, audit("PURCHASE_ADD", "purchase", id, `${p.supplierName} ₹${p.totalAmount}`)],
           };
         });
+        return id;
+      },
+
+      addPurchaseOrder: (po) => {
+        guard("add_purchase");
+        const cur = stateRef.current!;
+        const id = uid("po");
+        const rec: PurchaseOrder = {
+          ...po, id,
+          number: `PO-${String((cur.purchaseOrders ?? []).length + 1).padStart(4, "0")}`,
+          date: po.date ?? todayIso().slice(0, 10),
+          status: "open",
+        };
+        setState((s) => s && {
+          ...s, purchaseOrders: [...(s.purchaseOrders ?? []), rec],
+          audit: [...s.audit, audit("PO_ADD", "purchase_order", rec.number, `${rec.supplierName} · ${rec.items.length} lines`)],
+        });
+        return id;
+      },
+
+      cancelPurchaseOrder: (id) => {
+        guard("add_purchase");
+        setState((s) => s && {
+          ...s,
+          purchaseOrders: (s.purchaseOrders ?? []).map((p) => (p.id === id && p.status === "open" ? { ...p, status: "cancelled" } : p)),
+          audit: [...s.audit, audit("PO_CANCEL", "purchase_order", id)],
+        });
+      },
+
+      receivePurchaseOrder: (id) => {
+        guard("add_purchase");
+        const cur = stateRef.current!;
+        const po = (cur.purchaseOrders ?? []).find((p) => p.id === id);
+        if (!po) return { ok: false, message: "Purchase order not found." };
+        if (po.status !== "open") return { ok: false, message: `PO is ${po.status}.` };
+        // quick-create unknown SKUs so stock IN + COGS land somewhere real
+        const known = new Set(cur.skus.map((s) => s.skuCode));
+        for (const item of po.items) {
+          if (!known.has(item.skuCode)) {
+            actions.quickCreateSku({ skuCode: item.skuCode, productName: item.skuCode });
+            known.add(item.skuCode);
+          }
+        }
+        // landed cost grosses up unit costs; GST applies to goods value only
+        const landed = po.landedCost ?? 0;
+        const allocated = allocateLandedCost(po.items, landed, po.landedCostBasis ?? "value");
+        const totals = receivedBillTotals(po.items, landed);
+        const purchaseId = actions.addPurchase({
+          vendorId: po.vendorId,
+          supplierName: po.supplierName,
+          invoiceNo: po.number,
+          invoiceDate: todayIso().slice(0, 10),
+          totalAmount: totals.total,
+          gstAmount: totals.gst,
+          paymentStatus: "pending",
+          notes: [`Received from ${po.number}`, landed > 0 && `landed cost ₹${landed} (${po.landedCostBasis ?? "value"})`, po.notes]
+            .filter(Boolean).join(" · "),
+          items: allocated.map((a) => ({ skuCode: a.skuCode, quantity: a.quantity, unitCost: a.landedUnitCost, gstRate: a.gstRate })),
+        });
+        setState((s) => s && {
+          ...s,
+          purchaseOrders: (s.purchaseOrders ?? []).map((p) => (p.id === id ? { ...p, status: "received", purchaseId } : p)),
+          audit: [...s.audit, audit("PO_RECEIVE", "purchase_order", po.number, `→ bill ${purchaseId} ₹${totals.total}`)],
+        });
+        return { ok: true, purchaseId };
+      },
+
+      addVendorCredit: (purchaseId, amount, reason) => {
+        guard("add_purchase");
+        const cur = stateRef.current!;
+        const bill = cur.purchases.find((p) => p.id === purchaseId);
+        if (!bill) return { ok: false, message: "Bill not found." };
+        const outstanding = Math.round((bill.totalAmount - (bill.amountPaid ?? 0) - (bill.amountCredited ?? 0)) * 100) / 100;
+        const applied = Math.min(Math.round(amount * 100) / 100, outstanding);
+        if (applied <= 0) return { ok: false, message: "Nothing outstanding to credit." };
+        const vc: VendorCredit = {
+          id: uid("vc"), purchaseId,
+          number: `VC-${String((cur.vendorCredits ?? []).length + 1).padStart(4, "0")}`,
+          amount: applied, date: todayIso().slice(0, 10), reason: reason || undefined,
+        };
+        setState((s) => s && {
+          ...s,
+          purchases: s.purchases.map((p) => {
+            if (p.id !== purchaseId) return p;
+            const credited = Math.round(((p.amountCredited ?? 0) + applied) * 100) / 100;
+            const settled = (p.amountPaid ?? 0) + credited;
+            const paymentStatus: Purchase["paymentStatus"] = settled >= p.totalAmount - 0.005 ? "paid" : settled > 0 ? "partial" : p.paymentStatus;
+            return { ...p, amountCredited: credited, paymentStatus };
+          }),
+          vendorCredits: [...(s.vendorCredits ?? []), vc],
+          audit: [...s.audit, audit("VENDOR_CREDIT", "purchase", purchaseId, `${vc.number} ₹${applied}${reason ? ` — ${reason}` : ""}`)],
+        });
+        return { ok: true };
       },
 
       overrideCogs: (skuCode, newCogs) => {
@@ -884,12 +983,13 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
           const target = cur.purchases.find((p) => p.id === purchaseId);
           if (!target) return cur;
           const alreadyPaid = target.amountPaid ?? 0;
-          const applied = Math.min(Math.round(amount * 100) / 100, Math.round((target.totalAmount - alreadyPaid) * 100) / 100);
+          const credited = target.amountCredited ?? 0;
+          const applied = Math.min(Math.round(amount * 100) / 100, Math.round((target.totalAmount - alreadyPaid - credited) * 100) / 100);
           if (applied <= 0) return cur;
           const purchases = cur.purchases.map((p) => {
             if (p.id !== purchaseId) return p;
             const paid = Math.round((alreadyPaid + applied) * 100) / 100;
-            const paymentStatus: Purchase["paymentStatus"] = paid >= p.totalAmount - 0.005 ? "paid" : "partial";
+            const paymentStatus: Purchase["paymentStatus"] = paid + credited >= p.totalAmount - 0.005 ? "paid" : "partial";
             return { ...p, amountPaid: paid, paymentStatus };
           });
           const payment: BillPayment = { id: uid("bpay"), purchaseId, amount: applied, date: todayIso().slice(0, 10) };

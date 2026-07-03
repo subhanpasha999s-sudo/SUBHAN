@@ -48,12 +48,14 @@ export function arAgingFromState(state: V2State, asOf: string): AgingRow[] {
   );
 }
 
-/** Payables aging — outstanding = bill total − amount paid (paid bills excluded). */
+/** Payables aging — outstanding = bill total − paid − vendor credits. */
 export function apAgingFromState(state: V2State, asOf: string): AgingRow[] {
   return aging(
     state.purchases.map((p) => ({
       dueDate: p.dueDate || p.invoiceDate,
-      outstanding: p.paymentStatus === "paid" ? 0 : p.totalAmount - (p.amountPaid ?? 0),
+      outstanding: p.paymentStatus === "paid"
+        ? 0
+        : p.totalAmount - (p.amountPaid ?? 0) - (p.amountCredited ?? 0),
     })),
     asOf,
   );

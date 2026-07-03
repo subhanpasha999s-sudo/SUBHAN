@@ -127,6 +127,15 @@ describe("AP: bill -> payment posting", () => {
     expect(bal(st, "1000")).toBeCloseTo(0, 2);    // no cash moved
   });
 
+  it("a vendor credit reduces AP and hands value back out of Inventory", () => {
+    const st = buildEmptyState();
+    st.purchases = [{ id: "PP", supplierName: "Acme", invoiceNo: "B", invoiceDate: "2026-06-01", totalAmount: 1000, gstAmount: 0, paymentStatus: "partial", notes: "", items: [], amountCredited: 300 }];
+    st.vendorCredits = [{ id: "VC1", purchaseId: "PP", number: "VC-0001", amount: 300, date: "2026-06-10", reason: "short shipment" }];
+    expect(bal(st, "2000")).toBeCloseTo(700, 2);  // AP: 1000 bill − 300 credit
+    expect(bal(st, "1200")).toBeCloseTo(700, 2);  // Inventory: 1000 in − 300 credited back
+    expect(bal(st, "1000")).toBeCloseTo(0, 2);    // no cash moved
+  });
+
   it("a discrete partial payment reduces AP by that amount", () => {
     const st = buildEmptyState();
     st.purchases = [{ id: "PP", supplierName: "Acme", invoiceNo: "B", invoiceDate: "2026-06-01", totalAmount: 1000, gstAmount: 0, paymentStatus: "partial", notes: "", items: [] }];

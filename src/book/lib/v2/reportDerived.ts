@@ -165,6 +165,20 @@ export function buildGlEntries(
       sourceType: "purchase",
       sourceId: p.id,
     });
+    // Vendor credits (Phase 4): DR AP / CR Inventory — reduce what's owed and
+    // hand the credited goods value back out of stock.
+    for (const vc of (state.vendorCredits ?? []).filter((v) => v.purchaseId === p.id && v.amount > 0.005)) {
+      entries.push({
+        id: `vendorcredit:${vc.id}`,
+        date: (vc.date || date).slice(0, 10),
+        debitCode: COA.AP.code,
+        creditCode: COA.INVENTORY.code,
+        amount: vc.amount,
+        description: `Vendor credit ${vc.number} — ${p.supplierName}${vc.reason ? ` (${vc.reason})` : ""}`,
+        sourceType: "bill",
+        sourceId: p.id,
+      });
+    }
     const discrete = (state.billPayments ?? []).filter((bp) => bp.purchaseId === p.id && bp.amount > 0.005);
     if (discrete.length > 0) {
       for (const bp of discrete) {

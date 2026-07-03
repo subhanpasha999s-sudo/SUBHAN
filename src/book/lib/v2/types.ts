@@ -83,6 +83,52 @@ export interface Purchase {
   items: { skuCode: string; quantity: number; unitCost: number; gstRate: number }[];
   dueDate?: string;     // for AP aging buckets (§2.8)
   amountPaid?: number;  // running paid total when matched to bank txns
+  /** Phase 4 — total vendor credits applied (reduces AP outstanding, not cash). */
+  amountCredited?: number;
+}
+
+/** One line of a purchase order (same shape as Purchase items). */
+export interface PurchaseOrderItem {
+  skuCode: string;
+  quantity: number;
+  unitCost: number;
+  gstRate: number;
+}
+
+/**
+ * Phase 4 — purchase order. Non-financial until received (a PO is a
+ * commitment, not a liability). "Receive" converts it into a Purchase bill
+ * through the existing addPurchase path (stock IN + weighted-avg COGS + AP),
+ * grossing unit costs up by the allocated landed cost first.
+ */
+export interface PurchaseOrder {
+  id: string;
+  vendorId?: string;
+  supplierName: string;
+  number: string;        // PO-0001
+  date: string;
+  expectedDate?: string;
+  items: PurchaseOrderItem[];
+  /** Freight/duty to allocate onto item costs on receive. */
+  landedCost?: number;
+  landedCostBasis?: "value" | "quantity";
+  status: "open" | "received" | "cancelled";
+  notes?: string;
+  purchaseId?: string;   // set on receive
+}
+
+/**
+ * Phase 4 — vendor credit against a bill (v1 mirrors customer credit notes:
+ * bill-linked, auto-applied, clamped to the unpaid outstanding).
+ * Posts DR Accounts Payable / CR Inventory on ledger sync.
+ */
+export interface VendorCredit {
+  id: string;
+  purchaseId: string;
+  number: string;        // VC-0001
+  amount: number;
+  date: string;
+  reason?: string;
 }
 
 export interface ReturnsQueueItem {
@@ -393,6 +439,8 @@ export interface V2State {
   estimates: Estimate[];
   recurringInvoices: RecurringInvoice[];
   billPayments: BillPayment[];
+  purchaseOrders: PurchaseOrder[];
+  vendorCredits: VendorCredit[];
   importBatches: ImportBatch[];
 }
 

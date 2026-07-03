@@ -8,4 +8,6 @@ export const flags = {
   accountingSetup: true,
   /** Phase 2: contact editing/merge/CSV + stock-adjustment reason codes. */
   contactsPlus: true,
+  /** Phase 4: purchase orders, vendor credits, landed cost. */
+  purchasing: true,
 } as const;
