@@ -72,6 +72,7 @@ export default function CustomersPage() {
       const invoices = state.invoices.filter((i) => i.customerId === c.id);
       const invoiced = invoices.reduce((s, i) => s + i.amount, 0);
       const received = invoices.reduce((s, i) => s + i.amountPaid, 0);
+      const credited = invoices.reduce((s, i) => s + (i.amountCredited ?? 0), 0);
       const dates = invoices.map((i) => i.invoiceDate).sort();
       return {
         id: c.id,
@@ -79,7 +80,7 @@ export default function CustomersPage() {
         invoiceCount: invoices.length,
         invoiced: Math.round(invoiced * 100) / 100,
         received: Math.round(received * 100) / 100,
-        outstanding: Math.round((invoiced - received) * 100) / 100,
+        outstanding: Math.round((invoiced - received - credited) * 100) / 100,
         lastActivity: dates[dates.length - 1] ?? null,
       };
     });
@@ -108,8 +109,12 @@ export default function CustomersPage() {
       const inv = state.invoices.find((i) => i.id === r.invoiceId);
       lines.push({ date: r.date, kind: "receipt", label: `Receipt — ${inv?.number || r.invoiceId}`, debit: 0, credit: r.amount });
     }
+    for (const cn of state.creditNotes ?? []) {
+      if (cn.customerId !== selectedId) continue;
+      lines.push({ date: cn.date, kind: "receipt", label: `Credit note ${cn.number}${cn.reason ? ` — ${cn.reason}` : ""}`, debit: 0, credit: cn.amount });
+    }
     return lines.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "invoice" ? -1 : 1));
-  }, [selectedId, state.invoices, state.receipts]);
+  }, [selectedId, state.invoices, state.receipts, state.creditNotes]);
 
   function addCustomer() {
     const n = name.trim();

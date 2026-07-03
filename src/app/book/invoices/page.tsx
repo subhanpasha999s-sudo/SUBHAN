@@ -64,23 +64,45 @@ export default function InvoicesPage() {
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{fmtDate(inv.invoiceDate)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{fmtDate(inv.dueDate)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatINR(inv.amount)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatINR(inv.amountPaid)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {formatINR(inv.amountPaid)}
+                    {(inv.amountCredited ?? 0) > 0.005 && (
+                      <span className="block text-[11px] text-muted-foreground/80">+ CN {formatINR(inv.amountCredited!)}</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     <Badge tone={inv.status === "paid" ? "success" : inv.status === "partial" ? "warning" : "danger"}>{inv.status}</Badge>
                   </td>
                   {canManage && (
                     <td className="px-3 py-2 text-right">
-                      {inv.status !== "paid" && (
-                        <button
-                          onClick={() => {
-                            const raw = window.prompt(`Record receipt for ${inv.number || inv.id} (outstanding ${formatINR(inv.amount - inv.amountPaid)})`, String(inv.amount - inv.amountPaid));
-                            const amt = raw ? parseFloat(raw) : NaN;
-                            if (amt > 0) actions.recordInvoiceReceipt(inv.id, amt);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
-                          <IndianRupee className="h-3 w-3" /> Receipt
-                        </button>
-                      )}
+                      {inv.status !== "paid" && (() => {
+                        const outstanding = Math.round((inv.amount - inv.amountPaid - (inv.amountCredited ?? 0)) * 100) / 100;
+                        return (
+                          <span className="inline-flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                const raw = window.prompt(`Record receipt for ${inv.number || inv.id} (outstanding ${formatINR(outstanding)})`, String(outstanding));
+                                const amt = raw ? parseFloat(raw) : NaN;
+                                if (amt > 0) actions.recordInvoiceReceipt(inv.id, amt);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                              <IndianRupee className="h-3 w-3" /> Receipt
+                            </button>
+                            <button
+                              onClick={() => {
+                                const raw = window.prompt(`Credit note against ${inv.number || inv.id} (outstanding ${formatINR(outstanding)})`, String(outstanding));
+                                const amt = raw ? parseFloat(raw) : NaN;
+                                if (!(amt > 0)) return;
+                                const reason = window.prompt("Reason (optional)") ?? undefined;
+                                const r = actions.addCreditNote(inv.id, amt, reason);
+                                if (!r.ok && r.message) window.alert(r.message);
+                              }}
+                              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                              Credit
+                            </button>
+                          </span>
+                        );
+                      })()}
                     </td>
                   )}
                 </tr>

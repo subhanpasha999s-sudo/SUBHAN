@@ -36,7 +36,7 @@ import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/l
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
 import {
-  AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, Customer, Invoice, Receipt,
+  AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Invoice, Receipt,
   OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
@@ -126,6 +126,8 @@ export interface V2Actions {
   addCustomer(c: Omit<Customer, "id" | "createdAt">): string;
   addInvoice(i: Omit<Invoice, "id" | "amountPaid" | "status">): string;
   recordInvoiceReceipt(invoiceId: string, amount: number): void;
+  /** Phase 3 — credit note against an invoice (clamped to outstanding, auto-applied). */
+  addCreditNote(invoiceId: string, amount: number, reason?: string): { ok: boolean; message?: string };
   /** Phase 2 (upgrade spec §5.2) — contacts management. */
   updateCustomer(id: string, patch: Partial<Omit<Customer, "id" | "createdAt">>): void;
   mergeCustomers(keepId: string, mergedId: string): { ok: boolean; message?: string };
@@ -571,13 +573,15 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
           if (!cur) return cur;
           const target = cur.invoices.find((i) => i.id === invoiceId);
           if (!target) return cur;
-          // clamp the receipt to the outstanding balance
-          const applied = Math.min(Math.round(amount * 100) / 100, Math.round((target.amount - target.amountPaid) * 100) / 100);
+          // clamp the receipt to the outstanding balance (net of credits)
+          const outstanding = Math.round((target.amount - target.amountPaid - (target.amountCredited ?? 0)) * 100) / 100;
+          const applied = Math.min(Math.round(amount * 100) / 100, outstanding);
           if (applied <= 0) return cur;
           const invoices = cur.invoices.map((inv) => {
             if (inv.id !== invoiceId) return inv;
             const paid = Math.round((inv.amountPaid + applied) * 100) / 100;
-            const status: Invoice["status"] = paid >= inv.amount - 0.005 ? "paid" : paid > 0 ? "partial" : "open";
+            const settled = paid + (inv.amountCredited ?? 0);
+            const status: Invoice["status"] = settled >= inv.amount - 0.005 ? "paid" : settled > 0 ? "partial" : "open";
             return { ...inv, amountPaid: paid, status };
           });
           const receipt: Receipt = { id: uid("rcpt"), invoiceId, amount: applied, date: todayIso().slice(0, 10) };
@@ -587,6 +591,35 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
             audit: [...cur.audit, audit("INVOICE_RECEIPT", "invoice", invoiceId, String(applied))],
           };
         });
+      },
+
+      addCreditNote: (invoiceId, amount, reason) => {
+        guard("manage_invoices");
+        const cur = stateRef.current!;
+        const target = cur.invoices.find((i) => i.id === invoiceId);
+        if (!target) return { ok: false, message: "Invoice not found." };
+        const outstanding = Math.round((target.amount - target.amountPaid - (target.amountCredited ?? 0)) * 100) / 100;
+        const applied = Math.min(Math.round(amount * 100) / 100, outstanding);
+        if (applied <= 0) return { ok: false, message: "Nothing outstanding to credit." };
+        const cn: CreditNote = {
+          id: uid("cn"), customerId: target.customerId, invoiceId,
+          number: `CN-${String((cur.creditNotes ?? []).length + 1).padStart(4, "0")}`,
+          amount: applied, date: todayIso().slice(0, 10), reason: reason || undefined,
+          status: "applied",
+        };
+        setState((s) => s && {
+          ...s,
+          invoices: s.invoices.map((inv) => {
+            if (inv.id !== invoiceId) return inv;
+            const credited = Math.round(((inv.amountCredited ?? 0) + applied) * 100) / 100;
+            const settled = inv.amountPaid + credited;
+            const status: Invoice["status"] = settled >= inv.amount - 0.005 ? "paid" : settled > 0 ? "partial" : "open";
+            return { ...inv, amountCredited: credited, status };
+          }),
+          creditNotes: [...(s.creditNotes ?? []), cn],
+          audit: [...s.audit, audit("CREDIT_NOTE", "invoice", invoiceId, `${cn.number} ₹${applied}${reason ? ` — ${reason}` : ""}`)],
+        });
+        return { ok: true };
       },
 
       updateCustomer: (id, patch) => {

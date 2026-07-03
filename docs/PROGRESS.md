@@ -56,6 +56,24 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Suite: 67 tests green. Deliberate cut: committed-vs-available stock deferred
   (Book doesn't track dispatch state; noted in GAP_ANALYSIS).
 
+## Phase 3 (slice 1) — Credit notes + complete back-fill (2026-07-03) ✅
+- CreditNote document (v1: invoice-linked, auto-applied, clamped to
+  outstanding; standalone credits + cash refunds deferred, logged in
+  GAP_ANALYSIS). Invoice gains amountCredited; status/settlement math and
+  receipt clamping are credit-aware everywhere (store, AR aging, customer
+  balances, invoices UI).
+- addCreditNote store action (guarded, audited, CN-#### numbering).
+- Ledger: credit notes post DR Sales / CR AR via collectDocumentPostings —
+  "Sync from activity" is now the complete idempotent back-fill (derived GL +
+  invoices + receipts + credit notes), fulfilling spec §6 migration duty.
+- UI: Credit action on invoices (amount + reason prompts, "+ CN ₹x" under
+  Paid); customer statements list credit notes with running balance.
+- Browser-verified: invoice 1000 → receipt 300 (AR 700, partial) → CN 200
+  (AR 500, "+ CN" shown) → CN 500 (AR 0, paid, actions gone); statement runs
+  1000→700→500→0 "Settled"; blob holds CN-0001/CN-0002 with reasons.
+- Suite: 68 tests green. Remaining Phase 3: estimates→invoice, recurring
+  invoices, payment reminders, PDF templates.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

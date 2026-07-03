@@ -205,10 +205,29 @@ export interface Invoice {
   number: string;
   amount: number;
   amountPaid: number;
+  /** Phase 3 — total credited via credit notes (reduces outstanding, not cash). */
+  amountCredited?: number;
   invoiceDate: string;
   dueDate: string;
   status: "open" | "partial" | "paid";
   notes?: string;
+}
+
+/**
+ * Phase 3 — credit note against an invoice (v1: always invoice-linked and
+ * auto-applied, clamped to the outstanding balance; standalone customer
+ * credits and cash refunds are deferred — see GAP_ANALYSIS).
+ * Posts DR Sales / CR Accounts Receivable on ledger sync.
+ */
+export interface CreditNote {
+  id: string;
+  customerId: string;
+  invoiceId: string;
+  number: string;       // CN-0001
+  amount: number;
+  date: string;
+  reason?: string;
+  status: "applied";
 }
 
 /** A payment received against an invoice (discrete, so it posts idempotently). */
@@ -334,6 +353,7 @@ export interface V2State {
   customers: Customer[];
   invoices: Invoice[];
   receipts: Receipt[];
+  creditNotes: CreditNote[];
   billPayments: BillPayment[];
   importBatches: ImportBatch[];
 }

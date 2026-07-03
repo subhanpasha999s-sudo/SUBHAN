@@ -47,6 +47,7 @@ export function buildEmptyState(): V2State {
     customers: [],
     invoices: [],
     receipts: [],
+    creditNotes: [],
     billPayments: [],
     importBatches: [],
   };

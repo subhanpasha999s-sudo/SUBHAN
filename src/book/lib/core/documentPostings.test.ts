@@ -47,6 +47,22 @@ describe("documentPostings", () => {
     expect(agingTotal(rows)).toBe(1100);
   });
 
+  it("credit notes post DR Sales / CR AR and reduce aging outstanding", () => {
+    const withCn: V2State = {
+      ...s,
+      invoices: s.invoices.map((i) => (i.id === "INV1" ? { ...i, amountCredited: 100 } : i)),
+      creditNotes: [{ id: "CN1", customerId: "C1", invoiceId: "INV1", number: "CN-0001", amount: 100, date: "2026-06-20", status: "applied" }],
+    };
+    const entries = collectDocumentPostings(withCn);
+    const cn = entries.find((e) => e.externalId === "creditnote:CN1")!;
+    expect(cn).toBeTruthy();
+    expect(cn.lines.find((l) => (l.debit ?? 0) > 0)!.accountCode).toBe("4000");  // Sales
+    expect(cn.lines.find((l) => (l.credit ?? 0) > 0)!.accountCode).toBe("1100"); // AR
+    expect(() => assertValidEntry(cn)).not.toThrow();
+    // INV1 outstanding drops 600 -> 500; total 1100 -> 1000
+    expect(agingTotal(arAgingFromState(withCn, "2026-08-01"))).toBe(1000);
+  });
+
   it("AP aging excludes paid bills", () => {
     const rows = apAgingFromState(s, "2026-08-01");
     // P1 3000 outstanding, P2 paid => 3000

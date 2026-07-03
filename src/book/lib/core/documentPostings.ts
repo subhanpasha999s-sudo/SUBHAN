@@ -7,11 +7,16 @@
  * stored ledger is complete; AR/AP aging read straight from state.
  */
 import type { V2State } from "../v2/types";
-import { invoicePosting, receiptPosting } from "./postings";
+import { creditNotePosting, invoicePosting, receiptPosting } from "./postings";
 import { aging, type AgingRow } from "./aging";
 import type { JournalEntryInput } from "./journal";
 
-/** Postings for documents not covered by the derived GL: invoices (AR) + receipts. */
+/**
+ * Postings for documents not covered by the derived GL: invoices (AR),
+ * receipts, and credit notes. Together with the derived-GL port this is the
+ * complete back-fill — running the Ledger "Sync from activity" posts every
+ * financial event in the org's history, idempotently.
+ */
 export function collectDocumentPostings(state: V2State): JournalEntryInput[] {
   const out: JournalEntryInput[] = [];
   for (const inv of state.invoices) {
@@ -24,13 +29,21 @@ export function collectDocumentPostings(state: V2State): JournalEntryInput[] {
       out.push(receiptPosting({ id: r.id, date: r.date, amount: r.amount, reference: r.reference }));
     }
   }
+  for (const cn of state.creditNotes ?? []) {
+    if (cn.amount > 0.005) {
+      out.push(creditNotePosting({ id: cn.id, date: cn.date, amount: cn.amount, reason: cn.reason }));
+    }
+  }
   return out;
 }
 
-/** Receivables aging — outstanding = invoice amount − amount paid. */
+/** Receivables aging — outstanding = invoice amount − paid − credited. */
 export function arAgingFromState(state: V2State, asOf: string): AgingRow[] {
   return aging(
-    state.invoices.map((i) => ({ dueDate: i.dueDate || i.invoiceDate, outstanding: i.amount - (i.amountPaid ?? 0) })),
+    state.invoices.map((i) => ({
+      dueDate: i.dueDate || i.invoiceDate,
+      outstanding: i.amount - (i.amountPaid ?? 0) - (i.amountCredited ?? 0),
+    })),
     asOf,
   );
 }
