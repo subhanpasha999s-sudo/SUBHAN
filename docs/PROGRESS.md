@@ -193,6 +193,25 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Deferred: cross-month return credit notes in GSTR-1, e-invoicing (IRN/QR)
   provider interface, composition scheme (operator: regular only).
 
+## Phase 8 — Meesho settlement 2.0 (2026-07-04) ✅
+- core/settlementHealth.ts (pure, 8 tests): detectSettlementExceptions
+  (MISSING_SETTLEMENT past grace, NEGATIVE_ON_DELIVERED, LOW_REALIZATION vs
+  customer price, UNMATCHED_PAYOUT) with configurable thresholds + a "why"
+  detail on each; openExceptions (applies resolutions); deductionBreakdown
+  (per-month gross-in / return-charges / platform-fees / claims / recovery /
+  TCS / TDS / net, payment-date basis). OBSERVES only — GL posting rules
+  untouched (MEESHO_RULES §4 golden master intact).
+- Store: settlementResolutions state + resolve/reopen actions (guarded
+  mark_disputed, audited).
+- /book/reconciliation (flag settlement2): exceptions queue with resolve/
+  ignore + at-stake total + order drill-links, and a 6-month deduction
+  breakdown table.
+- Browser-verified: injected 3 fixtures → all three exception kinds fired
+  (open 3, at-stake shown), deduction table rendered; Resolve persisted
+  (settlementResolutions + audit SETTLEMENT_EXC), open 3→2. Suite: 115 tests.
+- Deferred: per-deduction-type SEPARATE ledger accounts (would change golden
+  GL — needs operator sign-off); ad-spend allocation into per-order profit.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

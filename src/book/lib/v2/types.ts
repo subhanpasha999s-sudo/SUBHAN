@@ -442,7 +442,18 @@ export interface V2State {
   billPayments: BillPayment[];
   purchaseOrders: PurchaseOrder[];
   vendorCredits: VendorCredit[];
+  /** Phase 8 — resolutions for settlement-exception keys (settlement 2.0). */
+  settlementResolutions: SettlementResolution[];
   importBatches: ImportBatch[];
+}
+
+/** Phase 8 — a user's decision on one settlement exception. */
+export interface SettlementResolution {
+  key: string;
+  action: "resolved" | "ignored";
+  note?: string;
+  at: string;
+  by: string;
 }
 
 export interface AppNotification {

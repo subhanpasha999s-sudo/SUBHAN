@@ -12,4 +12,6 @@ export const flags = {
   purchasing: true,
   /** Phase 7: India GST pack — GSTR-1 B2C, HSN, GSTR-3B, TCS/TDS ledger. */
   gstPack: true,
+  /** Phase 8: Meesho settlement 2.0 — exceptions queue + deduction breakdown. */
+  settlement2: true,
 } as const;

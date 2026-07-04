@@ -53,6 +53,7 @@ export function buildEmptyState(): V2State {
     billPayments: [],
     purchaseOrders: [],
     vendorCredits: [],
+    settlementResolutions: [],
     importBatches: [],
   };
 }

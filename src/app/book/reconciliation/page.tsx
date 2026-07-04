@@ -9,10 +9,20 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, FileQuestion, Landmark, Link2 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
-import { bankReconciliation, reconciliationState } from "@/book/lib/v2/derived";
+import { bankReconciliation, reconciliationState, reconcileAll } from "@/book/lib/v2/derived";
 import { ClassBadge, Guard, PageHeader } from "@/book/components/v2/common";
-import { Badge, Card, StatCard, cn } from "@/book/components/ui";
+import { Badge, Button, Card, StatCard, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
+import { canDo } from "@/book/lib/v2/rbac";
+import { flags } from "@/book/lib/flags";
+import { detectSettlementExceptions, openExceptions, deductionBreakdown } from "@/book/lib/core/settlementHealth";
+
+const EXC_LABEL: Record<string, string> = {
+  MISSING_SETTLEMENT: "Missing settlement",
+  NEGATIVE_ON_DELIVERED: "Negative on delivered",
+  LOW_REALIZATION: "Low realization",
+  UNMATCHED_PAYOUT: "Unmatched payout",
+};
 
 const monthName = (m: string) => {
   if (!/^\d{4}-\d{2}$/.test(m)) return m;
@@ -20,11 +30,18 @@ const monthName = (m: string) => {
 };
 
 export default function ReconciliationPage() {
-  const { state } = useV2();
+  const { state, actions, me } = useV2();
   const r = useMemo(() => reconciliationState(state), [state]);
   const bank = useMemo(() => bankReconciliation(state), [state]);
   const totalOrders = r.matched + r.awaiting + r.closed;
   const staleCount = r.awaitingRows.filter((a) => a.stale).length;
+  const canResolve = canDo(me.role, "mark_disputed");
+
+  const reconciled = useMemo(() => reconcileAll(state), [state]);
+  const allExceptions = useMemo(() => (flags.settlement2 ? detectSettlementExceptions(reconciled) : []), [reconciled]);
+  const { open: openExc } = useMemo(() => openExceptions(allExceptions, state.settlementResolutions ?? []), [allExceptions, state.settlementResolutions]);
+  const excAtStake = useMemo(() => openExc.reduce((s, e) => s + e.amount, 0), [openExc]);
+  const deductions = useMemo(() => (flags.settlement2 ? deductionBreakdown(reconciled).slice(-6) : []), [reconciled]);
 
   return (
     <Guard section="reconciliation">
@@ -178,6 +195,76 @@ export default function ReconciliationPage() {
           <p className="px-4 py-2 text-xs text-muted-foreground">Awaiting means a sale or compensation payment is expected. RTO/return orders without payment rows stay closed unless Meesho posts a deduction later.</p>
         </Card>
       </div>
+
+      {flags.settlement2 && (
+        <>
+          {/* Settlement 2.0 — exceptions queue */}
+          <Card className="mt-6 overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <span className="font-semibold">Settlement exceptions</span>
+              <Badge tone={openExc.length ? "warning" : "success"}>{openExc.length} open</Badge>
+              {excAtStake > 0 && <span className="ml-auto text-xs text-muted-foreground">{formatINR(excAtStake)} at stake</span>}
+            </div>
+            <div className="divide-y divide-border text-sm">
+              {openExc.slice(0, 100).map((e) => (
+                <div key={e.key} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                  <Badge tone={e.kind === "MISSING_SETTLEMENT" || e.kind === "NEGATIVE_ON_DELIVERED" ? "danger" : "warning"}>{EXC_LABEL[e.kind]}</Badge>
+                  <Link href={`/book/orders/${encodeURIComponent(e.subOrderNo)}`} className="font-mono text-xs text-primary hover:underline">{e.subOrderNo}</Link>
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{e.detail}</span>
+                  <span className="tabular-nums font-medium">{formatINR(e.amount)}</span>
+                  {canResolve && (
+                    <span className="flex gap-1">
+                      <button onClick={() => actions.resolveSettlementException(e.key, "resolved")} className="rounded-md border border-border px-2 py-0.5 text-xs hover:bg-muted">Resolve</button>
+                      <button onClick={() => actions.resolveSettlementException(e.key, "ignored")} className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted">Ignore</button>
+                    </span>
+                  )}
+                </div>
+              ))}
+              {openExc.length === 0 && (
+                <p className="flex items-center justify-center gap-2 px-4 py-8 text-center text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-success" /> No open settlement exceptions.</p>
+              )}
+            </div>
+          </Card>
+
+          {/* Deduction breakdown by month */}
+          {deductions.length > 0 && (
+            <Card className="mt-6 overflow-hidden">
+              <div className="border-b border-border px-4 py-3 font-semibold">Deduction breakdown — last {deductions.length} months</div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="px-3 py-2">Month</th>
+                      <th className="px-3 py-2 text-right">Gross in</th>
+                      <th className="px-3 py-2 text-right">Return charges</th>
+                      <th className="px-3 py-2 text-right">Platform fees</th>
+                      <th className="px-3 py-2 text-right">Claims</th>
+                      <th className="px-3 py-2 text-right">TCS</th>
+                      <th className="px-3 py-2 text-right">TDS</th>
+                      <th className="px-3 py-2 text-right">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deductions.map((d) => (
+                      <tr key={d.month} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2 font-medium">{d.month}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-success">{formatINR(d.grossIn)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-danger">−{formatINR(d.returnCharges)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-danger">−{formatINR(d.platformFees)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatINR(d.claimsIncome)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatINR(d.tcs)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatINR(d.tds)}</td>
+                        <td className={cn("px-3 py-2 text-right tabular-nums font-semibold", d.net < 0 && "text-danger")}>{formatINR(d.net)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
     </Guard>
   );
 }

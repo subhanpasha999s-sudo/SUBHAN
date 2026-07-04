@@ -160,6 +160,9 @@ export interface V2Actions {
   deleteExpense(id: string): void;
   importBankTxns(txns: Omit<StoredBankTxn, "id" | "status">[]): void;
   categorizeBankTxn(id: string, category: string | null): void; // null = ignore
+  /** Phase 8 — resolve or ignore a settlement exception (settlement 2.0). */
+  resolveSettlementException(key: string, action: "resolved" | "ignored", note?: string): void;
+  reopenSettlementException(key: string): void;
   /** Phase 5 — bank matching (reconcile a line without double-booking cash). */
   matchBankToInvoice(txnId: string, invoiceId: string): { ok: boolean; message?: string };
   matchBankToBill(txnId: string, purchaseId: string): { ok: boolean; message?: string };
@@ -1055,6 +1058,27 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
               ? cur.categoryHints
               : [...cur.categoryHints, hint],
           };
+        });
+      },
+
+      resolveSettlementException: (key, action, note) => {
+        guard("mark_disputed");
+        setState((s) => s && {
+          ...s,
+          settlementResolutions: [
+            ...(s.settlementResolutions ?? []).filter((r) => r.key !== key),
+            { key, action, note, at: new Date().toISOString(), by: me.id },
+          ],
+          audit: [...s.audit, audit("SETTLEMENT_EXC", "exception", key, `${action}${note ? ` — ${note}` : ""}`)],
+        });
+      },
+
+      reopenSettlementException: (key) => {
+        guard("mark_disputed");
+        setState((s) => s && {
+          ...s,
+          settlementResolutions: (s.settlementResolutions ?? []).filter((r) => r.key !== key),
+          audit: [...s.audit, audit("SETTLEMENT_EXC_REOPEN", "exception", key)],
         });
       },
 
