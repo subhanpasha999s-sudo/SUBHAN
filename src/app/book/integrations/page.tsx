@@ -19,6 +19,8 @@ import { decodeMeeshoFile } from "@/book/lib/files";
 import { deriveMonthLabel } from "@/book/lib/monthLabel";
 import { formatINR } from "@/book/lib/engine";
 import { PaymentImportResult } from "@/book/lib/v2/store";
+import { flags } from "@/book/lib/flags";
+import { MARKETPLACE_PACKS } from "@/book/lib/core/marketplacePack";
 
 async function hashFile(f: File): Promise<string> {
   const buf = await f.arrayBuffer();
@@ -96,6 +98,8 @@ export default function IntegrationsPage() {
   return (
     <Guard section="integrations">
       <PageHeader title="Upload data" sub="Connect Meesho by forwarding or dropping your reports — we detect the file type and month automatically." />
+
+      {flags.marketplacePacks && <MarketplacesCard />}
 
       {/* Connection status card */}
       <Card className="mb-6 flex flex-wrap items-center gap-4 p-5">
@@ -277,5 +281,35 @@ export default function IntegrationsPage() {
         </div>
       </Card>
     </Guard>
+  );
+}
+
+/** Marketplace pack framework (§7.6) — Meesho live; Flipkart/Amazon planned. */
+function MarketplacesCard() {
+  return (
+    <Card className="mb-6 overflow-hidden">
+      <div className="border-b border-border px-4 py-3">
+        <span className="font-semibold">Marketplaces</span>
+        <span className="ml-2 text-xs text-muted-foreground">Meesho is live · more channels plug in via the same reconciliation pipeline</span>
+      </div>
+      <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
+        {MARKETPLACE_PACKS.map((p) => (
+          <div key={p.id} className={cn("bg-card p-4", p.status === "planned" && "opacity-70")}>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{p.label}</span>
+              <Badge tone={p.status === "live" ? "success" : "default"}>{p.status === "live" ? "Live" : "Planned"}</Badge>
+            </div>
+            <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+              {p.fileFormats.map((f) => <li key={f}>· {f}</li>)}
+            </ul>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {p.deductionTaxonomy.slice(0, 6).map((d) => (
+                <span key={d.code} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{d.label}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }

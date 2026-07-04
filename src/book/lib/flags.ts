@@ -14,4 +14,6 @@ export const flags = {
   gstPack: true,
   /** Phase 8: Meesho settlement 2.0 — exceptions queue + deduction breakdown. */
   settlement2: true,
+  /** Phase 9: marketplace pack framework (Meesho live; Flipkart/Amazon planned). */
+  marketplacePacks: true,
 } as const;

@@ -212,6 +212,26 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Deferred: per-deduction-type SEPARATE ledger accounts (would change golden
   GL — needs operator sign-off); ad-spend allocation into per-order profit.
 
+## Phase 9 — Marketplace pack framework (2026-07-04) ✅
+- core/marketplacePack.ts (5 tests): MarketplacePack interface (file formats,
+  deduction taxonomy, capability flags incl. multiAccount, pure parsers).
+  MEESHO_PACK = pack #1, a NON-INVASIVE wrapper over the existing engine
+  parsers (parseOrderRows/parsePaymentRows) — zero behavior change, golden
+  master intact. FLIPKART_PACK + AMAZON_PACK scaffolded as "planned" with
+  their deduction taxonomies (operator order Meesho→Flipkart→Amazon).
+  Registry (MARKETPLACE_PACKS/getPack/livePacks) + packParseOrders/Payments
+  that throw PackNotLiveError for planned packs.
+- /book/integrations (flag marketplacePacks): Marketplaces card — Meesho Live,
+  Flipkart/Amazon Planned, with file formats + taxonomy chips per pack.
+- Browser-verified: card renders all three packs with correct Live/Planned
+  badges and taxonomies. Tests prove Meesho pack delegates to the real
+  parsers (400.50 settlement, legend row skipped) and planned packs refuse.
+  Suite: 120 tests green.
+- Note: §7.4 per-order/SKU profitability + §7.5 seller dashboard already
+  shipped (orderPnlRows/productPnlRows, dashboard/analytics) — this phase
+  delivered the §7.6 framework. Deferred: full multi-account UI, ad-spend
+  per-order allocation, column-mapping fallback UI (§7.7).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
