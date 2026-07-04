@@ -10,4 +10,6 @@ export const flags = {
   contactsPlus: true,
   /** Phase 4: purchase orders, vendor credits, landed cost. */
   purchasing: true,
+  /** Phase 7: India GST pack — GSTR-1 B2C, HSN, GSTR-3B, TCS/TDS ledger. */
+  gstPack: true,
 } as const;

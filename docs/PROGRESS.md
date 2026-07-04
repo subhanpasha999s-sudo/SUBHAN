@@ -174,6 +174,25 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Deferred: scheduled email delivery, saved report customizations, accrual/cash
   toggle on every report.
 
+## Phase 7 — India GST pack (2026-07-04) ✅
+- core/gstPack.ts (pure, 8 tests): GST state-code reference map with fuzzy
+  normalization + aliases; placeOfSupply (org vs buyer state; unknown buyer →
+  inter-state "OT", unset org → conservative inter-state); splitByPlace
+  (CGST/SGST halves incl. odd-paise, IGST inter); gstr1B2C (net B2C table by
+  POS × rate, returns subtract); hsnSummary (GSTR-1 table 12); gstr3b
+  (3.1(a) outward + IGST/CGST/SGST + ITC + GST-TCS credit, floor-0 payable);
+  tcsTdsLedger (monthly + cumulative marketplace withholdings, payment-date
+  basis). No statutory rate hardcoded — rates ride on items.
+- /book/gst page (flag gstPack): GSTR-3B stat row, GSTR-1 B2C POS table, HSN
+  summary, TCS/TDS credit ledger; GSTR export workbook gains GSTR-1 B2C /
+  HSN / GSTR-3B / TCS-TDS sheets. Same month + classification basis as the
+  existing working summary so totals reconcile with outputGst.
+- Verification note: preview tooling was unavailable this session — tax math
+  is fully unit-tested (the right instrument); the page additions are
+  typechecked + linted but not click-tested yet. Suite: 107 tests green.
+- Deferred: cross-month return credit notes in GSTR-1, e-invoicing (IRN/QR)
+  provider interface, composition scheme (operator: regular only).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
