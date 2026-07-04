@@ -40,7 +40,7 @@ import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookState
 import {
   AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Estimate, Invoice,
   Receipt, RecurringInvoice, PurchaseOrder, VendorCredit,
-  OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
+  Org, OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
 
@@ -175,6 +175,10 @@ export interface V2Actions {
   printLabels(items: { skuCode: string; count: number }[]): void;
   inviteUser(u: Omit<OrgUser, "id" | "active">): void;
   setSettleAfterDays(days: number): void;
+  /** Phase 10 — edit org profile (name/GSTIN/state drive numbering & GST place-of-supply). */
+  updateOrg(patch: Partial<Pick<Org, "name" | "gstin" | "state">>): void;
+  /** Phase 10 — replace all Book data from a validated backup envelope. */
+  restoreBackup(state: V2State): void;
   /** V3: map a listing SKU (retroactively rebuilds affected inventory ledger). */
   mapSku(entry: SkuMapEntry): void;
   /** Map many listing SKUs in one rebuild (fast bulk auto-map). */
@@ -1215,6 +1219,27 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
 
       setSettleAfterDays: (days) => {
         setState((cur) => cur && { ...cur, org: { ...cur.org, settleAfterDays: days } });
+      },
+
+      updateOrg: (patch) => {
+        guard("manage_team");
+        setState((cur) => cur && {
+          ...cur,
+          org: { ...cur.org, ...patch },
+          audit: [...cur.audit, audit("ORG_EDIT", "org", cur.org.name, JSON.stringify(patch))],
+        });
+      },
+
+      restoreBackup: (next) => {
+        guard("manage_team");
+        // Full replace — the caller has already validated the envelope
+        // (core/backup.parseBackup) and confirmed with the user.
+        setState((cur) => ({
+          ...next,
+          // keep the current signed-in user pointer if the restore lacks it
+          currentUserId: next.currentUserId || cur?.currentUserId || next.users?.[0]?.id || "u-owner",
+          audit: [...(next.audit ?? []), audit("BACKUP_RESTORE", "data", "all", `restored ${next.orders?.length ?? 0} orders`)],
+        }));
       },
 
       mapSku: (entry) => {

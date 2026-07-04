@@ -16,4 +16,6 @@ export const flags = {
   settlement2: true,
   /** Phase 9: marketplace pack framework (Meesho live; Flipkart/Amazon planned). */
   marketplacePacks: true,
+  /** Phase 10: org profile editing + full-organization backup/restore. */
+  orgSettings: true,
 } as const;

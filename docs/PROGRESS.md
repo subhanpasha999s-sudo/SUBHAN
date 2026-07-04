@@ -232,6 +232,22 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   delivered the §7.6 framework. Deferred: full multi-account UI, ad-spend
   per-order allocation, column-mapping fallback UI (§7.7).
 
+## Phase 10 (slice 1) — Org settings + full-org backup/restore (2026-07-04) ✅
+- core/backup.ts (7 tests): versioned envelope (format/version/exportedAt),
+  serializeBackup, parseBackup (never throws; rejects non-JSON, foreign files,
+  newer-version, missing required keys; flags older versions),
+  backupRecordCount for the replace confirmation.
+- Store: updateOrg (name/GSTIN/state — state closes the GST place-of-supply
+  loop from Phase 7) + restoreBackup (full replace after validated+confirmed).
+- /book/team (flag orgSettings): Organization card — editable profile with a
+  GST-state datalist, Export backup (downloads versioned JSON), Restore backup
+  (validates → record-count confirm → replace).
+- Browser-verified: set org state Karnataka → saved (audit ORG_EDIT); Export
+  produced a valid tulmin-book-backup v1 envelope. Restore validation
+  unit-tested. Suite: 127 tests green.
+- Remaining Phase 10: workflow rules, custom fields, public REST API +
+  webhooks (API needs server routes — separate slice).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
