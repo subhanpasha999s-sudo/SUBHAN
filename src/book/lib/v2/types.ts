@@ -10,6 +10,7 @@ import {
   PaymentEvent,
   SkuMapEntry,
 } from "@/book/lib/engine";
+import type { CustomFieldDef } from "@/book/lib/core/customFields";
 
 export type Role = "owner" | "manager" | "returns_manager" | "accountant" | "viewer";
 
@@ -243,6 +244,8 @@ export interface Customer {
   notes?: string;
   defaultCoaCode?: string;
   createdFromTxnId?: string;
+  /** Phase 10 — user-defined field values, keyed by CustomFieldDef.id. */
+  customFields?: Record<string, string>;
   createdAt: string;
 }
 
@@ -444,6 +447,8 @@ export interface V2State {
   vendorCredits: VendorCredit[];
   /** Phase 8 — resolutions for settlement-exception keys (settlement 2.0). */
   settlementResolutions: SettlementResolution[];
+  /** Phase 10 — user-defined custom field definitions across entities. */
+  customFieldDefs: CustomFieldDef[];
   importBatches: ImportBatch[];
 }
 

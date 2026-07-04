@@ -18,4 +18,6 @@ export const flags = {
   marketplacePacks: true,
   /** Phase 10: org profile editing + full-organization backup/restore. */
   orgSettings: true,
+  /** Phase 10: user-defined custom fields on core entities. */
+  customFields: true,
 } as const;

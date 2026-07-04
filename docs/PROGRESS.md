@@ -248,6 +248,23 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Remaining Phase 10: workflow rules, custom fields, public REST API +
   webhooks (API needs server routes — separate slice).
 
+## Phase 10 (slice 2) — Custom fields (2026-07-04) ✅
+- core/customFields.ts (7 tests): CustomFieldDef (text/number/date/select/
+  checkbox, per entity); validateFieldValue (empty clears; number strips
+  commas/rejects non-numeric; date requires ISO; select must be an option;
+  checkbox normalizes truthy strings); formatFieldValue; fieldsForEntity +
+  customFieldHeaders for CSV.
+- State: customFieldDefs[] + Customer.customFields. Store: addCustomFieldDef /
+  deleteCustomFieldDef (manage_team) + setCustomerCustomField (validated).
+- UI: Custom fields manager in /book/team settings (add label/entity/type/
+  options, list, remove); editable custom-field card on the customer statement
+  (flag customFields).
+- Browser-verified: defined "Loyalty tier" select (Gold/Silver/Bronze) →
+  appeared on a customer → set Gold → persisted to customFields; audit
+  CUSTOM_FIELD_ADD. Suite: 134 tests green.
+- Remaining Phase 10: workflow rules; public REST API + webhooks (needs server
+  routes — separate slice from the client-blob model).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

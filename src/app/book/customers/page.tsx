@@ -13,6 +13,7 @@ import { Badge, Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
 import { canDo } from "@/book/lib/v2/rbac";
 import { flags } from "@/book/lib/flags";
+import { fieldsForEntity, validateFieldValue } from "@/book/lib/core/customFields";
 import { customersToCsv, recordsToContactRows } from "@/book/lib/core/contacts";
 import type { Customer } from "@/book/lib/v2/types";
 
@@ -214,6 +215,8 @@ export default function CustomersPage() {
         </div>
       </Card>
 
+      {selected && flags.customFields && <CustomerCustomFields customerId={selected.id} canEdit={canManage} />}
+
       {selected && (
         <Card className="mt-6 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -342,5 +345,50 @@ function CustomerEditor({ customer, others, onSave, onMerge }: {
         )}
       </div>
     </div>
+  );
+}
+
+/** Editable custom fields for the selected customer (Phase 10). */
+function CustomerCustomFields({ customerId, canEdit }: { customerId: string; canEdit: boolean }) {
+  const { state, actions } = useV2();
+  const defs = fieldsForEntity(state.customFieldDefs ?? [], "customer");
+  if (defs.length === 0) return null;
+  const customer = state.customers.find((c) => c.id === customerId);
+  const values = customer?.customFields ?? {};
+  const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+
+  function save(fieldId: string, raw: string) {
+    const def = defs.find((d) => d.id === fieldId)!;
+    const res = validateFieldValue(def, raw);
+    if (!res.ok) { window.alert(res.message); return; }
+    actions.setCustomerCustomField(customerId, fieldId, res.value);
+  }
+
+  return (
+    <Card className="mt-6 overflow-hidden">
+      <div className="border-b border-border px-4 py-3 font-semibold">Custom fields</div>
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+        {defs.map((d) => (
+          <label key={d.id} className="space-y-1 text-xs">
+            <span className="text-muted-foreground">{d.label}</span>
+            {d.type === "select" ? (
+              <select className={input} defaultValue={values[d.id] ?? ""} disabled={!canEdit} onChange={(e) => save(d.id, e.target.value)}>
+                <option value="">—</option>
+                {(d.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : d.type === "checkbox" ? (
+              <div className="pt-1">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--primary)]" defaultChecked={values[d.id] === "true"} disabled={!canEdit}
+                  onChange={(e) => save(d.id, e.target.checked ? "true" : "false")} />
+              </div>
+            ) : (
+              <input className={input} type={d.type === "date" ? "date" : d.type === "number" ? "text" : "text"}
+                defaultValue={values[d.id] ?? ""} disabled={!canEdit}
+                onBlur={(e) => e.target.value !== (values[d.id] ?? "") && save(d.id, e.target.value)} />
+            )}
+          </label>
+        ))}
+      </div>
+    </Card>
   );
 }

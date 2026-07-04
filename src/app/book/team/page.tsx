@@ -10,6 +10,7 @@ import { Role } from "@/book/lib/v2/types";
 import { flags } from "@/book/lib/flags";
 import { serializeBackup, parseBackup, backupRecordCount } from "@/book/lib/core/backup";
 import { GST_STATE_CODES } from "@/book/lib/core/gstPack";
+import { CUSTOM_FIELD_ENTITIES, type CustomFieldType, type CustomFieldEntity } from "@/book/lib/core/customFields";
 
 const ROLE_DESC: Record<Role, string> = {
   owner: "Everything, incl. team & financials",
@@ -44,6 +45,7 @@ export default function TeamPage() {
       <PageHeader title="Team & settings" sub={state.org.name} />
 
       {flags.orgSettings && <OrgSettingsCard />}
+      {flags.customFields && <CustomFieldsCard />}
 
       <Card className="mb-6 p-5">
         <h3 className="mb-3 flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Invite a teammate</h3>
@@ -99,6 +101,57 @@ export default function TeamPage() {
         </Card>
       </div>
     </Guard>
+  );
+}
+
+/** Custom-field definitions manager (Phase 10). */
+function CustomFieldsCard() {
+  const { state, actions } = useV2();
+  const [label, setLabel] = useState("");
+  const [entity, setEntity] = useState<CustomFieldEntity>("customer");
+  const [type, setType] = useState<CustomFieldType>("text");
+  const [options, setOptions] = useState("");
+  const input = "rounded-xl border border-border bg-card px-3 py-2 text-sm";
+  const defs = state.customFieldDefs ?? [];
+
+  function add() {
+    if (!label.trim()) return;
+    actions.addCustomFieldDef({
+      entity, label: label.trim(), type,
+      options: type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
+    });
+    setLabel(""); setOptions("");
+  }
+
+  return (
+    <Card className="mb-6 p-5">
+      <h3 className="mb-3 font-semibold">Custom fields</h3>
+      <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+        <input className={input} placeholder="Field label (e.g. Loyalty tier)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <select className={input} value={entity} onChange={(e) => setEntity(e.target.value as CustomFieldEntity)}>
+          {CUSTOM_FIELD_ENTITIES.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+        </select>
+        <select className={input} value={type} onChange={(e) => setType(e.target.value as CustomFieldType)}>
+          {(["text", "number", "date", "select", "checkbox"] as CustomFieldType[]).map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <Button onClick={add} disabled={!label.trim() || (type === "select" && !options.trim())}>Add field</Button>
+      </div>
+      {type === "select" && (
+        <input className={`${input} mt-2 w-full`} placeholder="Options, comma-separated (e.g. Gold, Silver, Bronze)" value={options} onChange={(e) => setOptions(e.target.value)} />
+      )}
+      {defs.length > 0 && (
+        <div className="mt-3 divide-y divide-border text-sm">
+          {defs.map((d) => (
+            <div key={d.id} className="flex items-center gap-2 py-1.5">
+              <span className="font-medium">{d.label}</span>
+              <Badge tone="default">{CUSTOM_FIELD_ENTITIES.find((e) => e.id === d.entity)?.label}</Badge>
+              <span className="text-xs text-muted-foreground">{d.type}{d.options ? ` · ${d.options.join("/")}` : ""}</span>
+              <button onClick={() => actions.deleteCustomFieldDef(d.id)} className="ml-auto text-xs text-muted-foreground hover:text-danger">Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

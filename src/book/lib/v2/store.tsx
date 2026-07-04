@@ -34,6 +34,7 @@ import {
 import { canDo } from "./rbac";
 import { dedupeByName, mergeCustomerRecords, type ContactCsvRow } from "@/book/lib/core/contacts";
 import { computeDueRuns, firstRunDate, daysOverdue, invoiceOutstanding, shouldRemind } from "@/book/lib/core/salesDocs";
+import type { CustomFieldDef } from "@/book/lib/core/customFields";
 import { allocateLandedCost, receivedBillTotals } from "@/book/lib/core/purchaseDocs";
 import { buildEmptyState } from "./emptyState";
 import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookStateRemote";
@@ -179,6 +180,10 @@ export interface V2Actions {
   updateOrg(patch: Partial<Pick<Org, "name" | "gstin" | "state">>): void;
   /** Phase 10 — replace all Book data from a validated backup envelope. */
   restoreBackup(state: V2State): void;
+  /** Phase 10 — custom fields. */
+  addCustomFieldDef(def: Omit<CustomFieldDef, "id" | "createdAt">): void;
+  deleteCustomFieldDef(id: string): void;
+  setCustomerCustomField(customerId: string, fieldId: string, value: string): void;
   /** V3: map a listing SKU (retroactively rebuilds affected inventory ledger). */
   mapSku(entry: SkuMapEntry): void;
   /** Map many listing SKUs in one rebuild (fast bulk auto-map). */
@@ -1219,6 +1224,37 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
 
       setSettleAfterDays: (days) => {
         setState((cur) => cur && { ...cur, org: { ...cur.org, settleAfterDays: days } });
+      },
+
+      addCustomFieldDef: (def) => {
+        guard("manage_team");
+        setState((cur) => cur && {
+          ...cur,
+          customFieldDefs: [...(cur.customFieldDefs ?? []), { ...def, id: uid("cf"), createdAt: new Date().toISOString() }],
+          audit: [...cur.audit, audit("CUSTOM_FIELD_ADD", "custom_field", def.label, `${def.entity}/${def.type}`)],
+        });
+      },
+
+      deleteCustomFieldDef: (id) => {
+        guard("manage_team");
+        setState((cur) => cur && {
+          ...cur,
+          customFieldDefs: (cur.customFieldDefs ?? []).filter((d) => d.id !== id),
+          audit: [...cur.audit, audit("CUSTOM_FIELD_DELETE", "custom_field", id)],
+        });
+      },
+
+      setCustomerCustomField: (customerId, fieldId, value) => {
+        guard("manage_invoices");
+        setState((cur) => cur && {
+          ...cur,
+          customers: cur.customers.map((c) => {
+            if (c.id !== customerId) return c;
+            const cf = { ...(c.customFields ?? {}) };
+            if (value === "") delete cf[fieldId]; else cf[fieldId] = value;
+            return { ...c, customFields: cf };
+          }),
+        });
       },
 
       updateOrg: (patch) => {

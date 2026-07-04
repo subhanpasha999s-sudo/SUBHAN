@@ -54,6 +54,7 @@ export function buildEmptyState(): V2State {
     purchaseOrders: [],
     vendorCredits: [],
     settlementResolutions: [],
+    customFieldDefs: [],
     importBatches: [],
   };
 }
