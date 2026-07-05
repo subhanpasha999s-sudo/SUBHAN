@@ -287,6 +287,25 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   re-enabled). Suite: 138 tests green.
 - Deferred: webhooks (no delivery queue in this stack).
 
+## Phase 12 (slice 1) — Hardening: money, isolation, RBAC (2026-07-04) ✅
+- Money (spec §3.4): DECISION — a full integer-paise rewrite of the
+  golden-mastered engine is a §10 big-bang risk to MEESHO_RULES, so NOT done.
+  Instead: core/money.ts exact paise primitives (toPaise/fromPaise/sumMoney/
+  subMoney/splitMoney/allocateMoney — conserve totals to the paisa) for new
+  code + future migration; money.test.ts (6 tests) incl. fuzz proving round2
+  sums match exact-paise sums over 1000 amounts (<½ paisa) and a 500-entry
+  ledger fuzz nets to zero. Recommend deferring the engine migration unless the
+  operator wants it (would need a full golden-master re-verify).
+- Tenant isolation (spec §3.5): scripts/tenant-isolation-probe.mjs (rolled
+  back) — PROVED live: a user sees only their org's entries/accounts/lines
+  (unfiltered scan exposes exactly 1 org), cannot read another org's data, and
+  cannot post into it ("not a member"). Runnable on demand. Exit 0 = holds.
+- RBAC audit: rbac.test.ts (9 tests) — every section/action has a valid
+  non-empty role list; owner sees/does all; returns_manager walled off from
+  all financial areas (incl. the ledger/gl/matching sections added this
+  initiative); only owner manages team; unknown actions denied.
+- Suite: 153 tests green (20 files).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
