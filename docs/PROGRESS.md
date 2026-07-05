@@ -265,6 +265,28 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
 - Remaining Phase 10: workflow rules; public REST API + webhooks (needs server
   routes — separate slice from the client-blob model).
 
+## Phase 10 (slice 3) — Public REST API v1 (2026-07-04) ✅
+- core/apiKeys.ts (4 tests): generate (tul_live_ prefix + random), SHA-256
+  hash (only the hash is stored), prefix for display, constant-time compare,
+  bearer parse.
+- Migration 021 (applied): api_keys table (org-scoped, key_hash unique, scopes,
+  RLS owner/manager). Migration 022 (applied): post_journal_entry relaxes its
+  membership guard to JWT callers only, so the service-role API path (already
+  key-authed) can post.
+- src/lib/api/authenticate.ts: bearer → SHA-256 → api_keys lookup → org+scopes
+  (service role; API layer is the tenancy boundary), pagination, scope guard.
+- Routes: GET /api/v1/accounts, GET+POST /api/v1/journal-entries,
+  GET /api/v1/trial-balance. docs/API.md.
+- core/apiKeysRemote.ts + Team-page API-keys card: generate (plaintext shown
+  once), list, revoke (flag publicApi).
+- Verified LIVE via curl against a throwaway org+key+entries: 401 no/bad key;
+  accounts paginated; entries with joined lines; trial balance balanced;
+  POST balanced -> 201, unbalanced -> 422 (exact error), idempotent externalId
+  -> same id; trial balance updated to 1500=1500. Probe org cleaned up
+  (immutability trigger correctly blocked the delete → toggled for cleanup →
+  re-enabled). Suite: 138 tests green.
+- Deferred: webhooks (no delivery queue in this stack).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

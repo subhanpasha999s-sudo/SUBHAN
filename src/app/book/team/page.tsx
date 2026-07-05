@@ -1,7 +1,7 @@
 "use client";
-/** Team & roles (owner-only) — org profile, backup, invite, role matrix, audit. */
-import { useRef, useState } from "react";
-import { UserPlus, Building2, Download, Upload } from "lucide-react";
+/** Team & roles (owner-only) — org profile, backup, API keys, invite, roles, audit. */
+import { useEffect, useRef, useState } from "react";
+import { UserPlus, Building2, Download, Upload, KeyRound, Copy, Trash2 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card } from "@/book/components/ui";
@@ -11,6 +11,7 @@ import { flags } from "@/book/lib/flags";
 import { serializeBackup, parseBackup, backupRecordCount } from "@/book/lib/core/backup";
 import { GST_STATE_CODES } from "@/book/lib/core/gstPack";
 import { CUSTOM_FIELD_ENTITIES, type CustomFieldType, type CustomFieldEntity } from "@/book/lib/core/customFields";
+import { isApiAuthed, listApiKeys, createApiKey, revokeApiKey, type ApiKeyRow } from "@/book/lib/core/apiKeysRemote";
 
 const ROLE_DESC: Record<Role, string> = {
   owner: "Everything, incl. team & financials",
@@ -45,6 +46,7 @@ export default function TeamPage() {
       <PageHeader title="Team & settings" sub={state.org.name} />
 
       {flags.orgSettings && <OrgSettingsCard />}
+      {flags.publicApi && <ApiKeysCard />}
       {flags.customFields && <CustomFieldsCard />}
 
       <Card className="mb-6 p-5">
@@ -101,6 +103,72 @@ export default function TeamPage() {
         </Card>
       </div>
     </Guard>
+  );
+}
+
+/** API-key management for the public REST API (Phase 10). Requires sign-in. */
+function ApiKeysCard() {
+  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [keys, setKeys] = useState<ApiKeyRow[]>([]);
+  const [name, setName] = useState("");
+  const [scopes, setScopes] = useState<("read" | "write")[]>(["read"]);
+  const [freshKey, setFreshKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { (async () => {
+    const ok = await isApiAuthed();
+    setAuthed(ok);
+    if (ok) setKeys(await listApiKeys());
+  })(); }, []);
+
+  async function generate() {
+    setBusy(true); setFreshKey(null);
+    const res = await createApiKey(name, scopes);
+    if (res.ok && res.plaintext) { setFreshKey(res.plaintext); setName(""); setKeys(await listApiKeys()); }
+    else if (res.message) window.alert(res.message);
+    setBusy(false);
+  }
+
+  return (
+    <Card className="mb-6 p-5">
+      <h3 className="mb-3 flex items-center gap-2 font-semibold"><KeyRound className="h-4 w-4" /> API keys</h3>
+      {authed === false ? (
+        <p className="text-sm text-muted-foreground">Sign in to your Tulmin account to create API keys for the REST API (<code className="rounded bg-muted px-1">/api/v1</code>).</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="rounded-xl border border-border bg-card px-3 py-2 text-sm" placeholder="Key name (e.g. Zapier)" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="flex items-center gap-1 text-xs"><input type="checkbox" className="h-4 w-4 accent-[var(--primary)]" checked={scopes.includes("write")} onChange={(e) => setScopes(e.target.checked ? ["read", "write"] : ["read"])} /> allow write</label>
+            <Button onClick={generate} disabled={busy}>Generate key</Button>
+          </div>
+          {freshKey && (
+            <div className="mt-3 rounded-lg border border-warning/40 bg-amber-50 p-3 text-sm dark:bg-amber-950">
+              <p className="mb-1 text-xs font-medium text-amber-900 dark:text-amber-200">Copy this key now — it won&apos;t be shown again.</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 break-all rounded bg-card px-2 py-1 text-xs">{freshKey}</code>
+                <button onClick={() => navigator.clipboard?.writeText(freshKey)} className="rounded-md border border-border p-1 hover:bg-muted"><Copy className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          )}
+          <div className="mt-3 divide-y divide-border text-sm">
+            {keys.map((k) => (
+              <div key={k.id} className="flex flex-wrap items-center gap-2 py-2">
+                <span className="font-medium">{k.name}</span>
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{k.prefix}…</code>
+                {k.scopes.map((s) => <Badge key={s} tone="default">{s}</Badge>)}
+                {k.revokedAt ? <Badge tone="danger">revoked</Badge>
+                  : <span className="ml-auto text-xs text-muted-foreground">{k.lastUsedAt ? `used ${fmtDate(k.lastUsedAt)}` : "never used"}</span>}
+                {!k.revokedAt && (
+                  <button onClick={async () => { if (window.confirm(`Revoke "${k.name}"? Apps using it will stop working.`)) { await revokeApiKey(k.id); setKeys(await listApiKeys()); } }}
+                    className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                )}
+              </div>
+            ))}
+            {keys.length === 0 && <p className="py-3 text-xs text-muted-foreground">No API keys yet.</p>}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 

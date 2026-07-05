@@ -20,4 +20,6 @@ export const flags = {
   orgSettings: true,
   /** Phase 10: user-defined custom fields on core entities. */
   customFields: true,
+  /** Phase 10: public REST API + key management. */
+  publicApi: true,
 } as const;
