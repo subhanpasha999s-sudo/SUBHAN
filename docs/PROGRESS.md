@@ -306,6 +306,25 @@ Landed before CLAUDE_UPGRADE_SPEC.md was adopted; maps to spec-P1/P4/P5 basics:
   initiative); only owner manages team; unknown actions denied.
 - Suite: 153 tests green (20 files).
 
+## Zoho-Books UX pass (2026-07-04) — in progress
+Operator feedback: doesn't look/feel like Zoho Books — surface all major
+functions in a proper accounting-suite structure.
+- Slice 1: Sidebar reorganized into Zoho-style modules — Home · Items ·
+  Banking · Sales (Customers/Invoices/Sales Orders/Returns) · Purchases
+  (Vendors/Bills/Expenses) · Accountant (Chart of Accounts/Manual
+  Journals/General Ledger) · Reports (Financial/P&L/Analytics) · GST ·
+  Marketplace (Import/Settlements/Reconciliation — the differentiator) ·
+  Settings. Relabeled to accounting vocabulary (Ledger→Manual Journals,
+  Purchase Bill→Bills, Item→Items).
+- New Chart of Accounts page (/book/chart-of-accounts, section coa): all COA
+  accounts grouped by type with LIVE balances from the complete ledger
+  (derived GL + document postings), KPI row (assets, liab+equity, income, net
+  income), drill to General Ledger. Works without sign-in.
+- Browser-verified: COA renders all 5 groups + balances; sidebar shows all
+  modules with Accountant auto-expanded. Suite: 153 tests green.
+- Next: Manual Journals list, dedicated Credit Notes / Payments Received /
+  Payments Made / Sales Orders screens, and a Zoho-style entity list layout.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

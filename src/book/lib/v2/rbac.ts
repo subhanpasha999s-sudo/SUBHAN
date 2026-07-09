@@ -8,7 +8,7 @@ import { Role } from "./types";
 export type AppSection =
   | "dashboard" | "orders" | "settlements" | "inventory" | "purchases"
   | "returns" | "expenses" | "pnl" | "analytics" | "gst" | "team"
-  | "integrations" | "mapping" | "vendors" | "reconciliation" | "reports" | "bank" | "ledger" | "invoices" | "customers" | "matching" | "gl" | "tulmin";
+  | "integrations" | "mapping" | "vendors" | "reconciliation" | "reports" | "bank" | "ledger" | "invoices" | "customers" | "matching" | "gl" | "coa" | "tulmin";
 
 const FINANCIAL_READ: Role[] = ["owner", "manager", "accountant", "viewer"];
 
@@ -33,6 +33,7 @@ export const SECTION_ACCESS: Record<AppSection, Role[]> = {
   matching: ["owner", "manager", "accountant"],
   ledger:  ["owner", "manager", "accountant"],
   gl:      ["owner", "manager", "accountant"],
+  coa:     ["owner", "manager", "accountant", "viewer"],
   invoices: ["owner", "manager", "accountant", "viewer"],
   customers: ["owner", "manager", "accountant", "viewer"],
   tulmin:  ["owner", "manager", "returns_manager", "accountant", "viewer"],

@@ -50,41 +50,56 @@ interface NavGroup { label: string; icon: React.ComponentType<{ className?: stri
 type NavEntry = NavItem | NavGroup;
 const isGroup = (e: NavEntry): e is NavGroup => "children" in e;
 
+// Zoho-Books-style modules: Home · Items · Banking · Sales · Purchases ·
+// Accountant · Reports · Tax · Marketplace (the Meesho differentiator) · Settings.
 const NAV: NavEntry[] = [
-  { section: "dashboard", href: "/book/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  // Purchase dropdown — vendors, bills, expenses
-  { label: "Purchase", icon: ShoppingCart, children: [
-    { section: "vendors", href: "/book/vendors", label: "Vendors", icon: Users },
-    { section: "purchases", href: "/book/purchases", label: "Purchase Bill", icon: Receipt },
-    { section: "expenses", href: "/book/expenses", label: "Expense", icon: Receipt },
+  { section: "dashboard", href: "/book/dashboard", label: "Home", icon: LayoutDashboard },
+
+  { label: "Items", icon: Boxes, children: [
+    { section: "inventory", href: "/book/inventory", label: "Items", icon: Boxes },
+    { section: "mapping", href: "/book/mapping", label: "SKU Mapping", icon: Shuffle },
   ] },
-  // Sale dropdown — orders, how they come in, and what comes back
-  { label: "Sale", icon: Store, children: [
-    { section: "orders", href: "/book/orders", label: "Orders", icon: ListOrdered },
+
+  { label: "Banking", icon: Landmark, children: [
+    { section: "bank", href: "/book/bank", label: "Bank Import", icon: Landmark },
+    { section: "matching", href: "/book/matching", label: "Reconcile & Match", icon: GitCompare },
+  ] },
+
+  { label: "Sales", icon: Store, children: [
     { section: "customers", href: "/book/customers", label: "Customers", icon: Users },
     { section: "invoices", href: "/book/invoices", label: "Invoices", icon: Receipt },
-    { section: "integrations", href: "/book/integrations", label: "Upload data", icon: Link2 },
+    { section: "orders", href: "/book/orders", label: "Sales Orders", icon: ListOrdered },
     { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
-  // Payout & P/L dropdown — the statement plus settlement tracking & reconciliation
-  { label: "Payout & P/L", icon: IndianRupee, children: [
-    { section: "pnl", href: "/book/pnl/summary", label: "Summary", icon: IndianRupee },
+
+  { label: "Purchases", icon: ShoppingCart, children: [
+    { section: "vendors", href: "/book/vendors", label: "Vendors", icon: Users },
+    { section: "purchases", href: "/book/purchases", label: "Bills", icon: Receipt },
+    { section: "expenses", href: "/book/expenses", label: "Expenses", icon: Receipt },
+  ] },
+
+  { label: "Accountant", icon: BookOpen, children: [
+    { section: "coa", href: "/book/chart-of-accounts", label: "Chart of Accounts", icon: BookOpen },
+    { section: "ledger", href: "/book/ledger", label: "Manual Journals", icon: BookOpen },
+    { section: "gl", href: "/book/gl", label: "General Ledger", icon: BookOpen },
+  ] },
+
+  { label: "Reports", icon: BarChart3, children: [
+    { section: "reports", href: "/book/reports", label: "Financial Reports", icon: BookOpen },
+    { section: "pnl", href: "/book/pnl/summary", label: "P&L Summary", icon: IndianRupee },
+    { section: "analytics", href: "/book/analytics", label: "Analytics", icon: BarChart3 },
+  ] },
+
+  { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
+
+  // The differentiator — marketplace ingestion, settlement & payout reconciliation.
+  { label: "Marketplace", icon: Store, children: [
+    { section: "integrations", href: "/book/integrations", label: "Import & Connect", icon: Link2 },
     { section: "settlements", href: "/book/settlements", label: "Settlements", icon: Timer },
     { section: "reconciliation", href: "/book/reconciliation", label: "Reconciliation", icon: GitCompare },
   ] },
-  { section: "bank",    href: "/book/bank",    label: "Bank Import", icon: Landmark },
-  { section: "matching", href: "/book/matching", label: "Bank Match", icon: GitCompare },
-  // Inventory dropdown — items and listing→inventory SKU mapping (moved below the core flow)
-  { label: "Inventory", icon: Boxes, children: [
-    { section: "inventory", href: "/book/inventory", label: "Item", icon: Boxes },
-    { section: "mapping", href: "/book/mapping", label: "SKU Mapping", icon: Shuffle },
-  ] },
-  { section: "reports", href: "/book/reports", label: "Reports", icon: BookOpen },
-  { section: "ledger", href: "/book/ledger", label: "Ledger", icon: BookOpen },
-  { section: "gl", href: "/book/gl", label: "General Ledger", icon: BookOpen },
-  { section: "analytics", href: "/book/analytics", label: "Analytics", icon: BarChart3 },
-  { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
-  { section: "team", href: "/book/team", label: "Team", icon: Users },
+
+  { section: "team", href: "/book/team", label: "Settings", icon: Settings },
 ];
 
 const INSTANT_ROUTES: Record<string, React.ComponentType> = {
