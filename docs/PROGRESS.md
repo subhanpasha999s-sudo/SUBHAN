@@ -322,8 +322,15 @@ functions in a proper accounting-suite structure.
   income), drill to General Ledger. Works without sign-in.
 - Browser-verified: COA renders all 5 groups + balances; sidebar shows all
   modules with Accountant auto-expanded. Suite: 153 tests green.
-- Next: Manual Journals list, dedicated Credit Notes / Payments Received /
-  Payments Made / Sales Orders screens, and a Zoho-style entity list layout.
+- Slice 2: Manual Journals now shows an always-visible entry-centric Journal
+  (complete ledger) — no longer a sign-in wall.
+- Slice 3: dedicated Zoho-style list screens — Payments Received
+  (/book/payments-received), Payments Made (/book/payments-made), Credit Notes
+  (/book/credit-notes) — each with KPI row + list, wired into Sales/Purchases
+  nav. Browser-verified (Payments Received shows seeded ₹400 receipt; others
+  render with empty states).
+- Next: Sales Orders / Purchase Orders list screens, custom-account creation on
+  the Chart of Accounts screen, consistent list layout across entities.
 
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).

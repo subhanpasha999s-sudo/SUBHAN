@@ -68,6 +68,8 @@ const NAV: NavEntry[] = [
   { label: "Sales", icon: Store, children: [
     { section: "customers", href: "/book/customers", label: "Customers", icon: Users },
     { section: "invoices", href: "/book/invoices", label: "Invoices", icon: Receipt },
+    { section: "payments_in", href: "/book/payments-received", label: "Payments Received", icon: IndianRupee },
+    { section: "credit_notes", href: "/book/credit-notes", label: "Credit Notes", icon: FileSpreadsheet },
     { section: "orders", href: "/book/orders", label: "Sales Orders", icon: ListOrdered },
     { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
@@ -75,6 +77,7 @@ const NAV: NavEntry[] = [
   { label: "Purchases", icon: ShoppingCart, children: [
     { section: "vendors", href: "/book/vendors", label: "Vendors", icon: Users },
     { section: "purchases", href: "/book/purchases", label: "Bills", icon: Receipt },
+    { section: "payments_out", href: "/book/payments-made", label: "Payments Made", icon: IndianRupee },
     { section: "expenses", href: "/book/expenses", label: "Expenses", icon: Receipt },
   ] },
 
