@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Check, AlertCircle } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
-import { Guard, PageHeader } from "@/book/components/v2/common";
+import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
 import { COA_LIST, trialBalance } from "@/book/lib/engine/accounting";
@@ -33,6 +33,20 @@ export default function LedgerPage() {
   const { state } = useV2();
   const derivedGl = useMemo(() => glEntries(state), [state]);
   const derivedTb = useMemo(() => trialBalance(derivedGl), [derivedGl]);
+
+  // Always-visible journal (entry-centric view of the complete ledger).
+  const nameOf = (code: string) => COA_LIST.find((a) => a.code === code)?.name ?? code;
+  const journal = useMemo(() => {
+    const fromGl = derivedGl.map((e) => ({
+      id: e.id, date: e.date, memo: e.description, sourceType: e.sourceType,
+      lines: [{ code: e.debitCode, debit: e.amount, credit: 0 }, { code: e.creditCode, debit: 0, credit: e.amount }],
+    }));
+    const fromDocs = collectDocumentPostings(state).map((je, i) => ({
+      id: je.externalId ?? `je${i}`, date: je.entryDate, memo: je.memo ?? "", sourceType: je.sourceType,
+      lines: je.lines.map((l) => ({ code: l.accountCode, debit: l.debit ?? 0, credit: l.credit ?? 0 })),
+    }));
+    return [...fromGl, ...fromDocs].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+  }, [derivedGl, state]);
 
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -83,12 +97,45 @@ export default function LedgerPage() {
 
   return (
     <Guard section="ledger">
-      <PageHeader title="Ledger" sub="Stored double-entry general ledger — the posted source of truth" />
+      <PageHeader title="Manual Journals" sub="Every journal entry behind your books — auto-posted from activity, plus manual entries" />
+
+      {/* Journal — always visible, entry-centric view of the whole ledger */}
+      <Card className="mb-6 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <span className="font-semibold">Journal</span>
+          <span className="text-xs text-muted-foreground">{journal.length} entries</span>
+        </div>
+        <div className="max-h-[520px] divide-y divide-border overflow-y-auto">
+          {journal.slice(0, 300).map((e) => (
+            <div key={e.id} className="px-4 py-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="tabular-nums">{fmtDate(e.date)}</span>
+                <span className="rounded bg-muted px-1.5 py-0.5">{e.sourceType}</span>
+                <span className="truncate">{e.memo}</span>
+              </div>
+              <table className="mt-1 w-full text-sm">
+                <tbody>
+                  {e.lines.map((l, i) => (
+                    <tr key={i}>
+                      <td className="py-0.5 pl-4"><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {nameOf(l.code)}</td>
+                      <td className="w-28 py-0.5 text-right tabular-nums">{l.debit ? formatINR(l.debit) : ""}</td>
+                      <td className="w-28 py-0.5 text-right tabular-nums text-muted-foreground">{l.credit ? formatINR(l.credit) : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          {journal.length === 0 && (
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">No journal entries yet. Import Meesho files or create invoices/bills to populate the ledger.</p>
+          )}
+        </div>
+      </Card>
 
       {authed === false && (
         <Card className="p-6 text-sm text-muted-foreground">
-          The stored ledger is per-organization and requires sign-in. Sign in to your Tulmin
-          account to create your organization ledger and post entries.
+          Sign in to your Tulmin account to post these entries to your organization&apos;s stored
+          ledger, add manual journals, and see the trial balance.
         </Card>
       )}
 
