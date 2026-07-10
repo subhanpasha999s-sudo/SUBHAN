@@ -4,17 +4,19 @@
  * its live balance, drawn from the complete ledger (derived GL + document
  * postings). Click an account to drill into its transactions.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, Landmark, Scale, TrendingUp, TrendingDown } from "lucide-react";
+import { Wallet, Landmark, Scale, TrendingUp, TrendingDown, Plus } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader } from "@/book/components/v2/common";
-import { Card, cn } from "@/book/components/ui";
+import { Badge, Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
 import { COA_LIST, type CoaType } from "@/book/lib/engine/accounting";
 import { glEntries } from "@/book/lib/v2/reportDerived";
 import { collectDocumentPostings } from "@/book/lib/core/documentPostings";
 import { postingsFromGl, postingsFromJournal } from "@/book/lib/core/generalLedger";
+import { flags } from "@/book/lib/flags";
+import { isLedgerAuthed, ensureOrg, fetchAccounts, addAccount, setAccountArchived, type OrgAccount } from "@/book/lib/core/ledgerRemote";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -98,9 +100,87 @@ export default function ChartOfAccountsPage() {
         })}
       </div>
 
+      {flags.accountingSetup && <CustomAccounts />}
+
       <p className="mt-4 text-xs text-muted-foreground">
-        Balances are computed live from your ledger. Manage custom accounts and post entries under <Link href="/book/ledger" className="text-primary hover:underline">Manual Journals</Link>.
+        Standard-account balances are computed live from your ledger. Post entries under <Link href="/book/ledger" className="text-primary hover:underline">Manual Journals</Link>.
       </p>
     </Guard>
+  );
+}
+
+/** Custom (non-standard) accounts, managed in the org's stored ledger. Requires sign-in. */
+function CustomAccounts() {
+  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [custom, setCustom] = useState<OrgAccount[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [type, setType] = useState<CoaType>("expense");
+  const standard = useMemo(() => new Set(COA_LIST.map((a) => a.code)), []);
+
+  async function refresh(org: string) {
+    const all = await fetchAccounts(org);
+    setCustom(all.filter((a) => !standard.has(a.code)));
+  }
+  useEffect(() => {
+    (async () => {
+      const ok = await isLedgerAuthed();
+      setAuthed(ok);
+      if (!ok) return;
+      const org = await ensureOrg();
+      setOrgId(org);
+      if (org) await refresh(org);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function add() {
+    if (!orgId || !code.trim() || !name.trim()) return;
+    const res = await addAccount(orgId, { code: code.trim(), name: name.trim(), type });
+    if (!res.ok) { window.alert(res.message ?? "Could not add account."); return; }
+    setCode(""); setName(""); setAdding(false);
+    await refresh(orgId);
+  }
+  const input = "h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
+
+  return (
+    <Card className="mt-6 overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <span className="font-semibold">Custom accounts</span>
+        {authed && <Button variant="secondary" onClick={() => setAdding((v) => !v)}><Plus className="h-4 w-4" /> New account</Button>}
+      </div>
+      {authed === false && (
+        <p className="px-4 py-4 text-sm text-muted-foreground">Sign in to add custom accounts beyond the standard chart.</p>
+      )}
+      {authed && (
+        <>
+          {adding && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 p-3">
+              <input className={cn(input, "w-24")} placeholder="Code" value={code} onChange={(e) => setCode(e.target.value)} />
+              <input className={cn(input, "min-w-[200px] flex-1")} placeholder="Account name" value={name} onChange={(e) => setName(e.target.value)} />
+              <select className={input} value={type} onChange={(e) => setType(e.target.value as CoaType)}>
+                {(["asset", "liability", "equity", "revenue", "expense"] as CoaType[]).map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <Button onClick={add} disabled={!code.trim() || !name.trim()}>Save</Button>
+            </div>
+          )}
+          <div className="divide-y divide-border text-sm">
+            {custom.map((a) => (
+              <div key={a.id} className="flex items-center gap-2 px-4 py-2">
+                <span className="font-mono text-xs text-muted-foreground">{a.code}</span>
+                <span className={cn(a.archived && "text-muted-foreground line-through")}>{a.name}</span>
+                <Badge tone="default">{a.type}</Badge>
+                {a.archived && <Badge tone="danger">archived</Badge>}
+                <button onClick={async () => { await setAccountArchived(orgId!, a.id, !a.archived); await refresh(orgId!); }}
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground">{a.archived ? "Restore" : "Archive"}</button>
+              </div>
+            ))}
+            {custom.length === 0 && !adding && <p className="px-4 py-4 text-sm text-muted-foreground">No custom accounts yet — the standard chart above covers most needs.</p>}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
