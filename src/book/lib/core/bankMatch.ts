@@ -156,3 +156,34 @@ export function bankBalanceSummary(txns: StoredBankTxn[], openingBalance = 0): B
   }
   return { statementBalance: bal, clearedCount: cleared, unclearedCount: txns.length - cleared };
 }
+
+export interface AccountBalanceRow {
+  accountId: string | null; // null = imported lines not linked to an account
+  name: string;
+  balance: number;          // opening + Σ(credits − debits) of its lines
+  txnCount: number;
+  pendingCount: number;
+}
+
+/**
+ * Per-bank-account balances for the Banking overview: each account's opening
+ * balance plus the net of its imported lines, with unlinked lines grouped
+ * under one "Unassigned" row (only when they exist).
+ */
+export function perAccountBalances(
+  accounts: { id: string; name: string; openingBalance: number; archived?: boolean }[],
+  txns: StoredBankTxn[],
+): AccountBalanceRow[] {
+  const rows: AccountBalanceRow[] = accounts
+    .filter((a) => !a.archived)
+    .map((a) => ({ accountId: a.id, name: a.name, balance: round2(a.openingBalance), txnCount: 0, pendingCount: 0 }));
+  const byId = new Map(rows.map((r) => [r.accountId, r]));
+  const orphan: AccountBalanceRow = { accountId: null, name: "Unassigned imports", balance: 0, txnCount: 0, pendingCount: 0 };
+  for (const t of txns) {
+    const row = (t.bankAccountId && byId.get(t.bankAccountId)) || orphan;
+    row.balance = round2(row.balance + (t.credit || 0) - (t.debit || 0));
+    row.txnCount += 1;
+    if (t.status === "PENDING") row.pendingCount += 1;
+  }
+  return orphan.txnCount > 0 ? [...rows, orphan] : rows;
+}

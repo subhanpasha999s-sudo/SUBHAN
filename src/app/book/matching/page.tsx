@@ -11,8 +11,10 @@ import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card, cn } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
+import Link from "next/link";
 import {
   payoutBatches, suggestPayoutMatches, suggestDocMatches, bankBalanceSummary,
+  perAccountBalances,
   type PayoutSuggestion, type DocSuggestion,
 } from "@/book/lib/core/bankMatch";
 
@@ -26,6 +28,7 @@ export default function BankMatchPage() {
   const payoutSugg = useMemo(() => suggestPayoutMatches(pending, batches), [pending, batches]);
   const docSugg = useMemo(() => suggestDocMatches(pending, state.invoices, state.purchases), [pending, state.invoices, state.purchases]);
   const balance = useMemo(() => bankBalanceSummary(txns), [txns]);
+  const accountRows = useMemo(() => perAccountBalances(state.bankAccounts ?? [], txns), [state.bankAccounts, txns]);
 
   const payoutByTxn = new Map(payoutSugg.map((s) => [s.txnId, s]));
   const docByTxn = new Map(docSugg.map((s) => [s.txnId, s]));
@@ -47,6 +50,25 @@ export default function BankMatchPage() {
         <Card className="p-5"><p className="text-xs uppercase tracking-wide text-muted-foreground">Suggestions</p><p className="mt-2 text-2xl font-semibold tabular-nums">{suggestedCount}</p></Card>
         <Card className="p-5"><p className="text-xs uppercase tracking-wide text-muted-foreground">Payout batches</p><p className="mt-2 text-2xl font-semibold tabular-nums">{batches.filter((b) => b.net > 0).length}</p></Card>
       </div>
+
+      {accountRows.length > 0 && (
+        <Card className="mb-6 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="inline-flex items-center gap-2 font-semibold"><Landmark className="h-4 w-4 text-primary" /> Accounts</span>
+            <Link href="/book/bank" className="text-xs text-primary hover:underline">Import statement →</Link>
+          </div>
+          <div className="divide-y divide-border text-sm">
+            {accountRows.map((a) => (
+              <div key={a.accountId ?? "orphan"} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                <span className={cn("font-medium", a.accountId === null && "text-muted-foreground")}>{a.name}</span>
+                <span className="text-xs text-muted-foreground">{a.txnCount} line{a.txnCount === 1 ? "" : "s"}</span>
+                {a.pendingCount > 0 && <Badge tone="warning">{a.pendingCount} to match</Badge>}
+                <span className="ml-auto tabular-nums font-semibold">{formatINR(a.balance)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {txns.length === 0 && (
         <Card className="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground">

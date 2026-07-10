@@ -5,13 +5,18 @@ import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { AlertTriangle, ArrowRight, BarChart3, Check, CheckCircle2, Landmark, ListOrdered, OctagonAlert, PackageOpen, Rocket, Sparkles, X } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
-import { bankReconciliation, dashboardData, insightsFeed, orderStatusCounts } from "@/book/lib/v2/derived";
+import { bankReconciliation, dashboardData, insightsFeed, orderStatusCounts, reconcileAll } from "@/book/lib/v2/derived";
 import { Guard, CountUpINR, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Card, StatCard, cn } from "@/book/components/ui";
 import { formatINR, formatPct } from "@/book/lib/engine";
 import HealthBanner from "@/book/components/v2/HealthBanner";
 import Confetti from "@/book/components/v2/Confetti";
 import { FinancialBuckets, OrderFlowFunnel } from "@/book/components/v2/OrderFlow";
+import { flags } from "@/book/lib/flags";
+import { arAgingFromState, apAgingFromState } from "@/book/lib/core/documentPostings";
+import { agingTotal } from "@/book/lib/core/aging";
+import { bankBalanceSummary } from "@/book/lib/core/bankMatch";
+import { detectSettlementExceptions, openExceptions } from "@/book/lib/core/settlementHealth";
 
 export default function DashboardPage() {
   const { state } = useV2();
@@ -35,6 +40,23 @@ export default function DashboardPage() {
   // calm and focused on getting set up instead of a wall of ₹0 cards.
   const noOrders = state.orders.length === 0;
 
+  // "Money now" — the daily-use snapshot (AR, AP, bank, needs-attention).
+  const today = new Date().toISOString().slice(0, 10);
+  const money = useMemo(() => {
+    const ar = arAgingFromState(state, today);
+    const ap = apAgingFromState(state, today);
+    const arTotal = agingTotal(ar);
+    const arOverdue = Math.round((arTotal - (ar.find((r) => r.bucket === "current")?.amount ?? 0)) * 100) / 100;
+    const bankBal = bankBalanceSummary(state.bankTxns ?? []);
+    const overdueInvoices = state.invoices.filter((i) => i.status !== "paid" && i.dueDate < today).length;
+    const exceptions = flags.settlement2
+      ? openExceptions(detectSettlementExceptions(reconcileAll(state)), state.settlementResolutions ?? []).open.length
+      : 0;
+    return { arTotal, arOverdue, apTotal: agingTotal(ap), bankBal, overdueInvoices, exceptions };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+  const hasMoneyData = money.arTotal > 0 || money.apTotal > 0 || (state.bankTxns ?? []).length > 0 || money.exceptions > 0;
+
   return (
     <Guard section="dashboard">
       {/* delight: celebrate when this month's profit beats last month */}
@@ -49,6 +71,55 @@ export default function DashboardPage() {
       ) : (
        <>
       <div className="mb-6"><HealthBanner /></div>
+
+      {/* Money now — daily-use snapshot */}
+      {hasMoneyData && (
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <Link href="/book/invoices" className="group">
+            <Card className="h-full p-5 transition-colors group-hover:bg-muted/40">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Receivables</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">{formatINR(money.arTotal, true)}</p>
+              <p className={cn("mt-1 text-xs", money.arOverdue > 0 ? "font-medium text-danger" : "text-muted-foreground")}>
+                {money.arOverdue > 0 ? `${formatINR(money.arOverdue, true)} overdue · ${money.overdueInvoices} invoice${money.overdueInvoices === 1 ? "" : "s"}` : "nothing overdue"}
+              </p>
+            </Card>
+          </Link>
+          <Link href="/book/purchases" className="group">
+            <Card className="h-full p-5 transition-colors group-hover:bg-muted/40">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Payables</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">{formatINR(money.apTotal, true)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">owed to vendors</p>
+            </Card>
+          </Link>
+          <Link href="/book/matching" className="group">
+            <Card className="h-full p-5 transition-colors group-hover:bg-muted/40">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Bank</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">{formatINR(money.bankBal.statementBalance, true)}</p>
+              <p className={cn("mt-1 text-xs", money.bankBal.unclearedCount > 0 ? "font-medium text-warning" : "text-muted-foreground")}>
+                {money.bankBal.unclearedCount > 0 ? `${money.bankBal.unclearedCount} line${money.bankBal.unclearedCount === 1 ? "" : "s"} to match` : "all lines matched"}
+              </p>
+            </Card>
+          </Link>
+          {money.exceptions > 0 && (
+            <Link href="/book/reconciliation" className="md:col-span-3">
+              <Card className="flex items-center gap-2 border-warning/40 p-3 text-sm transition-colors hover:bg-muted/40">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <span className="font-medium">{money.exceptions} settlement exception{money.exceptions === 1 ? " needs" : "s need"} attention</span>
+                <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" />
+              </Card>
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Hero */}
       <Card className="relative overflow-hidden p-6">

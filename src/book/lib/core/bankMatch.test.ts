@@ -77,6 +77,28 @@ describe("suggestDocMatches", () => {
   });
 });
 
+describe("perAccountBalances", () => {
+  it("computes opening + net per account, grouping unlinked lines", async () => {
+    const { perAccountBalances } = await import("./bankMatch");
+    const rows = perAccountBalances(
+      [
+        { id: "A", name: "HDFC Current", openingBalance: 500 },
+        { id: "B", name: "Cash", openingBalance: 0, archived: false },
+        { id: "C", name: "Old", openingBalance: 99, archived: true },
+      ],
+      [
+        txn({ id: "1", bankAccountId: "A", credit: 1000, status: "CATEGORIZED" }),
+        txn({ id: "2", bankAccountId: "A", debit: 300 }),
+        txn({ id: "3", credit: 42 }), // unlinked
+      ],
+    );
+    expect(rows.find((r) => r.accountId === "A")).toMatchObject({ balance: 1200, txnCount: 2, pendingCount: 1 });
+    expect(rows.find((r) => r.accountId === "B")).toMatchObject({ balance: 0, txnCount: 0 });
+    expect(rows.some((r) => r.name === "Old")).toBe(false); // archived hidden
+    expect(rows.find((r) => r.accountId === null)).toMatchObject({ balance: 42, txnCount: 1 });
+  });
+});
+
 describe("bankBalanceSummary", () => {
   it("runs the statement balance from opening + net; counts uncleared", () => {
     const r = bankBalanceSummary([
