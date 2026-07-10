@@ -1,25 +1,28 @@
 "use client";
 /** Payments Received (Zoho-style) — every receipt applied to an invoice. */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { IndianRupee } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Card } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
+import { SearchBox, matchesQuery } from "@/book/components/v2/ListControls";
 
 export default function PaymentsReceivedPage() {
   const { state } = useV2();
+  const [q, setQ] = useState("");
   const invoiceOf = (id: string) => state.invoices.find((i) => i.id === id);
   const customerName = (cid: string) => state.customers.find((c) => c.id === cid)?.name ?? "—";
 
-  const rows = useMemo(() =>
+  const allRows = useMemo(() =>
     [...(state.receipts ?? [])]
       .map((r) => { const inv = invoiceOf(r.invoiceId); return { r, inv, customer: inv ? customerName(inv.customerId) : "—" }; })
       .sort((a, b) => b.r.date.localeCompare(a.r.date)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state.receipts, state.invoices, state.customers]);
-  const total = useMemo(() => rows.reduce((s, x) => s + x.r.amount, 0), [rows]);
+  const rows = useMemo(() => allRows.filter((x) => matchesQuery(q, x.customer, x.inv?.number, x.r.reference)), [allRows, q]);
+  const total = useMemo(() => allRows.reduce((s, x) => s + x.r.amount, 0), [allRows]);
 
   return (
     <Guard section="payments_in">
@@ -31,7 +34,10 @@ export default function PaymentsReceivedPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border px-4 py-3 font-semibold">All payments received</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <span className="font-semibold">All payments received</span>
+          <SearchBox value={q} onChange={setQ} placeholder="Search customer, invoice…" />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>

@@ -14,6 +14,7 @@ import { formatINR } from "@/book/lib/engine";
 import { canDo } from "@/book/lib/v2/rbac";
 import { flags } from "@/book/lib/flags";
 import { fieldsForEntity, validateFieldValue } from "@/book/lib/core/customFields";
+import { SearchBox, FilterChips, matchesQuery } from "@/book/components/v2/ListControls";
 import { customersToCsv, recordsToContactRows } from "@/book/lib/core/contacts";
 import type { Customer } from "@/book/lib/v2/types";
 
@@ -92,6 +93,14 @@ export default function CustomersPage() {
     invoiced: Math.round(rows.reduce((s, r) => s + r.invoiced, 0) * 100) / 100,
     received: Math.round(rows.reduce((s, r) => s + r.received, 0) * 100) / 100,
   }), [rows]);
+
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all");
+  const owingCount = useMemo(() => rows.filter((r) => r.outstanding > 0.005).length, [rows]);
+  const visibleRows = useMemo(() => rows.filter((r) => {
+    if (filter === "owing" && r.outstanding <= 0.005) return false;
+    return matchesQuery(q, r.name);
+  }), [rows, q, filter]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
@@ -177,7 +186,13 @@ export default function CustomersPage() {
       )}
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border px-4 py-3 font-semibold">All customers</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <FilterChips active={filter} onChange={setFilter} options={[
+            { value: "all", label: "All", count: rows.length },
+            { value: "owing", label: "With balance", count: owingCount },
+          ]} />
+          <SearchBox value={q} onChange={setQ} placeholder="Search customers…" />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
@@ -192,7 +207,7 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {visibleRows.map((r) => (
                 <tr key={r.id}
                   className={cn("cursor-pointer border-b border-border last:border-0 hover:bg-muted/60", selectedId === r.id && "bg-muted/60")}
                   onClick={() => setSelectedId((cur) => (cur === r.id ? null : r.id))}>
@@ -207,8 +222,8 @@ export default function CustomersPage() {
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No customers yet.</td></tr>
+              {visibleRows.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">{rows.length === 0 ? "No customers yet." : "No customers match."}</td></tr>
               )}
             </tbody>
           </table>

@@ -9,6 +9,7 @@ import { Plus, IndianRupee, Repeat, FileText } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card, cn } from "@/book/components/ui";
+import { SearchBox, FilterChips, matchesQuery } from "@/book/components/v2/ListControls";
 import { formatINR } from "@/book/lib/engine";
 import { canDo } from "@/book/lib/v2/rbac";
 import { arAgingFromState } from "@/book/lib/core/documentPostings";
@@ -48,7 +49,24 @@ export default function InvoicesPage() {
 
   const customerName = (id: string) => state.customers.find((c) => c.id === id)?.name ?? "—";
   const outstanding = useMemo(() => agingTotal(arAgingFromState(state, new Date().toISOString().slice(0, 10))), [state]);
-  const invoices = useMemo(() => [...state.invoices].reverse(), [state.invoices]);
+
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("all");
+  const allInvoices = useMemo(() => [...state.invoices].reverse(), [state.invoices]);
+  const isOverdue = (inv: (typeof allInvoices)[number]) => inv.status !== "paid" && inv.dueDate < today;
+  const counts = useMemo(() => ({
+    all: allInvoices.length,
+    open: allInvoices.filter((i) => i.status === "open").length,
+    overdue: allInvoices.filter(isOverdue).length,
+    partial: allInvoices.filter((i) => i.status === "partial").length,
+    paid: allInvoices.filter((i) => i.status === "paid").length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [allInvoices]);
+  const invoices = useMemo(() => allInvoices.filter((inv) => {
+    if (status === "overdue" ? !isOverdue(inv) : status !== "all" && inv.status !== status) return false;
+    return matchesQuery(q, inv.number, customerName(inv.customerId), inv.notes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [allInvoices, q, status]);
 
   return (
     <Guard section="invoices">
@@ -68,7 +86,20 @@ export default function InvoicesPage() {
       {adding && <NewInvoice onClose={() => setAdding(false)} />}
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border px-4 py-3 font-semibold">All invoices</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <FilterChips
+            active={status}
+            onChange={setStatus}
+            options={[
+              { value: "all", label: "All", count: counts.all },
+              { value: "open", label: "Open", count: counts.open },
+              { value: "overdue", label: "Overdue", count: counts.overdue },
+              { value: "partial", label: "Partial", count: counts.partial },
+              { value: "paid", label: "Paid", count: counts.paid },
+            ]}
+          />
+          <SearchBox value={q} onChange={setQ} placeholder="Search invoice # or customer…" />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
@@ -143,7 +174,7 @@ export default function InvoicesPage() {
                 </tr>
               ))}
               {invoices.length === 0 && (
-                <tr><td colSpan={canManage ? 8 : 7} className="px-4 py-10 text-center text-muted-foreground">No invoices yet.</td></tr>
+                <tr><td colSpan={canManage ? 8 : 7} className="px-4 py-10 text-center text-muted-foreground">{allInvoices.length === 0 ? "No invoices yet." : "No invoices match your search."}</td></tr>
               )}
             </tbody>
           </table>

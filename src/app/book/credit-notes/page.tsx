@@ -1,22 +1,27 @@
 "use client";
 /** Credit Notes (Zoho-style) — customer credits applied against invoices. */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Card } from "@/book/components/ui";
 import { formatINR } from "@/book/lib/engine";
+import { SearchBox, matchesQuery } from "@/book/components/v2/ListControls";
 
 export default function CreditNotesPage() {
   const { state } = useV2();
+  const [q, setQ] = useState("");
   const invoiceOf = (id: string) => state.invoices.find((i) => i.id === id);
   const customerName = (cid: string) => state.customers.find((c) => c.id === cid)?.name ?? "—";
 
-  const rows = useMemo(() =>
+  const allRows = useMemo(() =>
     [...(state.creditNotes ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
     [state.creditNotes]);
-  const total = useMemo(() => rows.reduce((s, c) => s + c.amount, 0), [rows]);
+  const rows = useMemo(() => allRows.filter((c) => matchesQuery(q, c.number, customerName(c.customerId), invoiceOf(c.invoiceId)?.number, c.reason)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRows, q]);
+  const total = useMemo(() => allRows.reduce((s, c) => s + c.amount, 0), [allRows]);
 
   return (
     <Guard section="credit_notes">
@@ -28,7 +33,10 @@ export default function CreditNotesPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border px-4 py-3 font-semibold">All credit notes</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <span className="font-semibold">All credit notes</span>
+          <SearchBox value={q} onChange={setQ} placeholder="Search CN #, customer…" />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
