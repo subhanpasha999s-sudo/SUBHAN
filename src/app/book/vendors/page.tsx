@@ -1,6 +1,6 @@
 "use client";
 /** Vendors (V4 §6b) — manage vendor master for reuse on purchase bills. */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Store, Download, Upload } from "lucide-react";
 import Papa from "papaparse";
 import { useV2 } from "@/book/lib/v2/store";
@@ -24,6 +24,9 @@ export default function VendorsPage() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", gstin: "", address: "", contact: "" });
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") setAdding(true);
+  }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onImportFile(file: File) {

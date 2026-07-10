@@ -4,7 +4,7 @@
  * a per-customer statement: invoices (debits) and receipts (credits) in date
  * order with a running balance — the classic ledger-style account statement.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, FileText, Download, Upload, Pencil } from "lucide-react";
 import Papa from "papaparse";
 import { useV2 } from "@/book/lib/v2/store";
@@ -49,6 +49,9 @@ export default function CustomersPage() {
   const { state, actions, me } = useV2();
   const canManage = canDo(me.role, "manage_invoices");
   const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    if (canManage && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") setAdding(true);
+  }, [canManage]);
   const [name, setName] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);

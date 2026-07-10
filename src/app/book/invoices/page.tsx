@@ -9,7 +9,7 @@ import { Plus, IndianRupee, Repeat, FileText } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
 import { Badge, Button, Card, cn } from "@/book/components/ui";
-import { SearchBox, FilterChips, matchesQuery } from "@/book/components/v2/ListControls";
+import { SearchBox, FilterChips, matchesQuery, useSort, SortHeader } from "@/book/components/v2/ListControls";
 import { formatINR } from "@/book/lib/engine";
 import { canDo } from "@/book/lib/v2/rbac";
 import { arAgingFromState } from "@/book/lib/core/documentPostings";
@@ -29,6 +29,11 @@ export default function InvoicesPage() {
     actions.runRecurringInvoices();
     actions.runPaymentReminders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManage]);
+
+  // Global quick-create deep-link (?new=1 opens the form).
+  useEffect(() => {
+    if (canManage && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") setAdding(true);
   }, [canManage]);
 
   async function downloadPdf(inv: (typeof state.invoices)[number]) {
@@ -62,11 +67,23 @@ export default function InvoicesPage() {
     paid: allInvoices.filter((i) => i.status === "paid").length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [allInvoices]);
-  const invoices = useMemo(() => allInvoices.filter((inv) => {
-    if (status === "overdue" ? !isOverdue(inv) : status !== "all" && inv.status !== status) return false;
-    return matchesQuery(q, inv.number, customerName(inv.customerId), inv.notes);
+  const sort = useSort<(typeof allInvoices)[number]>("date", "desc");
+  const invoices = useMemo(() => {
+    const filtered = allInvoices.filter((inv) => {
+      if (status === "overdue" ? !isOverdue(inv) : status !== "all" && inv.status !== status) return false;
+      return matchesQuery(q, inv.number, customerName(inv.customerId), inv.notes);
+    });
+    return sort.sort(filtered, {
+      number: (i) => i.number || i.id,
+      customer: (i) => customerName(i.customerId).toLowerCase(),
+      date: (i) => i.invoiceDate,
+      due: (i) => i.dueDate,
+      amount: (i) => i.amount,
+      paid: (i) => i.amountPaid,
+      status: (i) => i.status,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [allInvoices, q, status]);
+  }, [allInvoices, q, status, sort.key, sort.dir]);
 
   return (
     <Guard section="invoices">
@@ -104,13 +121,13 @@ export default function InvoicesPage() {
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-3 py-2">Invoice</th>
-                <th className="px-3 py-2">Customer</th>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Due</th>
-                <th className="px-3 py-2 text-right">Amount</th>
-                <th className="px-3 py-2 text-right">Paid</th>
-                <th className="px-3 py-2">Status</th>
+                <SortHeader label="Invoice" sortKey="number" active={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                <SortHeader label="Customer" sortKey="customer" active={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                <SortHeader label="Date" sortKey="date" active={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                <SortHeader label="Due" sortKey="due" active={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                <SortHeader label="Amount" sortKey="amount" active={sort.key} dir={sort.dir} onSort={sort.toggle} align="right" />
+                <SortHeader label="Paid" sortKey="paid" active={sort.key} dir={sort.dir} onSort={sort.toggle} align="right" />
+                <SortHeader label="Status" sortKey="status" active={sort.key} dir={sort.dir} onSort={sort.toggle} />
                 {canManage && <th className="px-3 py-2" />}
               </tr>
             </thead>

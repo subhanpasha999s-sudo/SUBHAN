@@ -1,6 +1,6 @@
 "use client";
 /** Purchases — stock IN with weighted-average COGS updates + supplier list. */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, ClipboardList, Trash2 } from "lucide-react";
 import { useV2 } from "@/book/lib/v2/store";
 import { Guard, PageHeader, fmtDate } from "@/book/components/v2/common";
@@ -15,6 +15,9 @@ import BillForm from "@/book/components/v2/BillForm";
 export default function PurchasesPage() {
   const { state, me, actions } = useV2();
   const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") setAdding(true);
+  }, []);
   const canPay = canDo(me.role, "record_payment");
   const apOutstanding = useMemo(
     () => state.purchases.reduce((s, p) => s + (p.paymentStatus === "paid" ? 0 : p.totalAmount - (p.amountPaid ?? 0) - (p.amountCredited ?? 0)), 0),
