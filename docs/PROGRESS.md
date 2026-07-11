@@ -354,6 +354,23 @@ functions in a proper accounting-suite structure.
 - Known limit: staff role changes need a re-invite (no member-role editor yet);
   invite emails are share-a-link, not sent by the app.
 
+## OTP verification at login + staff join (2026-07-05) ✅
+- Migration 024 (applied + probe-verified): accept_org_invite refuses accounts
+  whose email_confirmed_at is null — an unverified account can NEVER join a
+  workspace, regardless of login path (server-enforced; helpful error tells
+  them to sign in via OTP). Probe: unverified → rejected; verified → joins.
+- /book/join rebuilt as an OTP-verified two-step: Step 1 enter YOUR email →
+  send one-time code → verify 6-digit (signInWithOtp/verifyOtp, account
+  auto-created); Step 2 (locked until verified) redeem the invite code.
+  Browser-verified: steps render, code prefills, Join locked until verified.
+- /login: OTP_ONLY_LOGIN=true in login-view — the password tab is hidden and
+  the email one-time code is the only sign-in method (flip the const to
+  restore). The Book sidebar login was already the OTP-only modal.
+- Verification note: /login's card is client-rendered and the dev preview's
+  value-first mode redirects /login into the app, so the hidden-password-tab
+  state is verified by code + typecheck, not screenshot. OTP send/verify
+  itself is the pre-existing, in-production flow (value-first modal).
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

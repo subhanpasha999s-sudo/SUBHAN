@@ -74,6 +74,13 @@ function shouldStayOnLoginPage(searchParams: URLSearchParams): boolean {
 
 type AuthMethod = "otp" | "password";
 
+/**
+ * When true, the email one-time code is the ONLY sign-in method — every login
+ * (owner or staff) verifies an OTP; the password tab is hidden. Flip to false
+ * to restore the password option.
+ */
+const OTP_ONLY_LOGIN = true;
+
 function readLastMethod(): AuthMethod {
   if (typeof window === "undefined") return "otp";
   try {
@@ -258,6 +265,11 @@ export function LoginView() {
                   </span>
                 </div>
               </div>
+              {OTP_ONLY_LOGIN ? (
+                /* OTP is the only sign-in method: every login verifies a
+                   one-time email code — no password bypass. */
+                <OtpLoginPanel redirectTo={nextPath} />
+              ) : (
               <Tabs value={tab} onValueChange={handleTabChange} className="gap-5">
                 <TabsList className="grid h-auto w-full grid-cols-2 gap-0 rounded-lg bg-muted/40 p-1">
                   <TabsTrigger value="otp" className="min-h-11 text-[13px]">
@@ -279,6 +291,7 @@ export function LoginView() {
                   />
                 </TabsContent>
               </Tabs>
+              )}
 
               <div className="pt-2">
                 <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
