@@ -22,4 +22,6 @@ export const flags = {
   customFields: true,
   /** Phase 10: public REST API + key management. */
   publicApi: true,
+  /** Staff logins: role-scoped invite codes + shared workspace access. */
+  staffLogin: true,
 } as const;

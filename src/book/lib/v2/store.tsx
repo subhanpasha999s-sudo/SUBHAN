@@ -41,7 +41,7 @@ import { loadBookState, saveBookState, isBookAuthed } from "@/book/lib/bookState
 import {
   AppNotification, BankAccount, BillPayment, CategorizationRule, Claim, CreditNote, Customer, Estimate, Invoice,
   Receipt, RecurringInvoice, PurchaseOrder, VendorCredit,
-  Org, OrgUser, Purchase, ReturnsQueueItem, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
+  Org, OrgUser, Purchase, ReturnsQueueItem, Role, SavedBankMapping, Sku, StagedBankTxn, StoredBankTxn,
   StoredExpense, UploadRecord, V2State, Vendor,
 } from "./types";
 
@@ -224,6 +224,8 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<V2State | null>(null);
   const [persistError, setPersistError] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>("off");
+  /** Set when this session is a STAFF member in a shared workspace. */
+  const [staff, setStaff] = useState<{ role: Role; email?: string } | null>(null);
   const stateRef = useRef<V2State | null>(null);
   stateRef.current = state;
   // Gates cloud writes until we've read the cloud once — so a fresh/empty local
@@ -259,7 +261,10 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         if (remote) {
           // merge over current defaults so newly-added V2State fields exist
-          setState(heal({ ...buildEmptyState(), ...remote }));
+          setState(heal({ ...buildEmptyState(), ...remote.state }));
+          // Staff session: role + identity come from the org membership, not
+          // the blob's demo users — real permissions for real logins.
+          setStaff(remote.shared ? { role: remote.shared.myRole, email: remote.shared.myEmail } : null);
           setCloudStatus("saved");
         } else if (await isBookAuthed()) {
           const res = await saveBookState(local);
@@ -294,7 +299,11 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => {
     if (!state) return null;
-    const me = state.users.find((u) => u.id === state.currentUserId) ?? state.users[0];
+    const blobMe = state.users.find((u) => u.id === state.currentUserId) ?? state.users[0];
+    // Staff login: identity + role from the org membership beat the demo user.
+    const me: OrgUser = staff
+      ? { id: "staff-session", name: staff.email ?? "Staff member", email: staff.email, role: staff.role, active: true }
+      : blobMe;
 
     const audit = (action: string, entity: string, entityId: string, details?: string) => ({
       at: new Date().toISOString(), actor: me.name, action, entity, entityId, details,
@@ -1463,7 +1472,7 @@ export function V2Provider({ children }: { children: React.ReactNode }) {
     };
 
     return { state, me, actions };
-  }, [state]);
+  }, [state, staff]);
 
   if (!value) {
     return (

@@ -332,6 +332,28 @@ functions in a proper accounting-suite structure.
 - Next: Sales Orders / Purchase Orders list screens, custom-account creation on
   the Chart of Accounts screen, consistent list layout across entities.
 
+## Staff logins (2026-07-05) ✅
+- Migration 023 (applied + probe-verified): book_state.org_id links the
+  workspace to the org; permissive RLS policies let org members read/update
+  the owner's workspace row; org_invites table (role-scoped, 14-day expiry,
+  single-use, owner-role invites blocked by RLS); accept_org_invite RPC
+  (SECURITY DEFINER — joiner isn't a member yet; records member email).
+- bookStateRemote rewritten: workspace resolution (own row → shared org row),
+  staff saves update the owner's row in place (never fork their own), owner
+  saves link org_id via ensure_org; staff helpers (listOrgStaff,
+  createStaffInvite, revokeStaffInvite, joinWithInviteCode).
+- Store: staff sessions override `me` with the membership role + email — 
+  guard()/RBAC enforce real permissions for real logins.
+- UI: /book/join (code prefill via ?code= link, gated until sign-in) +
+  Settings → "Staff access (real logins)" card (generate/copy code + join
+  link, members list, pending invites with revoke). Flag staffLogin.
+- DB probe (rolled back): staff sees nothing before join; bad/used codes
+  rejected; join grants role (accountant) + email; staff reads AND updates
+  the owner's row; outsiders see/update nothing; owner-role invite blocked.
+- Browser-verified: join page prefill + sign-in gating; team card roles/gate.
+- Known limit: staff role changes need a re-invite (no member-role editor yet);
+  invite emails are share-a-link, not sent by the app.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**
