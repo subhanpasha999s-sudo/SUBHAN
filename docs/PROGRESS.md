@@ -371,6 +371,22 @@ functions in a proper accounting-suite structure.
   state is verified by code + typecheck, not screenshot. OTP send/verify
   itself is the pre-existing, in-production flow (value-first modal).
 
+## Declutter + navigation + roadmap (2026-07-06) ✅
+- Cleaner IA: Sales now holds only B2B documents (Customers, Invoices,
+  Payments Received, Credit Notes); the entire Meesho world consolidates
+  under Marketplace (Import & Connect, Orders, Settlements, Reconciliation,
+  Returns & QC) — one mental model per module.
+- Discoverable search: a "Search anything… ⌘K" button in the sidebar opens
+  the existing command palette (custom book:open-search event).
+- "What's next" page (/book/roadmap, all roles): recently shipped + coming
+  next (Flipkart/Amazon packs, member-role editor, e-invoicing, recurring
+  bills, warehouses, webhooks) with eta badges; linked unobtrusively from
+  the sidebar footer next to the theme toggle.
+- Browser-verified: roadmap renders both columns, search button + footer
+  link present, Marketplace group present. Palette-open click not verified
+  (browser tooling outage) — wiring is a one-line event dispatch, typechecked.
+- Suite: 154 tests green.
+
 - **Operator answers (2026-07-02):**
   (a) Tax pack: **India GST, regular scheme only** (composition deferred).
   (b) Active data sources locked byte-for-byte: **order CSV + payment XLSX**

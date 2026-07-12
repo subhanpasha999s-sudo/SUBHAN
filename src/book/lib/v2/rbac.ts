@@ -9,7 +9,7 @@ export type AppSection =
   | "dashboard" | "orders" | "settlements" | "inventory" | "purchases"
   | "returns" | "expenses" | "pnl" | "analytics" | "gst" | "team"
   | "integrations" | "mapping" | "vendors" | "reconciliation" | "reports" | "bank" | "ledger" | "invoices" | "customers" | "matching" | "gl" | "coa"
-  | "payments_in" | "payments_out" | "credit_notes" | "join" | "tulmin";
+  | "payments_in" | "payments_out" | "credit_notes" | "join" | "roadmap" | "tulmin";
 
 const FINANCIAL_READ: Role[] = ["owner", "manager", "accountant", "viewer"];
 
@@ -41,6 +41,7 @@ export const SECTION_ACCESS: Record<AppSection, Role[]> = {
   payments_out: ["owner", "manager", "accountant", "viewer"],
   credit_notes: ["owner", "manager", "accountant", "viewer"],
   join: ["owner", "manager", "returns_manager", "accountant", "viewer"],
+  roadmap: ["owner", "manager", "returns_manager", "accountant", "viewer"],
   tulmin:  ["owner", "manager", "returns_manager", "accountant", "viewer"],
 };
 

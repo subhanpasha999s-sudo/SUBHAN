@@ -65,13 +65,12 @@ const NAV: NavEntry[] = [
     { section: "matching", href: "/book/matching", label: "Reconcile & Match", icon: GitCompare },
   ] },
 
+  // Sales = B2B documents only; everything marketplace lives under Marketplace.
   { label: "Sales", icon: Store, children: [
     { section: "customers", href: "/book/customers", label: "Customers", icon: Users },
     { section: "invoices", href: "/book/invoices", label: "Invoices", icon: Receipt },
     { section: "payments_in", href: "/book/payments-received", label: "Payments Received", icon: IndianRupee },
     { section: "credit_notes", href: "/book/credit-notes", label: "Credit Notes", icon: FileSpreadsheet },
-    { section: "orders", href: "/book/orders", label: "Sales Orders", icon: ListOrdered },
-    { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
 
   { label: "Purchases", icon: ShoppingCart, children: [
@@ -95,11 +94,13 @@ const NAV: NavEntry[] = [
 
   { section: "gst", href: "/book/gst", label: "GST", icon: FileSpreadsheet },
 
-  // The differentiator — marketplace ingestion, settlement & payout reconciliation.
+  // The differentiator — the whole Meesho world in one place.
   { label: "Marketplace", icon: Store, children: [
     { section: "integrations", href: "/book/integrations", label: "Import & Connect", icon: Link2 },
+    { section: "orders", href: "/book/orders", label: "Orders", icon: ListOrdered },
     { section: "settlements", href: "/book/settlements", label: "Settlements", icon: Timer },
     { section: "reconciliation", href: "/book/reconciliation", label: "Reconciliation", icon: GitCompare },
+    { section: "returns", href: "/book/returns", label: "Returns & QC", icon: RotateCcw },
   ] },
 
   { section: "team", href: "/book/team", label: "Settings", icon: Settings },
@@ -159,8 +160,14 @@ function CommandK() {
       }
       if (e.key === "Escape") setOpen(false);
     };
+    // the sidebar's Search button opens the palette without the shortcut
+    const onOpen = () => { setOpen(true); setQ(""); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("book:open-search", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("book:open-search", onOpen);
+    };
   }, []);
 
   const results = useMemo(() => {
@@ -548,13 +555,22 @@ function ShellFooter({
   return (
     <div className="space-y-2 border-t border-border p-3">
       <AccountBox />
-      <button
-        onClick={toggleTheme}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
-      >
-        {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        {dark ? "Light mode" : "Dark mode"}
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={toggleTheme}
+          className="flex flex-1 items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
+        >
+          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {dark ? "Light mode" : "Dark mode"}
+        </button>
+        <Link
+          href="/book/roadmap"
+          title="What's next — recently shipped & coming soon"
+          className="rounded-xl px-3 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          What&apos;s next
+        </Link>
+      </div>
       <div className="rounded-xl bg-muted p-3">
         <p className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           <Settings className="h-3 w-3" /> {state.users.length > 1 ? "Viewing as" : "Account"}
@@ -822,7 +838,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <AccountIconButton />
           <div className="shrink-0"><NotificationBell /></div>
         </div>
-        <div className="px-3 pb-2"><QuickCreate /></div>
+        <div className="space-y-1.5 px-3 pb-2">
+          <QuickCreate />
+          <button
+            onClick={() => window.dispatchEvent(new Event("book:open-search"))}
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Search className="h-4 w-4" /> Search anything…
+            <kbd className="ml-auto rounded bg-muted px-1.5 text-[10px]">⌘K</kbd>
+          </button>
+        </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
           <NavList visible={visible} activePath={activePath} onNavigate={navigateTo} />
         </nav>
